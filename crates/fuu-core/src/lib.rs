@@ -5,6 +5,7 @@ pub mod config;
 pub mod engine;
 pub mod imap;
 pub mod secrets;
+pub mod tls;
 
 pub use fuu_parser::{MessageParser, ParseLimits};
 pub use fuu_sanitiser::DOCUMENT_CSP;

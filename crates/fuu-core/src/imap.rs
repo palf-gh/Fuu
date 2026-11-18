@@ -2,7 +2,6 @@
 //! in, list folders and fetch message summaries.
 
 use std::pin::Pin;
-use std::sync::{Arc, OnceLock};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
@@ -97,15 +96,9 @@ impl AsyncWrite for Stream {
 
 pub type ImapSession = Session<Stream>;
 
-/// TLS configuration verifying certificates against the OS trust store.
+/// TLS connector verifying certificates (OS trust store, Mozilla roots fallback).
 fn tls_connector() -> Result<TlsConnector, ImapError> {
-    static CONFIG: OnceLock<Result<Arc<rustls::ClientConfig>, String>> = OnceLock::new();
-    let config = CONFIG.get_or_init(|| {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-        use rustls_platform_verifier::ConfigVerifierExt;
-        rustls::ClientConfig::with_platform_verifier().map(Arc::new).map_err(|e| e.to_string())
-    });
-    config.clone().map(TlsConnector::from).map_err(ImapError::Tls)
+    crate::tls::client_config().map(TlsConnector::from).map_err(ImapError::Tls)
 }
 
 async fn tcp(server: &ServerConfig) -> Result<TcpStream, ImapError> {
