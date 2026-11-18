@@ -23,6 +23,12 @@ export struct MessageRow {
     avatar: int,
 }
 
+export struct AttachmentItem {
+    name: string,
+    size: string,
+    executable: bool,
+}
+
 export struct TabItem {
     title: string,
     kind: int,   // 0 mail, 1 compose, 2 settings
@@ -160,7 +166,11 @@ export component AppWindow inherits Window {
     in property <string> reader-subject;
     in property <string> reader-name;
     in property <string> reader-address;
-    in property <string> reader-to: "自分";
+    in property <string> reader-to;
+    in property <string> reader-cc;
+    in property <[AttachmentItem]> attachments;
+    in property <bool> remote-blocked;
+    in-out property <string> exec-warning;
     in property <string> reader-initials;
     in property <int> reader-avatar;
     in property <string> reader-date;
@@ -288,6 +298,9 @@ export component AppWindow inherits Window {
     callback open-account-setup();
     // Rust closes the setup tab once the account has been added.
     callback setup-finished();
+    callback body-ready();
+    callback message-moved(string, string, int);
+    callback save-attachment(int, bool);
     callback setup-email-edited(string);
     callback setup-submit();
     callback select-account(int);
@@ -586,6 +599,49 @@ export component AppWindow inherits Window {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+
+                if root.has-message && !root.composing && (root.reader-to != "" || root.attachments.length > 0 || root.remote-blocked): VerticalLayout {
+                    padding-left: 40px;
+                    padding-right: 40px;
+                    padding-bottom: 12px;
+                    spacing: 8px;
+                    if root.reader-to != "": Text {
+                        text: "宛先: " + root.reader-to + (root.reader-cc != "" ? "　CC: " + root.reader-cc : "");
+                        font-size: Theme.font-s;
+                        color: Theme.text-faint;
+                        overflow: elide;
+                    }
+                    if root.attachments.length > 0: HorizontalLayout {
+                        spacing: 6px;
+                        alignment: start;
+                        for attachment[i] in root.attachments: Rectangle {
+                            height: 30px;
+                            width: min(240px, chip-row.preferred-width);
+                            border-radius: Theme.radius-m;
+                            background: chip-area.has-hover ? Theme.hover : Theme.field;
+                            chip-area := TouchArea { clicked => { root.save-attachment(i, attachment.executable); } }
+                            chip-row := HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                spacing: 6px;
+                                Icon { source: @image-url("icons/paperclip.svg"); width: 13px; height: 13px; y: (parent.height - self.height) / 2; tint: attachment.executable ? Theme.close-hover : Theme.text-faint; }
+                                Text { text: attachment.name; font-size: Theme.font-s; color: Theme.text; vertical-alignment: center; overflow: elide; }
+                                Text { text: attachment.size; font-size: Theme.font-xs; color: Theme.text-faint; vertical-alignment: center; }
+                            }
+                        }
+                    }
+                    if root.remote-blocked: Rectangle {
+                        height: 30px;
+                        border-radius: Theme.radius-m;
+                        background: Theme.field;
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            spacing: 8px;
+                            Icon { source: @image-url("icons/shield.svg"); width: 14px; height: 14px; y: (parent.height - self.height) / 2; }
+                            Text { text: "外部画像をブロックしました（送信者に開封を知られないため）"; font-size: Theme.font-s; color: Theme.text-muted; vertical-alignment: center; }
                         }
                     }
                 }
@@ -908,6 +964,15 @@ export component AppWindow inherits Window {
         confirm-label: "ブラウザで開く";
         confirmed => { root.link-dialog-open = false; root.link-confirmed(); }
         cancelled => { root.link-dialog-open = false; }
+    }
+
+    if root.exec-warning != "": Dialog {
+        title: "実行ファイルの可能性があります";
+        body: "開くとプログラムが実行される種類のファイルです。差出人に心当たりがない場合は保存しないでください。";
+        detail: root.exec-warning;
+        confirm-label: "それでも保存";
+        confirmed => { root.exec-warning = ""; root.save-attachment(-1, false); }
+        cancelled => { root.exec-warning = ""; }
     }
 
     if root.info-dialog-open: Dialog {

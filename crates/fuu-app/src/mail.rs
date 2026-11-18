@@ -1,20 +1,26 @@
 //! Bridge between the mail engine (fuu-core) and the UI: accounts, folders, the
-//! message list and the account-setup form. Everything here runs on the UI thread.
+//! message list, message bodies and the account-setup form. Everything here runs
+//! on the UI thread.
 
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use chrono::{Datelike, Local, TimeZone};
 use fuu_core::account::{self, Account, AuthKind, Security, ServerConfig};
-use fuu_core::engine::{Command, Engine, Event};
+use fuu_core::engine::{Command, Engine, Event, MoveTarget};
 use fuu_core::imap::{Folder, FolderRole, MessageSummary};
 use fuu_core::secrets::KeychainStore;
-use fuu_model::{ManifestEntry, ResourceManifest, SafeDocument};
+use fuu_model::{Address, Attachment, ManifestEntry, ResourceManifest, SafeDocument};
+use fuu_parser::mailparser::{self, MailParserEngine};
+use fuu_parser::{MessageParser, ParseLimits};
+use fuu_sanitiser::filename;
 use fuu_sanitiser::escape_html;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use crate::tabs::MessageRef;
-use crate::{avatar_index, AccountItem, AppWindow, FolderItem, MessageRow};
+use crate::{avatar_index, AccountItem, AppWindow, AttachmentItem, FolderItem, MessageRow};
 
 #[derive(Default)]
 pub struct AppData {
@@ -28,6 +34,138 @@ pub struct AppData {
     pub summaries: Vec<MessageSummary>,
     /// Whether the setup form's server fields were filled automatically.
     setup_auto: bool,
+    /// Parsed and sanitised bodies by (account, folder, uid).
+    pub bodies: HashMap<(String, String, u32), Rc<Body>>,
+    /// Bodies requested from the engine and not yet delivered.
+    pending: Vec<(String, String, u32)>,
+    /// Last body failure per message, shown instead of the body.
+    failures: HashMap<(String, String, u32), String>,
+}
+
+/// A message body ready for display.
+pub struct Body {
+    pub doc: SafeDocument,
+    pub attachments: Vec<Attachment>,
+    pub raw: Arc<Vec<u8>>,
+    pub to: String,
+    pub cc: String,
+}
+
+fn key(r: &MessageRef) -> (String, String, u32) {
+    (r.account_id.clone(), r.folder.clone(), r.uid)
+}
+
+fn addresses_text(list: &[Address]) -> String {
+    list.iter()
+        .map(|a| match &a.name {
+            Some(n) => format!("{n} <{}>", a.email),
+            None => a.email.clone(),
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn process(raw: Arc<Vec<u8>>) -> Body {
+    match MailParserEngine.parse(&raw, &ParseLimits::default()) {
+        Ok(message) => Body {
+            doc: fuu_sanitiser::sanitise(&message),
+            attachments: message.attachments.clone(),
+            to: addresses_text(&message.headers.to),
+            cc: addresses_text(&message.headers.cc),
+            raw,
+        },
+        Err(e) => Body {
+            doc: notice_document(&format!("このメールは表示できません（{e}）。")),
+            attachments: Vec::new(),
+            to: String::new(),
+            cc: String::new(),
+            raw,
+        },
+    }
+}
+
+/// A quiet one-line document (loading, errors).
+pub fn notice_document(text: &str) -> SafeDocument {
+    let html = format!(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><style>:root{{color-scheme:light dark}}body{{font:14px/1.7 system-ui,'Segoe UI','Hiragino Sans','Yu Gothic UI',sans-serif;margin:6px 40px 48px;opacity:.55}}</style></head><body><p>{}</p></body></html>",
+        escape_html(text)
+    );
+    SafeDocument { html, text: text.to_owned(), resources: ResourceManifest::default(), flags: Default::default() }
+}
+
+/// The body for a message tab: cached, failed, or requested now (loading).
+pub fn body_or_request(r: &MessageRef) -> Result<Rc<Body>, SafeDocument> {
+    let k = key(r);
+    if let Some(body) = DATA.with(|d| d.borrow().bodies.get(&k).cloned()) {
+        return Ok(body);
+    }
+    if let Some(message) = DATA.with(|d| d.borrow().failures.get(&k).cloned()) {
+        return Err(notice_document(&message));
+    }
+    let already = DATA.with(|d| d.borrow().pending.contains(&k));
+    if !already {
+        DATA.with(|d| d.borrow_mut().pending.push(k.clone()));
+        send(Command::FetchBody { account_id: k.0, folder: k.1, uid: k.2 });
+    }
+    Err(notice_document("読み込み中…"))
+}
+
+pub fn attachment_items(body: &Body) -> Vec<AttachmentItem> {
+    body.attachments
+        .iter()
+        .map(|a| AttachmentItem {
+            name: filename::sanitise_file_name(&a.file_name).into(),
+            size: human_size(a.size).into(),
+            executable: filename::is_executable(&a.file_name),
+        })
+        .collect()
+}
+
+fn human_size(bytes: u64) -> String {
+    match bytes {
+        b if b < 1024 => format!("{b} B"),
+        b if b < 1024 * 1024 => format!("{:.0} KB", b as f64 / 1024.0),
+        b => format!("{:.1} MB", b as f64 / (1024.0 * 1024.0)),
+    }
+}
+
+/// Ask where to save an attachment and write it, marked as downloaded from the
+/// internet so the OS applies its usual protections.
+pub fn save_attachment(r: &MessageRef, index: usize) -> Result<Option<String>, String> {
+    let Some(body) = DATA.with(|d| d.borrow().bodies.get(&key(r)).cloned()) else { return Ok(None) };
+    let Some(attachment) = body.attachments.get(index) else { return Ok(None) };
+    let name = filename::sanitise_file_name(&attachment.file_name);
+    let Some(path) = rfd::FileDialog::new().set_file_name(&name).save_file() else { return Ok(None) };
+    let bytes = mailparser::attachment_bytes(&body.raw, attachment.part_index).ok_or("添付ファイルを取り出せませんでした")?;
+    std::fs::write(&path, bytes).map_err(|e| format!("保存できませんでした: {e}"))?;
+    mark_downloaded(&path);
+    Ok(Some(path.display().to_string()))
+}
+
+#[cfg(windows)]
+fn mark_downloaded(path: &std::path::Path) {
+    // Mark-of-the-Web: Zone 3 (Internet) in the Zone.Identifier stream.
+    let stream = format!("{}:Zone.Identifier", path.display());
+    let _ = std::fs::write(stream, "[ZoneTransfer]\r\nZoneId=3\r\n");
+}
+
+#[cfg(target_os = "macos")]
+fn mark_downloaded(path: &std::path::Path) {
+    // Quarantine attribute, as browsers set it.
+    let _ = std::process::Command::new("xattr")
+        .args(["-w", "com.apple.quarantine", "0081;00000000;Fuu;"])
+        .arg(path)
+        .status();
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn mark_downloaded(_path: &std::path::Path) {}
+
+pub fn move_message(r: &MessageRef, target: MoveTarget) {
+    if is_spike() {
+        return;
+    }
+    send(Command::Move { account_id: r.account_id.clone(), folder: r.folder.clone(), uid: r.uid, target });
 }
 
 thread_local! {
@@ -153,6 +291,49 @@ fn handle(ui: &AppWindow, event: Event) {
             });
             ui.set_list_busy(false);
             ui.set_list_message(if empty { "メールはありません".into() } else { SharedString::default() });
+        }
+        Event::Body { account_id, folder, uid, raw } => {
+            let k = (account_id, folder, uid);
+            let body = Rc::new(process(raw));
+            DATA.with(|d| {
+                let mut d = d.borrow_mut();
+                d.pending.retain(|p| p != &k);
+                d.failures.remove(&k);
+                d.bodies.insert(k, body);
+            });
+            ui.invoke_body_ready();
+        }
+        Event::BodyFailed { account_id, folder, uid, message } => {
+            let k = (account_id, folder, uid);
+            DATA.with(|d| {
+                let mut d = d.borrow_mut();
+                d.pending.retain(|p| p != &k);
+                d.failures.insert(k, format!("本文を読み込めませんでした: {message}"));
+            });
+            ui.invoke_body_ready();
+        }
+        Event::Moved { account_id, folder, uid, target } => {
+            let removed_row = DATA.with(|d| {
+                let mut d = d.borrow_mut();
+                d.bodies.remove(&(account_id.clone(), folder.clone(), uid));
+                if d.active.as_deref() == Some(account_id.as_str()) && d.folder == folder {
+                    let row = d.summaries.iter().position(|m| m.uid == uid);
+                    if let Some(row) = row {
+                        d.summaries.remove(row);
+                    }
+                    row
+                } else {
+                    None
+                }
+            });
+            if let Some(row) = removed_row {
+                if let Some(vec) = ui.get_messages().as_any().downcast_ref::<VecModel<MessageRow>>() {
+                    vec.remove(row);
+                }
+            }
+            let what = if target == MoveTarget::Trash { "ゴミ箱に移動しました" } else { "アーカイブしました" };
+            ui.set_feed_summary(what.into());
+            ui.invoke_message_moved(account_id.into(), folder.into(), uid as i32);
         }
         Event::Status(text) => ui.set_feed_summary(text.into()),
         Event::Error(message) => {

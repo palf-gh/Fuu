@@ -395,6 +395,10 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
     ui.set_setup_open(false);
     ui.set_current_row(-1);
     ui.set_has_message(false);
+    ui.set_reader_to(SharedString::default());
+    ui.set_reader_cc(SharedString::default());
+    ui.set_attachments(ModelRc::new(VecModel::<AttachmentItem>::default()));
+    ui.set_remote_blocked(false);
     let doc = match content {
         None => None,
         Some(TabContent::Message(r)) => Some(show_message(ui, &r)),
@@ -452,9 +456,17 @@ fn show_message(ui: &AppWindow, r: &MessageRef) -> SafeDocument {
     let subject = if r.subject.trim().is_empty() { "（件名なし）" } else { r.subject.as_str() };
     set_reader_header(ui, subject, name, &r.from_email, &r.date_text);
     if mail::is_spike() {
-        samples::message_document(r.row, &r.subject)
-    } else {
-        mail::placeholder_document(r)
+        return samples::message_document(r.row, &r.subject);
+    }
+    match mail::body_or_request(r) {
+        Ok(body) => {
+            ui.set_reader_to(body.to.clone().into());
+            ui.set_reader_cc(body.cc.clone().into());
+            ui.set_attachments(ModelRc::new(VecModel::from(mail::attachment_items(&body))));
+            ui.set_remote_blocked(body.doc.flags.remote_images);
+            body.doc.clone()
+        }
+        Err(notice) => notice,
     }
 }
 
@@ -692,6 +704,57 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     ui.on_remove_account(move |id| mail::remove_account(&id));
+    {
+        // A body arrived: refresh the pane if it belongs to the active tab.
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_body_ready(move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let active_is_message = matches!(tabs.borrow().active().map(|t| &t.content), Some(TabContent::Message(_)));
+            if active_is_message {
+                apply_active(&ui, &state, &tabs);
+            }
+        });
+    }
+    {
+        // A moved message closes its tabs.
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_message_moved(move |account, folder, uid| {
+            let Some(ui) = weak.upgrade() else { return };
+            let matches = |t: &Tab| matches!(&t.content, TabContent::Message(r) if r.account_id == account.as_str() && r.folder == folder.as_str() && r.uid == uid as u32);
+            loop {
+                let index = tabs.borrow().items().iter().position(matches);
+                match index {
+                    Some(i) => tabs.borrow_mut().close(i),
+                    None => break,
+                }
+            }
+            apply_active(&ui, &state, &tabs);
+        });
+    }
+    {
+        // Attachments: executables need confirmation first.
+        let (tabs, weak) = (tabs.clone(), ui.as_weak());
+        let pending_exec = Rc::new(std::cell::Cell::new(None::<usize>));
+        ui.on_save_attachment(move |index, executable| {
+            let Some(ui) = weak.upgrade() else { return };
+            let index = if index < 0 { match pending_exec.take() { Some(i) => i, None => return } } else { index as usize };
+            if executable {
+                pending_exec.set(Some(index));
+                let name = ui.get_attachments().row_data(index).map(|a| a.name).unwrap_or_default();
+                ui.set_exec_warning(name);
+                return;
+            }
+            let Some(r) = (match tabs.borrow().active().map(|t| &t.content) {
+                Some(TabContent::Message(r)) => Some(r.clone()),
+                _ => None,
+            }) else { return };
+            match mail::save_attachment(&r, index) {
+                Ok(Some(path)) => ui.set_feed_summary(format!("保存しました: {path}").into()),
+                Ok(None) => {}
+                Err(e) => ui.set_feed_summary(e.into()),
+            }
+        });
+    }
     // Tabs
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
@@ -903,17 +966,21 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     {
         let weak = ui.as_weak();
+        let tabs = tabs.clone();
         ui.on_archive(move || {
-            if let Some(ui) = weak.upgrade() {
-                ui.set_feed_summary("アーカイブは M2 で実装".into());
+            let Some(_ui) = weak.upgrade() else { return };
+            if let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) {
+                mail::move_message(&r, fuu_core::engine::MoveTarget::Archive);
             }
         });
     }
     {
         let weak = ui.as_weak();
+        let tabs = tabs.clone();
         ui.on_delete(move || {
-            if let Some(ui) = weak.upgrade() {
-                ui.set_feed_summary("削除は M2 で実装".into());
+            let Some(_ui) = weak.upgrade() else { return };
+            if let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) {
+                mail::move_message(&r, fuu_core::engine::MoveTarget::Trash);
             }
         });
     }
