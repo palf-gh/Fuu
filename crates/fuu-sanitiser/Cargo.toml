@@ -9,3 +9,4 @@ publish.workspace = true
 
 [dependencies]
 fuu-model.workspace = true
+ammonia = "4"
