@@ -273,8 +273,89 @@ fn create_reader(ui: &AppWindow, engine: Engine, pending_link: Rc<RefCell<Option
     }
 }
 
+/// Frameless chrome: macOS keeps its traffic lights over a transparent title bar;
+/// Windows (and others) drop the native frame and Fuu draws its own controls.
+fn select_backend() -> Result<(), slint::PlatformError> {
+    slint::BackendSelector::new()
+        .with_winit_window_attributes_hook(|attributes| {
+            #[cfg(target_os = "macos")]
+            {
+                use slint::winit_030::winit::platform::macos::WindowAttributesExtMacOS;
+                attributes.with_titlebar_transparent(true).with_title_hidden(true).with_fullsize_content_view(true)
+            }
+            #[cfg(target_os = "windows")]
+            {
+                use slint::winit_030::winit::platform::windows::WindowAttributesExtWindows;
+                attributes.with_decorations(false).with_undecorated_shadow(true)
+            }
+            #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+            {
+                attributes.with_decorations(false)
+            }
+        })
+        .select()
+}
+
+fn install_window_chrome(ui: &AppWindow) {
+    use slint::winit_030::winit::window::ResizeDirection;
+    use slint::winit_030::WinitWindowAccessor;
+
+    ui.set_is_mac(cfg!(target_os = "macos"));
+    {
+        let weak = ui.as_weak();
+        ui.on_drag_window(move || {
+            if let Some(ui) = weak.upgrade() {
+                ui.window().with_winit_window(|w| {
+                    let _ = w.drag_window();
+                });
+            }
+        });
+    }
+    {
+        let weak = ui.as_weak();
+        ui.on_minimise_window(move || {
+            if let Some(ui) = weak.upgrade() {
+                ui.window().set_minimized(true);
+            }
+        });
+    }
+    {
+        let weak = ui.as_weak();
+        ui.on_toggle_maximise(move || {
+            if let Some(ui) = weak.upgrade() {
+                let maximised = !ui.window().is_maximized();
+                ui.window().set_maximized(maximised);
+            }
+        });
+    }
+    ui.on_close_window(|| {
+        let _ = slint::quit_event_loop();
+    });
+    {
+        let weak = ui.as_weak();
+        ui.on_resize_window(move |direction| {
+            let Some(ui) = weak.upgrade() else { return };
+            let direction = match direction {
+                0 => ResizeDirection::North,
+                1 => ResizeDirection::South,
+                2 => ResizeDirection::East,
+                3 => ResizeDirection::West,
+                4 => ResizeDirection::NorthEast,
+                5 => ResizeDirection::NorthWest,
+                6 => ResizeDirection::SouthEast,
+                _ => ResizeDirection::SouthWest,
+            };
+            ui.window().with_winit_window(|w| {
+                let _ = w.drag_resize_window(direction);
+            });
+        });
+    }
+}
+
 fn main() -> Result<(), slint::PlatformError> {
+    select_backend()?;
     let ui = AppWindow::new()?;
+    install_window_chrome(&ui);
     ui.set_messages(ModelRc::new(VecModel::<MessageRow>::default()));
     ui.set_feed_summary("読み込み中…".into());
 
@@ -528,6 +609,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 let mut st = state.borrow_mut();
                 st.reader = Some(reader);
                 st.engine = Some(wanted);
+            }
+
+            let maximised = ui.window().is_maximized();
+            if maximised != ui.get_maximised() {
+                ui.set_maximised(maximised);
             }
 
             let mut st = state.borrow_mut();
