@@ -30,6 +30,8 @@ pub enum Command {
     FetchBody { account_id: String, folder: String, uid: u32 },
     /// Fetch remote images the user allowed for one message.
     FetchRemoteImages { account_id: String, folder: String, uid: u32, urls: Vec<String> },
+    /// Send a message; `answered` marks the replied-to message.
+    Send { account_id: String, outgoing: crate::compose::Outgoing, answered: Option<(String, u32)>, draft_id: u64 },
     /// Move a message to the account's Trash or Archive folder.
     Move { account_id: String, folder: String, uid: u32, target: MoveTarget },
 }
@@ -50,6 +52,8 @@ pub enum Event {
     Body { account_id: String, folder: String, uid: u32, raw: Arc<Vec<u8>> },
     BodyFailed { account_id: String, folder: String, uid: u32, message: String },
     Moved { account_id: String, folder: String, uid: u32, target: MoveTarget },
+    Sent { account_id: String, draft_id: u64, warning: Option<String> },
+    SendFailed { draft_id: u64, message: String },
     RemoteImages { account_id: String, folder: String, uid: u32, images: Vec<Option<crate::remote::Image>> },
     /// Short progress text for the status line.
     Status(String),
@@ -130,6 +134,7 @@ impl Inner {
             Command::OpenFolder { account_id, path } => self.open_folder(&account_id, &path).await,
             Command::FetchBody { account_id, folder, uid } => self.fetch_body(&account_id, &folder, uid).await,
             Command::Move { account_id, folder, uid, target } => self.move_message(&account_id, &folder, uid, target).await,
+            Command::Send { account_id, outgoing, answered, draft_id } => self.send(&account_id, outgoing, answered, draft_id).await,
             Command::FetchRemoteImages { account_id, folder, uid, urls } => {
                 let images = crate::remote::fetch_images(&urls).await;
                 self.emit(Event::RemoteImages { account_id, folder, uid, images });
@@ -332,5 +337,54 @@ impl Inner {
             }
             Err(e) => self.emit(Event::Error(e)),
         }
+    }
+
+    async fn send(&self, account_id: &str, outgoing: crate::compose::Outgoing, answered: Option<(String, u32)>, draft_id: u64) {
+        let Some(account) = self.account(account_id).await else {
+            return self.emit(Event::SendFailed { draft_id, message: "アカウントが見つかりません".into() });
+        };
+        let (_, raw) = match crate::compose::build(&outgoing) {
+            Ok(v) => v,
+            Err(message) => return self.emit(Event::SendFailed { draft_id, message }),
+        };
+        let password = match self.secrets.get(&account.id) {
+            Ok(p) => p,
+            Err(e) => return self.emit(Event::SendFailed { draft_id, message: e.to_string() }),
+        };
+        self.emit(Event::Status("送信しています…".into()));
+        let recipients = outgoing.envelope_recipients();
+        if let Err(e) = crate::smtp::send(&account.smtp, &account.username, &password, &account.email, &recipients, &raw).await {
+            return self.emit(Event::SendFailed { draft_id, message: e.to_string() });
+        }
+        // Sent: the message is out. Follow-up failures are warnings, not send failures.
+        let mut warnings = Vec::new();
+        if !imap::saves_sent_automatically(&account.imap.host) {
+            let sent = self.folders.lock().await.get(&account.id).and_then(|list| list.iter().find(|f| f.role == FolderRole::Sent).map(|f| f.path.clone()));
+            match sent {
+                Some(path) => {
+                    let raw = raw.clone();
+                    if let Err(e) = self
+                        .with_session(&account, move |s| {
+                            let (path, raw) = (path.clone(), raw.clone());
+                            Box::pin(async move { imap::append_message(s, &path, &raw).await })
+                        })
+                        .await
+                    {
+                        warnings.push(format!("送信済みフォルダーに保存できませんでした: {e}"));
+                    }
+                }
+                None => warnings.push("送信済みフォルダーが見つからないため保存していません".into()),
+            }
+        }
+        if let Some((folder, uid)) = answered {
+            let _ = self
+                .with_session(&account, move |s| {
+                    let folder = folder.clone();
+                    Box::pin(async move { imap::mark_answered(s, &folder, uid).await })
+                })
+                .await;
+        }
+        self.emit(Event::Status(String::new()));
+        self.emit(Event::Sent { account_id: account.id, draft_id, warning: (!warnings.is_empty()).then(|| warnings.join(" / ")) });
     }
 }

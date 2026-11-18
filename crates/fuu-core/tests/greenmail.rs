@@ -155,6 +155,71 @@ fn engine_adds_account_and_loads_inbox() {
     assert!(secrets.get(&added.id).is_err(), "secret removed with the account");
 }
 
+#[test]
+fn engine_sends_reply_saves_sent_and_marks_answered() {
+    if !enabled() {
+        eprintln!("skipped: set FUU_GREENMAIL=1 with GreenMail running");
+        return;
+    }
+    seed();
+    // GreenMail has no Sent folder by default.
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.block_on(async {
+        let mut s = imap::login(&imap_server(), USER, PASSWORD).await.unwrap();
+        let _ = s.create("Sent").await;
+        s.logout().await.ok();
+    });
+
+    let dir = tempfile::tempdir().unwrap();
+    let secrets = Arc::new(MemoryStore::default());
+    let (tx, rx) = mpsc::channel();
+    let engine = Engine::start(dir.path().join("accounts.toml"), None, secrets.clone(), move |e| {
+        let _ = tx.send(e);
+    });
+    engine.send(Command::LoadAccounts);
+    let account = Account {
+        id: String::new(),
+        display_name: "テスト".into(),
+        email: ADDRESS.into(),
+        username: USER.into(),
+        imap: imap_server(),
+        smtp: ServerConfig { host: "127.0.0.1".into(), port: 3025, security: Security::InsecurePlainForTests },
+        auth: AuthKind::Password,
+    };
+    engine.send(Command::AddAccount { account, password: PASSWORD.into() });
+    let Event::AccountAdded(added) = wait_for(&rx, |e| matches!(e, Event::AccountAdded(_))) else { unreachable!() };
+    let Event::Messages { page, .. } = wait_for(&rx, |e| matches!(e, Event::Messages { .. })) else { unreachable!() };
+    let original = page.messages.iter().find(|m| m.subject == "Colour proposal").unwrap().clone();
+
+    let subject = format!("Re: 返信テスト {}", std::process::id());
+    let outgoing = fuu_core::compose::Outgoing {
+        from_name: "テスト".into(),
+        from_email: ADDRESS.into(),
+        to: vec![fuu_core::compose::Recipient { name: None, email: ADDRESS.into() }],
+        subject: subject.clone(),
+        body: "本文\n\n-- \n署名".into(),
+        in_reply_to: Some("orig@example.jp".into()),
+        references: vec!["orig@example.jp".into()],
+        ..Default::default()
+    };
+    engine.send(Command::Send { account_id: added.id.clone(), outgoing, answered: Some(("INBOX".into(), original.uid)), draft_id: 7 });
+    let Event::Sent { draft_id, warning, .. } = wait_for(&rx, |e| matches!(e, Event::Sent { .. } | Event::SendFailed { .. })) else {
+        panic!("send failed")
+    };
+    assert_eq!(draft_id, 7);
+    assert_eq!(warning, None, "saved to Sent");
+
+    std::thread::sleep(Duration::from_millis(500));
+    engine.send(Command::OpenFolder { account_id: added.id.clone(), path: "INBOX".into() });
+    let Event::Messages { page, .. } = wait_for(&rx, |e| matches!(e, Event::Messages { .. })) else { unreachable!() };
+    assert!(page.messages.iter().any(|m| m.subject == subject), "delivered");
+    assert!(page.messages.iter().find(|m| m.uid == original.uid).unwrap().answered, "original marked answered");
+    engine.send(Command::OpenFolder { account_id: added.id.clone(), path: "Sent".into() });
+    let Event::Messages { page, .. } = wait_for(&rx, |e| matches!(e, Event::Messages { .. })) else { unreachable!() };
+    let sent = page.messages.iter().find(|m| m.subject == subject).expect("copy in Sent");
+    assert!(sent.seen);
+}
+
 fn wait_for(rx: &mpsc::Receiver<Event>, pred: impl Fn(&Event) -> bool) -> Event {
     let deadline = std::time::Instant::now() + Duration::from_secs(30);
     loop {
@@ -162,6 +227,9 @@ fn wait_for(rx: &mpsc::Receiver<Event>, pred: impl Fn(&Event) -> bool) -> Event 
         let event = rx.recv_timeout(left).expect("event before timeout");
         if let Event::Error(e) = &event {
             panic!("engine error: {e}");
+        }
+        if let Event::SendFailed { message, .. } = &event {
+            panic!("send failed: {message}");
         }
         if pred(&event) {
             return event;

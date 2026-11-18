@@ -367,6 +367,33 @@ pub async fn move_message(session: &mut ImapSession, from: &str, uid: u32, to: &
     .await
 }
 
+/// Append a sent message to a folder, already marked as read.
+pub async fn append_message(session: &mut ImapSession, path: &str, raw: &[u8]) -> Result<(), ImapError> {
+    timed(COMMAND_TIMEOUT, async { session.append(path, Some("(\\Seen)"), None, raw).await.map_err(protocol) }).await
+}
+
+/// Mark a message as answered.
+pub async fn mark_answered(session: &mut ImapSession, path: &str, uid: u32) -> Result<(), ImapError> {
+    timed(COMMAND_TIMEOUT, async {
+        session.select(path).await.map_err(protocol)?;
+        let _: Vec<Fetch> = session
+            .uid_store(uid.to_string(), "+FLAGS.SILENT (\\Answered)")
+            .await
+            .map_err(protocol)?
+            .try_collect()
+            .await
+            .map_err(protocol)?;
+        Ok(())
+    })
+    .await
+}
+
+/// Gmail stores sent mail itself; appending would create duplicates.
+pub fn saves_sent_automatically(imap_host: &str) -> bool {
+    let host = imap_host.to_ascii_lowercase();
+    host.ends_with("gmail.com") || host.ends_with("googlemail.com")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
