@@ -4,9 +4,9 @@ A minimal desktop mail client for Windows and macOS: read, send and reply, with
 multiple accounts and per-account signatures. Fuu talks to your IMAP/SMTP servers
 directly; there is no relay service.
 
-Status: **M1** — accounts (password / app password, kept in the OS keychain),
-folder list and message headers over IMAP. Bodies arrive in M2, sending in M3 and
-OAuth in M4 — see `docs/plan.md`.
+Status: **M3** — accounts (password / app password, kept in the OS keychain),
+folders, sanitised bodies (Blitz), remote images on request, attachments, and
+sending, replying and forwarding over SMTP. OAuth arrives in M4 — see `docs/plan.md`.
 
 Accounts are stored in `<config dir>/Fuu/accounts.toml` (no secrets). Run with
 `FUU_SPIKE_FEED=1` to use dummy data instead of real accounts.

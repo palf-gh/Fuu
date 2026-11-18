@@ -84,6 +84,7 @@ pub fn allow_remote(r: &MessageRef) {
 
 /// A message body ready for display.
 pub struct Body {
+    pub headers: fuu_model::Headers,
     pub doc: SafeDocument,
     pub attachments: Vec<Attachment>,
     pub raw: Arc<Vec<u8>>,
@@ -108,6 +109,7 @@ fn addresses_text(list: &[Address]) -> String {
 fn process(raw: Arc<Vec<u8>>) -> Body {
     match MailParserEngine.parse(&raw, &ParseLimits::default()) {
         Ok(message) => Body {
+            headers: message.headers.clone(),
             doc: fuu_sanitiser::sanitise(&message),
             attachments: message.attachments.clone(),
             to: addresses_text(&message.headers.to),
@@ -115,6 +117,7 @@ fn process(raw: Arc<Vec<u8>>) -> Body {
             raw,
         },
         Err(e) => Body {
+            headers: fuu_model::Headers::default(),
             doc: notice_document(&format!("このメールは表示できません（{e}）。")),
             attachments: Vec::new(),
             to: String::new(),
@@ -200,6 +203,27 @@ fn mark_downloaded(path: &std::path::Path) {
 
 #[cfg(not(any(windows, target_os = "macos")))]
 fn mark_downloaded(_path: &std::path::Path) {}
+
+/// The loaded body for a message tab, if any.
+pub fn body_of(r: &MessageRef) -> Option<Rc<Body>> {
+    DATA.with(|d| d.borrow().bodies.get(&key(r)).cloned())
+}
+
+/// Bytes of one attachment of a loaded message.
+pub fn attachment_data(body: &Body, index: usize) -> Option<(String, String, Vec<u8>)> {
+    let a = body.attachments.get(index)?;
+    let data = mailparser::attachment_bytes(&body.raw, a.part_index)?;
+    Some((filename::sanitise_file_name(&a.file_name), a.mime.clone(), data))
+}
+
+pub fn account_by_id(id: &str) -> Option<Account> {
+    DATA.with(|d| d.borrow().accounts.iter().find(|a| a.id == id).cloned())
+}
+
+/// Hand a validated message to the engine.
+pub fn send_outgoing(account_id: &str, outgoing: fuu_core::compose::Outgoing, answered: Option<(String, u32)>, draft_id: u64) {
+    send(Command::Send { account_id: account_id.to_owned(), outgoing, answered, draft_id });
+}
 
 pub fn move_message(r: &MessageRef, target: MoveTarget) {
     if is_spike() {
@@ -389,6 +413,14 @@ fn handle(ui: &AppWindow, event: Event) {
             ui.set_feed_summary(what.into());
             ui.invoke_message_moved(account_id.into(), folder.into(), uid as i32);
         }
+        Event::Sent { draft_id, warning, .. } => {
+            ui.set_feed_summary(match warning {
+                Some(w) => format!("送信しました（{w}）").into(),
+                None => "送信しました".into(),
+            });
+            ui.invoke_draft_sent(draft_id as i32);
+        }
+        Event::SendFailed { draft_id, message } => ui.invoke_draft_failed(draft_id as i32, message.into()),
         Event::Status(text) => ui.set_feed_summary(text.into()),
         Event::Error(message) => {
             ui.set_list_busy(false);

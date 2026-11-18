@@ -28,6 +28,24 @@ pub struct Draft {
     pub body: String,
     /// Whether the CC/BCC fields are expanded.
     pub show_cc_bcc: bool,
+    /// Stable id to match send results to the tab.
+    pub id: u64,
+    /// Account the draft is sent from.
+    pub account_id: String,
+    pub in_reply_to: Option<String>,
+    pub references: Vec<String>,
+    /// (folder, uid) of the message being answered, flagged \\Answered after sending.
+    pub answered: Option<(String, u32)>,
+    pub attachments: Vec<DraftAttachment>,
+    pub sending: bool,
+    pub error: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DraftAttachment {
+    pub name: String,
+    pub mime: String,
+    pub data: Vec<u8>,
 }
 
 /// A message as shown in a tab: identity plus the header snapshot, so the tab
@@ -90,6 +108,10 @@ impl Tabs {
 
     pub fn active(&self) -> Option<&Tab> {
         self.active.map(|i| &self.items[i])
+    }
+
+    pub fn items_mut(&mut self) -> &mut [Tab] {
+        &mut self.items
     }
 
     pub fn active_mut(&mut self) -> Option<&mut Tab> {

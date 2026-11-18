@@ -204,6 +204,9 @@ export component AppWindow inherits Window {
     in-out property <string> compose-cc;
     in-out property <string> compose-bcc;
     in-out property <bool> compose-show-cc-bcc;
+    in property <[AttachmentItem]> compose-attachments;
+    in property <string> compose-error;
+    in property <bool> compose-sending;
     in property <bool> settings-open;
     in-out property <int> settings-page;
     in-out property <string> signature-text: "Fuu spike";
@@ -304,6 +307,10 @@ export component AppWindow inherits Window {
     callback message-moved(string, string, int);
     callback save-attachment(int, bool);
     callback allow-remote();
+    callback compose-add-attachment();
+    callback compose-remove-attachment(int);
+    callback draft-sent(int);
+    callback draft-failed(int, string);
     callback setup-email-edited(string);
     callback setup-submit();
     callback select-account(int);
@@ -824,17 +831,47 @@ export component AppWindow inherits Window {
                             wrap: word-wrap;
                             font-size: 14px;
                         }
+                        if root.compose-attachments.length > 0: VerticalLayout {
+                            padding-top: 10px;
+                            HorizontalLayout {
+                                spacing: 6px;
+                                alignment: start;
+                                for attachment[i] in root.compose-attachments: Rectangle {
+                                    height: 30px;
+                                    width: min(240px, att-row.preferred-width);
+                                    border-radius: Theme.radius-m;
+                                    background: Theme.field;
+                                    att-row := HorizontalLayout {
+                                        padding-left: 10px;
+                                        padding-right: 4px;
+                                        spacing: 6px;
+                                        Icon { source: @image-url("icons/paperclip.svg"); width: 13px; height: 13px; y: (parent.height - self.height) / 2; tint: Theme.text-faint; }
+                                        Text { text: attachment.name; font-size: Theme.font-s; color: Theme.text; vertical-alignment: center; overflow: elide; }
+                                        Text { text: attachment.size; font-size: Theme.font-xs; color: Theme.text-faint; vertical-alignment: center; }
+                                        IconButton { icon: @image-url("icons/close.svg"); size: 22px; icon-size: 11px; y: (parent.height - self.height) / 2; clicked => { root.compose-remove-attachment(i); } }
+                                    }
+                                }
+                            }
+                        }
                         Rectangle { height: 14px; }
                         HorizontalLayout {
                             spacing: 4px;
                             PrimaryButton {
-                                text: "送信";
+                                text: root.compose-sending ? "送信中…" : "送信";
                                 icon: @image-url("icons/send.svg");
                                 has-icon: true;
-                                clicked => { root.send-compose(); }
+                                clicked => { if (!root.compose-sending) { root.send-compose(); } }
                             }
                             Rectangle { width: 6px; }
-                            IconButton { icon: @image-url("icons/paperclip.svg"); y: 2px; }
+                            IconButton { icon: @image-url("icons/paperclip.svg"); y: 2px; clicked => { root.compose-add-attachment(); } }
+                            if root.compose-error != "": Text {
+                                text: root.compose-error;
+                                font-size: Theme.font-s;
+                                color: Theme.close-hover;
+                                vertical-alignment: center;
+                                overflow: elide;
+                                horizontal-stretch: 1;
+                            }
                             Rectangle { horizontal-stretch: 1; }
                             IconButton { icon: @image-url("icons/trash.svg"); y: 2px; clicked => { root.discard-compose(); } }
                         }

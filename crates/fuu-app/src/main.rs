@@ -17,7 +17,7 @@ use fuu_render::blitz::{BlitzRenderer, RenderedPage};
 use fuu_render::text::TextRenderer;
 use fuu_render::{BodyRenderer, LinkHandler, LinkRequest, PointerPhase, RenderStats};
 use slint::{ComponentHandle, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
-use tabs::{Draft, MessageRef, Tab, TabContent, Tabs};
+use tabs::{Draft, DraftAttachment, MessageRef, Tab, TabContent, Tabs};
 
 slint::include_modules!();
 
@@ -413,6 +413,7 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
             Some(samples::cjk_document())
         }
         Some(TabContent::Draft(d)) => {
+            ui.set_compose_attachments(ModelRc::new(VecModel::from(draft_attachment_items(&d))));
             ui.set_compose_title(d.title.into());
             ui.set_compose_from(d.from.into());
             ui.set_compose_to(d.to.into());
@@ -421,6 +422,8 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
             ui.set_compose_subject(d.subject.into());
             ui.set_compose_body(d.body.into());
             ui.set_compose_show_cc_bcc(d.show_cc_bcc);
+            ui.set_compose_error(d.error.into());
+            ui.set_compose_sending(d.sending);
             ui.set_composing(true);
             None
         }
@@ -485,14 +488,47 @@ fn show_viewer(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, content: 
     apply_active(ui, state, tabs);
 }
 
+thread_local! {
+    static NEXT_DRAFT_ID: std::cell::Cell<u64> = const { std::cell::Cell::new(1) };
+}
+
+fn draft_attachment_items(d: &Draft) -> Vec<AttachmentItem> {
+    d.attachments
+        .iter()
+        .map(|a| AttachmentItem {
+            name: a.name.clone().into(),
+            size: human_size(a.data.len() as u64).into(),
+            executable: fuu_sanitiser::filename::is_executable(&a.name),
+        })
+        .collect()
+}
+
+fn human_size(bytes: u64) -> String {
+    match bytes {
+        b if b < 1024 => format!("{b} B"),
+        b if b < 1024 * 1024 => format!("{:.0} KB", b as f64 / 1024.0),
+        b => format!("{:.1} MB", b as f64 / (1024.0 * 1024.0)),
+    }
+}
+
+/// Total attachment size above which the composer warns (many servers reject ~25 MB).
+const ATTACHMENT_LIMIT: usize = 20 * 1024 * 1024;
+
 /// Open a draft in a new tab.
 fn open_draft(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, mut draft: Draft) {
     save_draft(ui, tabs);
-    draft.from = match mail::active_account() {
-        Some(a) if a.display_name.is_empty() => a.email,
+    let account = if draft.account_id.is_empty() { mail::active_account() } else { mail::account_by_id(&draft.account_id) };
+    draft.from = match &account {
+        Some(a) if a.display_name.is_empty() => a.email.clone(),
         Some(a) => format!("{} <{}>", a.display_name, a.email),
         None => "（アカウント未設定）".into(),
     };
+    draft.account_id = account.map(|a| a.id).unwrap_or_default();
+    draft.id = NEXT_DRAFT_ID.with(|c| {
+        let id = c.get();
+        c.set(id + 1);
+        id
+    });
     draft.show_cc_bcc = draft.show_cc_bcc || !draft.cc.is_empty() || !draft.bcc.is_empty();
     if tabs.borrow_mut().open(TabContent::Draft(draft), true).is_err() {
         ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
@@ -951,20 +987,38 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     {
-        // Spike replies: real quoting, recipients and threading headers land in M3.
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_reply(move |all| {
             let Some(ui) = weak.upgrade() else { return };
-            let subject = ui.get_reader_subject();
-            let subject = if subject.starts_with("Re:") { subject.to_string() } else { format!("Re: {subject}") };
-            let draft = Draft {
+            let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) else { return };
+            let own: Vec<String> = mail::account_by_id(&r.account_id).map(|a| vec![a.email]).unwrap_or_default();
+            let name = if r.from_name.is_empty() { r.from_email.clone() } else { r.from_name.clone() };
+            let mut draft = Draft {
                 title: if all { "全員に返信" } else { "返信" }.into(),
-                to: ui.get_reader_address().into(),
-                cc: if all { "team@example.com".into() } else { String::new() },
-                subject,
-                body: format!("{}\n\n> （引用は M3 で実装）", signature(&ui)),
+                subject: fuu_core::compose::reply_subject(&r.subject),
+                account_id: r.account_id.clone(),
+                answered: (!mail::is_spike()).then(|| (r.folder.clone(), r.uid)),
                 ..Draft::default()
             };
+            match mail::body_of(&r) {
+                Some(body) => {
+                    let (to, cc) = fuu_core::compose::reply_recipients(&body.headers, &own, all);
+                    draft.to = to.iter().map(|x| x.display()).collect::<Vec<_>>().join(", ");
+                    draft.cc = cc.iter().map(|x| x.display()).collect::<Vec<_>>().join(", ");
+                    draft.in_reply_to = body.headers.message_id.clone();
+                    draft.references = body.headers.references.clone();
+                    if let Some(id) = &body.headers.message_id {
+                        if !draft.references.contains(id) {
+                            draft.references.push(id.clone());
+                        }
+                    }
+                    draft.body = format!("\n{}\n\n{}", signature(&ui), fuu_core::compose::quote(&body.doc.text, &name, &r.date_text));
+                }
+                None => {
+                    draft.to = r.from_email.clone();
+                    draft.body = format!("\n{}", signature(&ui));
+                }
+            }
             open_draft(&ui, &state, &tabs, draft);
         });
     }
@@ -972,12 +1026,22 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_forward(move || {
             let Some(ui) = weak.upgrade() else { return };
-            let draft = Draft {
+            let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) else { return };
+            let mut draft = Draft {
                 title: "転送".into(),
-                subject: format!("Fwd: {}", ui.get_reader_subject()),
-                body: signature(&ui),
+                subject: fuu_core::compose::forward_subject(&r.subject),
+                account_id: r.account_id.clone(),
+                body: format!("\n{}", signature(&ui)),
                 ..Draft::default()
             };
+            if let Some(body) = mail::body_of(&r) {
+                draft.body = format!("\n{}\n\n{}", signature(&ui), fuu_core::compose::forward_block(&body.headers, &body.doc.text, &r.date_text));
+                // Forward the original attachments too.
+                draft.attachments = (0..body.attachments.len())
+                    .filter_map(|i| mail::attachment_data(&body, i))
+                    .map(|(name, mime, data)| DraftAttachment { name, mime, data })
+                    .collect();
+            }
             open_draft(&ui, &state, &tabs, draft);
         });
     }
@@ -1005,12 +1069,123 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_send_compose(move || {
             let Some(ui) = weak.upgrade() else { return };
-            let recipients = [ui.get_compose_to(), ui.get_compose_cc(), ui.get_compose_bcc()]
-                .iter()
-                .flat_map(|f| f.split(',').map(str::trim).filter(|a| !a.is_empty()).map(str::to_owned).collect::<Vec<_>>())
-                .count();
-            ui.set_feed_summary(format!("送信は M3 で実装（宛先 {recipients} 件・本文 {} 文字）", ui.get_compose_body().chars().count()).into());
-            close_active(&ui, &state, &tabs);
+            save_draft(&ui, &tabs);
+            let Some(TabContent::Draft(d)) = tabs.borrow().active().map(|t| t.content.clone()) else { return };
+            let fail = |message: String| {
+                if let Some(Tab { content: TabContent::Draft(d), .. }) = tabs.borrow_mut().active_mut() {
+                    d.error = message.clone();
+                }
+                ui.set_compose_error(message.into());
+            };
+            if mail::is_spike() {
+                return fail("開発用データの表示中は送信できません".into());
+            }
+            let Some(account) = mail::account_by_id(&d.account_id) else { return fail("送信元のアカウントがありません".into()) };
+            let parse = |field: &str| fuu_core::compose::parse_recipients(field);
+            let (to, cc, bcc) = match (parse(&d.to), parse(&d.cc), parse(&d.bcc)) {
+                (Ok(a), Ok(b), Ok(c)) => (a, b, c),
+                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => return fail(e),
+            };
+            if to.is_empty() && cc.is_empty() && bcc.is_empty() {
+                return fail("宛先を入力してください".into());
+            }
+            let outgoing = fuu_core::compose::Outgoing {
+                from_name: account.display_name.clone(),
+                from_email: account.email.clone(),
+                to,
+                cc,
+                bcc,
+                subject: d.subject.clone(),
+                body: d.body.clone(),
+                attachments: d
+                    .attachments
+                    .iter()
+                    .map(|a| fuu_core::compose::OutgoingAttachment { name: a.name.clone(), mime: a.mime.clone(), data: a.data.clone() })
+                    .collect(),
+                in_reply_to: d.in_reply_to.clone(),
+                references: d.references.clone(),
+            };
+            if let Some(Tab { content: TabContent::Draft(d), .. }) = tabs.borrow_mut().active_mut() {
+                d.sending = true;
+                d.error.clear();
+            }
+            ui.set_compose_sending(true);
+            ui.set_compose_error(SharedString::default());
+            mail::send_outgoing(&account.id, outgoing, d.answered.clone(), d.id);
+            let _ = &state;
+        });
+    }
+    {
+        // A draft was sent: close its tab, wherever it is.
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_draft_sent(move |id| {
+            let Some(ui) = weak.upgrade() else { return };
+            let index = tabs.borrow().items().iter().position(|t| matches!(&t.content, TabContent::Draft(d) if d.id == id as u64));
+            if let Some(i) = index {
+                request_close(&ui, &state, &tabs, i);
+            }
+        });
+    }
+    {
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_draft_failed(move |id, message| {
+            let Some(ui) = weak.upgrade() else { return };
+            for tab in tabs.borrow_mut().items_mut() {
+                if let TabContent::Draft(d) = &mut tab.content {
+                    if d.id == id as u64 {
+                        d.sending = false;
+                        d.error = message.to_string();
+                    }
+                }
+            }
+            let active_is_it = matches!(tabs.borrow().active().map(|t| &t.content), Some(TabContent::Draft(d)) if d.id == id as u64);
+            if active_is_it {
+                ui.set_compose_sending(false);
+                ui.set_compose_error(message);
+            }
+            let _ = &state;
+        });
+    }
+    {
+        let (tabs, weak) = (tabs.clone(), ui.as_weak());
+        ui.on_compose_add_attachment(move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let Some(paths) = rfd::FileDialog::new().pick_files() else { return };
+            let mut tabs_mut = tabs.borrow_mut();
+            let Some(Tab { content: TabContent::Draft(d), .. }) = tabs_mut.active_mut() else { return };
+            let mut errors = Vec::new();
+            for path in paths {
+                match std::fs::read(&path) {
+                    Ok(data) => {
+                        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "attachment".into());
+                        let mime = fuu_core::compose::guess_mime(&name).to_owned();
+                        d.attachments.push(DraftAttachment { name, mime, data });
+                    }
+                    Err(e) => errors.push(format!("{}: {e}", path.display())),
+                }
+            }
+            let total: usize = d.attachments.iter().map(|a| a.data.len()).sum();
+            d.error = if !errors.is_empty() {
+                format!("読み込めませんでした: {}", errors.join(", "))
+            } else if total > ATTACHMENT_LIMIT {
+                format!("添付の合計が {} です。サーバーによっては受け付けられません", human_size(total as u64))
+            } else {
+                String::new()
+            };
+            ui.set_compose_attachments(ModelRc::new(VecModel::from(draft_attachment_items(d))));
+            ui.set_compose_error(d.error.clone().into());
+        });
+    }
+    {
+        let (tabs, weak) = (tabs.clone(), ui.as_weak());
+        ui.on_compose_remove_attachment(move |index| {
+            let Some(ui) = weak.upgrade() else { return };
+            let mut tabs_mut = tabs.borrow_mut();
+            let Some(Tab { content: TabContent::Draft(d), .. }) = tabs_mut.active_mut() else { return };
+            if (index as usize) < d.attachments.len() {
+                d.attachments.remove(index as usize);
+            }
+            ui.set_compose_attachments(ModelRc::new(VecModel::from(draft_attachment_items(d))));
         });
     }
     {
