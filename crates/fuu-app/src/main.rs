@@ -713,6 +713,11 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 },
                 6 => {
+                    {
+                        use slint::winit_030::WinitWindowAccessor;
+                        let decorated = ui.window().with_winit_window(|w| w.is_decorated());
+                        eprintln!("snapshot: native decorations = {decorated:?}");
+                    }
                     match ui.window().take_snapshot() {
                         Ok(buf) => {
                             let file = std::fs::File::create(&path).expect("snapshot file");

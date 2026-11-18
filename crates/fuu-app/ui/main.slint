@@ -95,6 +95,9 @@ export component AppWindow inherits Window {
     // elsewhere Fuu draws its own caption buttons.
     in property <bool> is-mac;
     in property <bool> maximised;
+    // Slint applies decorations from `no-frame` (overriding the winit hook), so the
+    // frameless state must be declared here too. macOS keeps its native frame.
+    no-frame: !root.is-mac;
 
     in property <[MessageRow]> messages;
     in-out property <int> current-row: -1;
