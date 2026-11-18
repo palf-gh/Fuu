@@ -45,8 +45,11 @@ pub struct Outgoing {
     pub attachments: Vec<OutgoingAttachment>,
     pub in_reply_to: Option<String>,
     pub references: Vec<String>,
-    /// Also send an HTML alternative generated from the text (multipart/alternative).
+    /// Also send an HTML alternative (multipart/alternative).
     pub html: bool,
+    /// HTML body fragment from the rich editor (inline styles only). When absent,
+    /// the HTML alternative is generated from `body`.
+    pub html_body: Option<String>,
 }
 
 impl Outgoing {
@@ -324,8 +327,13 @@ pub fn text_to_html(body: &str) -> String {
         html.push_str(&sig.trim_end().lines().map(linkify).collect::<Vec<_>>().join("<br>"));
         html.push_str("</div>");
     }
+    wrap_html(&html)
+}
+
+/// Wrap an HTML body fragment in a complete document with Fuu's base text style.
+pub fn wrap_html(fragment: &str) -> String {
     format!(
-        "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body><div style=\"font-family:{FONT_STACK};font-size:14px;line-height:1.6;color:#1f1f1d;\">{html}</div></body></html>"
+        "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body><div style=\"font-family:{FONT_STACK};font-size:14px;line-height:1.6;color:#1f1f1d;\">{fragment}</div></body></html>"
     )
 }
 
@@ -385,7 +393,11 @@ pub fn build(outgoing: &Outgoing) -> Result<(String, Vec<u8>), String> {
         .message_id(message_id.clone())
         .text_body(outgoing.body.replace("\r\n", "\n"));
     if outgoing.html {
-        builder = builder.html_body(text_to_html(&outgoing.body));
+        let html = match &outgoing.html_body {
+            Some(fragment) => wrap_html(fragment),
+            None => text_to_html(&outgoing.body),
+        };
+        builder = builder.html_body(html);
     }
     if !outgoing.to.is_empty() {
         builder = builder.to(mb_list(&outgoing.to));
@@ -479,6 +491,7 @@ mod tests {
             in_reply_to: Some("orig@example.jp".into()),
             references: vec!["root@example.jp".into(), "orig@example.jp".into()],
             html: false,
+            html_body: None,
         };
         let (id, raw) = build(&outgoing).unwrap();
         assert!(id.ends_with("@example.jp"));

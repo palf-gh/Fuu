@@ -8,6 +8,8 @@ import { AccountSetupView } from "setup.slint";
 import { AccountItem, FolderItem } from "models.slint";
 export { AccountItem, FolderItem }
 import { Theme } from "theme.slint";
+import { RichEditor, EditorRect } from "editor.slint";
+export { EditorRect }
 import {
     Divider, Icon, IconButton, PrimaryButton, SecondaryButton, Avatar, NavItem,
     SearchField, ComposeField, Dialog, MenuRow, CaptionButton, Tab,
@@ -197,7 +199,31 @@ export component AppWindow inherits Window {
     in-out property <string> compose-title: "新規メッセージ";
     in-out property <string> compose-to;
     in-out property <string> compose-subject;
-    in-out property <string> compose-body;
+    // Rich editor (state driven by src/editor.rs)
+    in-out property <string> editor-text;
+    in property <image> editor-page;
+    in property <length> editor-page-height;
+    in property <length> editor-caret-x;
+    in property <length> editor-caret-y;
+    in property <length> editor-caret-h: 22px;
+    in property <[EditorRect]> editor-selection;
+    in property <bool> editor-bold;
+    in property <bool> editor-italic;
+    in property <bool> editor-underline;
+    in property <bool> editor-strike;
+    in property <int> editor-block;
+    in property <int> editor-sel-serial;
+    in property <int> editor-sel-anchor;
+    in property <int> editor-sel-cursor;
+    in property <int> editor-focus-serial;
+    callback editor-edited(string);
+    callback editor-command(string);
+    callback editor-navigate(string, bool);
+    callback editor-enter() -> bool;
+    callback editor-pointer(int, length, length, int, bool);
+    callback editor-caret-moved(int, int);
+    callback editor-preedit-changed(string);
+    callback editor-resized(length);
     in-out property <string> search-text;
     in-out property <bool> searching;
     in-out property <string> compose-from;
@@ -826,11 +852,32 @@ export component AppWindow inherits Window {
                         }
                         ComposeField { inset: 0px; label: "件名"; placeholder: "件名"; text <=> root.compose-subject; }
                         Rectangle { height: 12px; }
-                        TextEdit {
+                        RichEditor {
                             vertical-stretch: 1;
-                            text <=> root.compose-body;
-                            wrap: word-wrap;
-                            font-size: 14px;
+                            text <=> root.editor-text;
+                            page: root.editor-page;
+                            page-height: root.editor-page-height;
+                            caret-x: root.editor-caret-x;
+                            caret-y: root.editor-caret-y;
+                            caret-h: root.editor-caret-h;
+                            selection: root.editor-selection;
+                            bold: root.editor-bold;
+                            italic: root.editor-italic;
+                            underline: root.editor-underline;
+                            strike: root.editor-strike;
+                            block: root.editor-block;
+                            sel-serial: root.editor-sel-serial;
+                            sel-anchor: root.editor-sel-anchor;
+                            sel-cursor: root.editor-sel-cursor;
+                            focus-serial: root.editor-focus-serial;
+                            edited(t) => { root.editor-edited(t); }
+                            command(c) => { root.editor-command(c); }
+                            navigate(k, shift) => { root.editor-navigate(k, shift); }
+                            enter() => { return root.editor-enter(); }
+                            pointer(kind, x, y, clicks, shift) => { root.editor-pointer(kind, x, y, clicks, shift); }
+                            caret-moved(a, c) => { root.editor-caret-moved(a, c); }
+                            preedit-changed(p) => { root.editor-preedit-changed(p); }
+                            resized(w) => { root.editor-resized(w); }
                         }
                         if root.compose-attachments.length > 0: VerticalLayout {
                             padding-top: 10px;

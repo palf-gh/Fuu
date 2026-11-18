@@ -1976,6 +1976,7 @@ dependencies = [
  "arboard",
  "chrono",
  "fuu-core",
+ "fuu-editor",
  "fuu-model",
  "fuu-parser",
  "fuu-render",

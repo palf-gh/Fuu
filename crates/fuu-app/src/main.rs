@@ -2,6 +2,7 @@
 // (fuu-core) bridged through `mail`.
 #![cfg_attr(all(not(debug_assertions), windows), windows_subsystem = "windows")]
 
+mod editor;
 mod mail;
 mod samples;
 mod tabs;
@@ -382,7 +383,7 @@ fn save_draft(ui: &AppWindow, tabs: &SharedTabs) {
         d.cc = ui.get_compose_cc().into();
         d.bcc = ui.get_compose_bcc().into();
         d.subject = ui.get_compose_subject().into();
-        d.body = ui.get_compose_body().into();
+        d.doc = editor::current();
         d.show_cc_bcc = ui.get_compose_show_cc_bcc();
     }
 }
@@ -420,7 +421,7 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
             ui.set_compose_cc(d.cc.into());
             ui.set_compose_bcc(d.bcc.into());
             ui.set_compose_subject(d.subject.into());
-            ui.set_compose_body(d.body.into());
+            editor::load(ui, d.doc);
             ui.set_compose_show_cc_bcc(d.show_cc_bcc);
             ui.set_compose_error(d.error.into());
             ui.set_compose_sending(d.sending);
@@ -972,7 +973,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_start_compose(move || {
             if let Some(ui) = weak.upgrade() {
-                let draft = Draft { title: "新規メッセージ".into(), body: signature(&ui), ..Draft::default() };
+                let draft = Draft { title: "新規メッセージ".into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(&ui)), ..Draft::default() };
                 open_draft(&ui, &state, &tabs, draft);
             }
         });
@@ -981,7 +982,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_compose_to_address(move |address| {
             if let Some(ui) = weak.upgrade() {
-                let draft = Draft { title: "新規メッセージ".into(), to: address.into(), body: signature(&ui), ..Draft::default() };
+                let draft = Draft { title: "新規メッセージ".into(), to: address.into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(&ui)), ..Draft::default() };
                 open_draft(&ui, &state, &tabs, draft);
             }
         });
@@ -1012,11 +1013,11 @@ fn main() -> Result<(), slint::PlatformError> {
                             draft.references.push(id.clone());
                         }
                     }
-                    draft.body = format!("\n{}\n\n{}", signature(&ui), fuu_core::compose::quote(&body.doc.text, &name, &r.date_text));
+                    draft.doc = editor::doc_from_plain(&format!("\n{}\n\n{}", signature(&ui), fuu_core::compose::quote(&body.doc.text, &name, &r.date_text)));
                 }
                 None => {
                     draft.to = r.from_email.clone();
-                    draft.body = format!("\n{}", signature(&ui));
+                    draft.doc = fuu_editor::model::RichDoc::from_plain(&format!("\n{}", signature(&ui)));
                 }
             }
             open_draft(&ui, &state, &tabs, draft);
@@ -1031,11 +1032,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 title: "転送".into(),
                 subject: fuu_core::compose::forward_subject(&r.subject),
                 account_id: r.account_id.clone(),
-                body: format!("\n{}", signature(&ui)),
+                doc: fuu_editor::model::RichDoc::from_plain(&format!("\n{}", signature(&ui))),
                 ..Draft::default()
             };
             if let Some(body) = mail::body_of(&r) {
-                draft.body = format!("\n{}\n\n{}", signature(&ui), fuu_core::compose::forward_block(&body.headers, &body.doc.text, &r.date_text));
+                draft.doc = editor::doc_from_plain(&format!("\n{}\n\n{}", signature(&ui), fuu_core::compose::forward_block(&body.headers, &body.doc.text, &r.date_text)));
                 // Forward the original attachments too.
                 draft.attachments = (0..body.attachments.len())
                     .filter_map(|i| mail::attachment_data(&body, i))
@@ -1062,6 +1063,53 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(_ui) = weak.upgrade() else { return };
             if let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) {
                 mail::move_message(&r, fuu_core::engine::MoveTarget::Trash);
+            }
+        });
+    }
+    {
+        // Rich editor bridge (see editor.rs).
+        let weak = ui.as_weak();
+        ui.on_editor_edited(move |text| {
+            if let Some(ui) = weak.upgrade() {
+                editor::edited(&ui, &text);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_editor_command(move |name| {
+            if let Some(ui) = weak.upgrade() {
+                editor::command(&ui, &name);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_editor_navigate(move |key, extend| {
+            if let Some(ui) = weak.upgrade() {
+                editor::navigate(&ui, &key, extend, 400.0);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_editor_enter(move || weak.upgrade().is_some_and(|ui| editor::enter(&ui)));
+        let weak = ui.as_weak();
+        ui.on_editor_pointer(move |kind, x, y, clicks, shift| {
+            if let Some(ui) = weak.upgrade() {
+                editor::pointer(&ui, kind, x, y, clicks, shift);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_editor_caret_moved(move |anchor, cursor| {
+            if let Some(ui) = weak.upgrade() {
+                editor::caret_moved(&ui, anchor, cursor);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_editor_preedit_changed(move |text| {
+            if let Some(ui) = weak.upgrade() {
+                editor::preedit_changed(&ui, &text);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_editor_resized(move |width| {
+            if let Some(ui) = weak.upgrade() {
+                editor::resized(&ui, width);
             }
         });
     }
@@ -1096,7 +1144,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 cc,
                 bcc,
                 subject: d.subject.clone(),
-                body: d.body.clone(),
+                body: d.doc.to_plain(),
                 attachments: d
                     .attachments
                     .iter()
@@ -1105,6 +1153,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 in_reply_to: d.in_reply_to.clone(),
                 references: d.references.clone(),
                 html: ui.get_compose_html(),
+                html_body: ui.get_compose_html().then(|| d.doc.to_html()),
             };
             if let Some(Tab { content: TabContent::Draft(d), .. }) = tabs.borrow_mut().active_mut() {
                 d.sending = true;
@@ -1336,9 +1385,14 @@ fn main() -> Result<(), slint::PlatformError> {
                         ui.invoke_row_selected(1);
                         ui.set_info_dialog_open(true);
                     }
+                    "rich" => {
+                        ui.invoke_row_selected(1);
+                        ui.invoke_reply(false);
+                    }
                     "empty" => {}
                     _ => ui.invoke_row_selected(1),
                 },
+                4 if step == "rich" => editor::load(&ui, editor::sample()),
                 6 => {
                     {
                         use slint::winit_030::WinitWindowAccessor;

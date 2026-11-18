@@ -1,0 +1,321 @@
+// Rich-text compose editor.
+//
+// Rust (fuu-editor) owns the document, lays it out and paints it into `page`.
+// A transparent TextInput kept at the caret is the bridge for focus, keys, IME and
+// the clipboard; its text mirrors the document's plain text. The caret and the
+// selection are drawn here from geometry Rust provides.
+
+import { ScrollView, LineEdit } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Icon, IconButton, Divider, MenuRow } from "components.slint";
+
+export struct EditorRect {
+    x: length,
+    y: length,
+    w: length,
+    h: length,
+}
+
+component ToolButton inherits Rectangle {
+    in property <image> icon;
+    in property <bool> active;
+    callback clicked;
+    width: 28px;
+    height: 28px;
+    border-radius: Theme.radius-s;
+    background: root.active ? Theme.selected : area.pressed ? Theme.pressed : area.has-hover ? Theme.hover : transparent;
+    animate background { duration: 80ms; }
+    area := TouchArea { clicked => { root.clicked(); } }
+    Icon {
+        source: root.icon;
+        width: 15px;
+        height: 15px;
+        tint: root.active ? Theme.text : Theme.text-muted;
+    }
+}
+
+component Swatch inherits Rectangle {
+    in property <color> swatch;
+    in property <bool> none;
+    callback picked;
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    background: root.none ? transparent : root.swatch;
+    border-width: area.has-hover ? 2px : 1px;
+    border-color: area.has-hover ? Theme.text : Theme.border;
+    area := TouchArea { clicked => { root.picked(); } }
+    if root.none: Rectangle {
+        width: 14px;
+        height: 1.5px;
+        background: Theme.text-faint;
+        transform-rotation: -45deg;
+    }
+}
+
+export component RichEditor inherits Rectangle {
+    // Document mirror for the IME bridge
+    in-out property <string> text;
+    // Painted page and geometry (logical pixels)
+    in property <image> page;
+    in property <length> page-height;
+    in property <length> caret-x;
+    in property <length> caret-y;
+    in property <length> caret-h: 22px;
+    in property <[EditorRect]> selection;
+    // Toolbar state
+    in property <bool> bold;
+    in property <bool> italic;
+    in property <bool> underline;
+    in property <bool> strike;
+    in property <int> block;   // 0 paragraph, 1 bullet, 2 number, 3 quote
+
+    // Live state read by Rust every frame
+    out property <int> cursor: input.cursor-position-byte-offset;
+    out property <int> anchor: input.anchor-position-byte-offset;
+    out property <string> preedit: input.preedit-text;
+    out property <bool> focused: input.has-focus;
+    out property <length> content-width: scroll.visible-width - 4px;
+
+    callback edited(string);
+    callback command(string);
+    // key: "up" "down" "home" "end" "pageup" "pagedown"
+    callback navigate(string, bool);
+    callback enter() -> bool;
+    // kind: 0 press, 1 drag, 2 release; clicks: 1..3
+    callback pointer(int, length, length, int, bool);
+
+    // Rust-driven selection / focus requests (bump the serial to apply).
+    in property <int> sel-serial;
+    in property <int> sel-anchor;
+    in property <int> sel-cursor;
+    in property <int> focus-serial;
+    changed sel-serial => { input.set-selection-offsets(root.sel-anchor, root.sel-cursor); }
+    changed focus-serial => { input.focus(); }
+
+    // Notifications of state the TextInput changes on its own.
+    callback caret-moved(int, int);
+    callback preedit-changed(string);
+    callback resized(length);
+    changed cursor => { root.caret-moved(root.anchor, root.cursor); }
+    changed anchor => { root.caret-moved(root.anchor, root.cursor); }
+    changed preedit => { root.preedit-changed(root.preedit); }
+    changed content-width => { root.resized(root.content-width); }
+    init => { root.resized(root.content-width); }
+
+    property <int> clicks: 1;
+    property <duration> last-press;
+    property <bool> link-open;
+    property <string> link-text;
+
+    VerticalLayout {
+        // ── Toolbar
+        Rectangle {
+            height: 40px;
+            HorizontalLayout {
+                spacing: 2px;
+                alignment: start;
+                ToolButton { icon: @image-url("icons/fmt-bold.svg"); active: root.bold; y: 6px; clicked => { root.command("bold"); input.focus(); } }
+                ToolButton { icon: @image-url("icons/fmt-italic.svg"); active: root.italic; y: 6px; clicked => { root.command("italic"); input.focus(); } }
+                ToolButton { icon: @image-url("icons/fmt-underline.svg"); active: root.underline; y: 6px; clicked => { root.command("underline"); input.focus(); } }
+                ToolButton { icon: @image-url("icons/fmt-strike.svg"); active: root.strike; y: 6px; clicked => { root.command("strike"); input.focus(); } }
+                Rectangle { width: 8px; }
+                link-button := ToolButton { icon: @image-url("icons/fmt-link.svg"); y: 6px; clicked => { root.link-text = ""; link-popup.show(); } }
+                colour-button := ToolButton { icon: @image-url("icons/fmt-colour.svg"); y: 6px; clicked => { colour-popup.show(); } }
+                size-button := ToolButton { icon: @image-url("icons/fmt-size.svg"); y: 6px; clicked => { size-popup.show(); } }
+                Rectangle { width: 8px; }
+                ToolButton { icon: @image-url("icons/fmt-bullet.svg"); active: root.block == 1; y: 6px; clicked => { root.command("bullet"); input.focus(); } }
+                ToolButton { icon: @image-url("icons/fmt-number.svg"); active: root.block == 2; y: 6px; clicked => { root.command("number"); input.focus(); } }
+                ToolButton { icon: @image-url("icons/fmt-quote.svg"); active: root.block == 3; y: 6px; clicked => { root.command("quote"); input.focus(); } }
+                Rectangle { width: 8px; }
+                ToolButton { icon: @image-url("icons/fmt-clear.svg"); y: 6px; clicked => { root.command("clear"); input.focus(); } }
+            }
+            Divider { y: parent.height - 1px; height: 1px; }
+        }
+
+        // ── Body
+        scroll := ScrollView {
+            vertical-stretch: 1;
+            content-width: self.visible-width;
+            content-height: max(root.page-height + 24px, self.visible-height);
+
+            // Clicks anywhere in the body place the caret.
+            TouchArea {
+                x: 0;
+                y: 0;
+                width: scroll.visible-width;
+                height: max(root.page-height + 24px, scroll.visible-height);
+                mouse-cursor: MouseCursor.text;
+                pointer-event(e) => {
+                    if (e.button == PointerEventButton.left) {
+                        if (e.kind == PointerEventKind.down) {
+                            input.focus();
+                            root.clicks = (animation-tick() - root.last-press < 400ms) ? Math.min(root.clicks + 1, 3) : 1;
+                            root.last-press = animation-tick();
+                            root.pointer(0, self.mouse-x - 2px, self.mouse-y - 8px, root.clicks, e.modifiers.shift);
+                        } else if (e.kind == PointerEventKind.up) {
+                            root.pointer(2, self.mouse-x - 2px, self.mouse-y - 8px, root.clicks, false);
+                        }
+                    }
+                }
+                moved => {
+                    if (self.pressed) { root.pointer(1, self.mouse-x - 2px, self.mouse-y - 8px, root.clicks, true); }
+                }
+            }
+            for r in root.selection: Rectangle {
+                x: r.x + 2px;
+                y: r.y + 8px;
+                width: r.w;
+                height: r.h;
+                background: Theme.accent.with-alpha(0.22);
+            }
+            Image {
+                x: 2px;
+                y: 8px;
+                width: root.content-width;
+                height: root.page-height;
+                source: root.page;
+                image-fit: fill;
+            }
+            // Caret (blinks while focused)
+            Rectangle {
+                x: root.caret-x + 2px;
+                y: root.caret-y + 8px;
+                width: 1.5px;
+                height: root.caret-h;
+                background: Theme.accent;
+                visible: input.has-focus && blink.on;
+            }
+            // IME / keyboard bridge, kept at the caret so candidate windows appear there.
+            input := TextInput {
+                x: root.caret-x + 2px;
+                y: root.caret-y + 8px;
+                width: 4px;
+                height: root.caret-h;
+                text <=> root.text;
+                single-line: false;
+                wrap: no-wrap;
+                color: transparent;
+                selection-background-color: transparent;
+                selection-foreground-color: transparent;
+                font-size: 14px;
+                edited => { root.edited(self.text); }
+                key-pressed(e) => {
+                    if (e.text == Key.UpArrow) { root.navigate("up", e.modifiers.shift); return accept; }
+                    if (e.text == Key.DownArrow) { root.navigate("down", e.modifiers.shift); return accept; }
+                    if (e.text == Key.Home) { root.navigate("home", e.modifiers.shift); return accept; }
+                    if (e.text == Key.End) { root.navigate("end", e.modifiers.shift); return accept; }
+                    if (e.text == Key.PageUp) { root.navigate("pageup", e.modifiers.shift); return accept; }
+                    if (e.text == Key.PageDown) { root.navigate("pagedown", e.modifiers.shift); return accept; }
+                    if (e.text == Key.Return && !e.modifiers.control && !e.modifiers.meta && self.preedit-text == "") {
+                        if (root.enter()) { return accept; }
+                    }
+                    if (e.modifiers.control || e.modifiers.meta) {
+                        if (e.text == "b" || e.text == "B") { root.command("bold"); return accept; }
+                        if (e.text == "i" || e.text == "I") { root.command("italic"); return accept; }
+                        if (e.text == "u" || e.text == "U") { root.command("underline"); return accept; }
+                        if (e.text == "k" || e.text == "K") { root.link-text = ""; link-popup.show(); return accept; }
+                        if (e.text == "z" || e.text == "Z") { root.command(e.modifiers.shift ? "redo" : "undo"); return accept; }
+                        if (e.text == "y" || e.text == "Y") { root.command("redo"); return accept; }
+                    }
+                    return reject;
+                }
+            }
+        }
+    }
+
+    blink := Timer {
+        property <bool> on: true;
+        interval: 530ms;
+        running: input.has-focus;
+        triggered => { self.on = !self.on; }
+    }
+    // Keep the caret visible and solid while typing.
+    changed caret-y => {
+        blink.on = true;
+        if (root.caret-y + root.caret-h + 8px > -scroll.content-y + scroll.visible-height) {
+            scroll.content-y = -(root.caret-y + root.caret-h + 24px - scroll.visible-height);
+        } else if (root.caret-y + 8px < -scroll.content-y) {
+            scroll.content-y = -(root.caret-y);
+        }
+    }
+    changed caret-x => { blink.on = true; }
+
+    // ── Popups
+    link-popup := PopupWindow {
+        x: link-button.x;
+        y: 38px;
+        width: 320px;
+        close-policy: close-on-click-outside;
+        Rectangle {
+            border-radius: Theme.radius-l;
+            background: Theme.raised;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #00000026;
+            border-width: 1px;
+            border-color: Theme.hairline;
+            VerticalLayout {
+                padding: 10px;
+                spacing: 8px;
+                Text { text: "リンク（選択した文字に設定）"; font-size: Theme.font-xs; color: Theme.text-faint; }
+                link-edit := LineEdit {
+                    placeholder-text: "https://";
+                    text <=> root.link-text;
+                    accepted => { root.command("link:" + root.link-text); link-popup.close(); input.focus(); }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: end;
+                    MenuRow { has-icon: false; label: "解除"; width: 64px; clicked => { root.command("unlink"); link-popup.close(); input.focus(); } }
+                    MenuRow { has-icon: false; label: "設定"; width: 64px; clicked => { root.command("link:" + root.link-text); link-popup.close(); input.focus(); } }
+                }
+            }
+        }
+    }
+
+    colour-popup := PopupWindow {
+        x: colour-button.x;
+        y: 38px;
+        width: 228px;
+        Rectangle {
+            border-radius: Theme.radius-l;
+            background: Theme.raised;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #00000026;
+            border-width: 1px;
+            border-color: Theme.hairline;
+            HorizontalLayout {
+                padding: 10px;
+                spacing: 6px;
+                Swatch { none: true; picked => { root.command("colour:none"); input.focus(); } }
+                Swatch { swatch: #c0392b; picked => { root.command("colour:c0392b"); input.focus(); } }
+                Swatch { swatch: #d35400; picked => { root.command("colour:d35400"); input.focus(); } }
+                Swatch { swatch: #2e8b57; picked => { root.command("colour:2e8b57"); input.focus(); } }
+                Swatch { swatch: #2d6cdf; picked => { root.command("colour:2d6cdf"); input.focus(); } }
+                Swatch { swatch: #7b4fd1; picked => { root.command("colour:7b4fd1"); input.focus(); } }
+                Swatch { swatch: #6b6a66; picked => { root.command("colour:6b6a66"); input.focus(); } }
+            }
+        }
+    }
+
+    size-popup := PopupWindow {
+        x: size-button.x;
+        y: 38px;
+        width: 150px;
+        Rectangle {
+            border-radius: Theme.radius-l;
+            background: Theme.raised;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #00000026;
+            border-width: 1px;
+            border-color: Theme.hairline;
+            VerticalLayout {
+                padding: 6px;
+                MenuRow { has-icon: false; label: "小"; clicked => { root.command("size:small"); input.focus(); } }
+                MenuRow { has-icon: false; label: "標準"; clicked => { root.command("size:normal"); input.focus(); } }
+                MenuRow { has-icon: false; label: "大"; clicked => { root.command("size:large"); input.focus(); } }
+                MenuRow { has-icon: false; label: "特大"; clicked => { root.command("size:huge"); input.focus(); } }
+            }
+        }
+    }
+}

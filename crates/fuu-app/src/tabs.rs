@@ -25,7 +25,8 @@ pub struct Draft {
     pub cc: String,
     pub bcc: String,
     pub subject: String,
-    pub body: String,
+    /// Rich body being composed.
+    pub doc: fuu_editor::model::RichDoc,
     /// Whether the CC/BCC fields are expanded.
     pub show_cc_bcc: bool,
     /// Stable id to match send results to the tab.
