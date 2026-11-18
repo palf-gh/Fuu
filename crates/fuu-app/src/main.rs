@@ -929,6 +929,11 @@ fn main() -> Result<(), slint::PlatformError> {
                         ui.invoke_row_open_in_tab(3);
                         ui.invoke_reply(true);
                     }
+                    "account-menu" => {
+                        ui.invoke_row_selected(0);
+                        ui.invoke_show_account_menu();
+                    }
+                    "mailbox-menu" => ui.invoke_show_mailbox_menu(),
                     "settings" => {
                         ui.invoke_row_selected(1);
                         ui.invoke_open_settings();

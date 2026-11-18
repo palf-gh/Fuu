@@ -220,6 +220,11 @@ export component AppWindow inherits Window {
     callback discard-compose();
     callback compose-to-address(string);
     callback open-settings();
+    // Opens the menus programmatically (snapshot checks).
+    callback show-account-menu();
+    show-account-menu => { account-popup.show(); }
+    callback show-mailbox-menu();
+    show-mailbox-menu => { mailbox-popup.show(); }
 
     shortcuts := FocusScope {
       init => {
@@ -709,9 +714,10 @@ export component AppWindow inherits Window {
         Rectangle {
             property <bool> shown;
             init => { self.shown = true; }
-            y: self.shown ? 0px : -6px;
+            // Fade only: setting `y` here would take this element out of the popup's
+            // layout, leaving it with zero height (no background).
             opacity: self.shown ? 1 : 0;
-            animate y, opacity { duration: 150ms; easing: ease-out; }
+            animate opacity { duration: 150ms; easing: ease-out; }
             border-radius: Theme.radius-l;
             background: Theme.raised;
             drop-shadow-blur: 24px;
@@ -753,9 +759,10 @@ export component AppWindow inherits Window {
         Rectangle {
             property <bool> shown;
             init => { self.shown = true; }
-            y: self.shown ? 0px : -6px;
+            // Fade only: setting `y` here would take this element out of the popup's
+            // layout, leaving it with zero height (no background).
             opacity: self.shown ? 1 : 0;
-            animate y, opacity { duration: 150ms; easing: ease-out; }
+            animate opacity { duration: 150ms; easing: ease-out; }
             border-radius: Theme.radius-l;
             background: Theme.raised;
             drop-shadow-blur: 24px;
