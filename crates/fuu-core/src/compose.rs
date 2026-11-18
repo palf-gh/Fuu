@@ -206,6 +206,47 @@ pub fn quote(original_text: &str, from: &str, date: &str) -> String {
     out
 }
 
+/// Labels of the original-message header block, in order (bolded by the editor).
+pub const HEADER_LABELS: [&str; 5] = ["差出人:", "送信:", "宛先:", "CC:", "件名:"];
+
+/// Long Japanese date for the original-message header, in local time:
+/// `2026 年 11 月 18 日 (水曜日) 20:03`.
+pub fn header_date(timestamp: i64) -> String {
+    use chrono::{Datelike, Local, TimeZone};
+    let Some(d) = Local.timestamp_opt(timestamp, 0).single() else { return String::new() };
+    const DAYS: [&str; 7] = ["月", "火", "水", "木", "金", "土", "日"];
+    format!(
+        "{} 年 {} 月 {} 日 ({}曜日) {}",
+        d.year(),
+        d.month(),
+        d.day(),
+        DAYS[d.weekday().num_days_from_monday() as usize],
+        d.format("%H:%M")
+    )
+}
+
+/// Outlook-style header block of the original message, placed under a rule above
+/// the original text in replies and forwards.
+pub fn original_header(original: &Headers) -> String {
+    let one = |a: &Address| match a.name.as_deref().filter(|n| !n.trim().is_empty()) {
+        Some(n) => format!("\"{n}\" <{}>", a.email),
+        None => a.email.clone(),
+    };
+    let list = |v: &[Address]| v.iter().map(one).collect::<Vec<_>>().join("; ");
+    let mut out = format!("差出人: {}\n", list(&original.from));
+    if let Some(date) = original.date.map(header_date).filter(|d| !d.is_empty()) {
+        out.push_str(&format!("送信: {date}\n"));
+    }
+    if !original.to.is_empty() {
+        out.push_str(&format!("宛先: {}\n", list(&original.to)));
+    }
+    if !original.cc.is_empty() {
+        out.push_str(&format!("CC: {}\n", list(&original.cc)));
+    }
+    out.push_str(&format!("件名: {}\n", original.subject));
+    out
+}
+
 /// The forwarded-message block appended to a forward.
 pub fn forward_block(original: &Headers, original_text: &str, date: &str) -> String {
     let list = |v: &[Address]| v.iter().map(|a| Recipient::from(a).display()).collect::<Vec<_>>().join(", ");
@@ -469,6 +510,21 @@ mod tests {
         assert_eq!(reply_recipients(&with_reply_to, &own, false).0[0].email, "list@example.org");
         let own_sent = Headers { from: vec![a(None, "me@example.com")], to: vec![a(None, "x@example.org")], ..Headers::default() };
         assert_eq!(reply_recipients(&own_sent, &own, false).0[0].email, "x@example.org");
+    }
+
+    #[test]
+    fn original_header_is_outlook_style() {
+        let h = Headers {
+            from: vec![Address { name: Some("エンゲージ事務局".into()), email: "news@example.jp".into() }],
+            to: vec![Address { name: None, email: "me@example.jp".into() }],
+            subject: "【重要】お知らせ".into(),
+            date: Some(1_763_463_780),
+            ..Headers::default()
+        };
+        let text = original_header(&h);
+        assert!(text.starts_with("差出人: \"エンゲージ事務局\" <news@example.jp>\n送信: "), "{text}");
+        assert!(text.contains("曜日) ") && text.contains(" 年 ") && text.contains("宛先: me@example.jp\n件名: 【重要】お知らせ\n"), "{text}");
+        assert!(!text.contains("CC:"));
     }
 
     #[test]

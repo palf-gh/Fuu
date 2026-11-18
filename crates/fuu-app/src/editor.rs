@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::ops::Range;
 
 use fuu_editor::history::{History, Snapshot};
-use fuu_editor::model::{Block, Mark, RichDoc, Size, QUOTE};
+use fuu_editor::model::{Block, Mark, RichDoc, Size, QUOTE, RULE};
 use fuu_editor::view::{EditorView, Palette};
 use slint::{ComponentHandle, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
 
@@ -90,6 +90,33 @@ pub fn doc_from_plain(text: &str) -> RichDoc {
         })
         .collect();
     RichDoc::from_plain(&converted.join("\n"))
+}
+
+/// Reply/forward body: an empty line to type on, the signature, then a rule, the
+/// original message's header block (labels in bold) and its text.
+pub fn original_doc(signature: &str, header: &str, original: &str) -> RichDoc {
+    let mut text = String::from("\n");
+    if !signature.trim().is_empty() {
+        text.push_str(signature.trim_end());
+        text.push('\n');
+    }
+    text.push('\n');
+    let header_start = text.len() + RULE.len() + 1;
+    text.push_str(RULE);
+    text.push('\n');
+    text.push_str(header);
+    let header_end = text.len();
+    text.push('\n');
+    text.push_str(original.trim_end());
+    let mut doc = RichDoc::from_plain(&text);
+    let mut line_start = header_start;
+    for line in text[header_start..header_end].split_inclusive('\n') {
+        if let Some(label) = fuu_core::compose::HEADER_LABELS.iter().find(|l| line.starts_with(**l)) {
+            doc.toggle_mark(line_start..line_start + label.len(), Mark::Bold);
+        }
+        line_start += line.len();
+    }
+    doc
 }
 
 /// Show `doc` in the composer, with the caret at the start.
@@ -195,7 +222,7 @@ fn update_geometry(ui: &AppWindow) {
     ui.set_editor_underline(style.underline);
     ui.set_editor_strike(style.strike);
     ui.set_editor_block(match block {
-        Block::Paragraph => 0,
+        Block::Paragraph | Block::Rule => 0,
         Block::Bullet => 1,
         Block::Number => 2,
         Block::Quote => 3,
@@ -490,7 +517,7 @@ pub fn command(ui: &AppWindow, name: &str) {
 
 /// Development sample exercising every format (used by the "rich" snapshot).
 pub fn sample() -> RichDoc {
-    let text = "太字・斜体・下線・取り消し線 and a link.\n大きな見出し\n• 箇条書きの一つ目\n• 二つ目\n1. 番号付き\n2. 二番目\n│ 引用された文章です。\n\n-- \n山田 太郎";
+    let text = "太字・斜体・下線・取り消し線 and a link.\n大きな見出し\n• 箇条書きの一つ目\n• 二つ目\n1. 番号付き\n2. 二番目\n│ 引用された文章です。折り返したときに二行目以降も引用の内側に揃うかを確かめるため、少し長めの文を入れています。\n│ 二行目の引用\n\n─\n差出人: someone@example.jp\n\n-- \n山田 太郎";
     let mut d = RichDoc::from_plain(text);
     let find = |d: &RichDoc, s: &str| {
         let i = d.text().find(s).unwrap();
@@ -510,6 +537,15 @@ pub fn sample() -> RichDoc {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn original_doc_layout() {
+        let d = original_doc("-- \n山田", "差出人: a@example.jp\n件名: 件\n", "本文");
+        assert_eq!(d.text(), "\n-- \n山田\n\n─\n差出人: a@example.jp\n件名: 件\n\n本文");
+        let at = d.text().find("差出人:").unwrap();
+        assert!(d.style_of_char(at).bold && !d.style_of_char(at + "差出人:".len() + 1).bold);
+        assert!(d.style_of_char(d.text().find("件名:").unwrap()).bold);
+    }
 
     #[test]
     fn reply_quotes_become_quote_blocks() {

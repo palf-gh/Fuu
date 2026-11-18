@@ -1013,11 +1013,20 @@ fn main() -> Result<(), slint::PlatformError> {
                             draft.references.push(id.clone());
                         }
                     }
-                    draft.doc = editor::doc_from_plain(&format!("\n{}\n\n{}", signature(&ui), fuu_core::compose::quote(&body.doc.text, &name, &r.date_text)));
+                    draft.doc = editor::original_doc(&signature(&ui), &fuu_core::compose::original_header(&body.headers), &body.doc.text);
                 }
                 None => {
                     draft.to = r.from_email.clone();
-                    draft.doc = fuu_editor::model::RichDoc::from_plain(&format!("\n{}", signature(&ui)));
+                    // Body not loaded: build the header block from the list entry.
+                    let headers = fuu_model::Headers {
+                        from: vec![fuu_model::Address {
+                            name: (!r.from_name.is_empty()).then(|| r.from_name.clone()),
+                            email: r.from_email.clone(),
+                        }],
+                        subject: r.subject.clone(),
+                        ..Default::default()
+                    };
+                    draft.doc = editor::original_doc(&signature(&ui), &fuu_core::compose::original_header(&headers), "");
                 }
             }
             open_draft(&ui, &state, &tabs, draft);
@@ -1036,7 +1045,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 ..Draft::default()
             };
             if let Some(body) = mail::body_of(&r) {
-                draft.doc = editor::doc_from_plain(&format!("\n{}\n\n{}", signature(&ui), fuu_core::compose::forward_block(&body.headers, &body.doc.text, &r.date_text)));
+                draft.doc = editor::original_doc(&signature(&ui), &fuu_core::compose::original_header(&body.headers), &body.doc.text);
                 // Forward the original attachments too.
                 draft.attachments = (0..body.attachments.len())
                     .filter_map(|i| mail::attachment_data(&body, i))
@@ -1396,10 +1405,22 @@ fn main() -> Result<(), slint::PlatformError> {
                         ui.invoke_row_selected(1);
                         ui.invoke_reply(false);
                     }
+                    "reply" => {
+                        ui.invoke_row_selected(1);
+                        ui.invoke_reply(false);
+                    }
+                    "tooltip" => ui.invoke_row_selected(1),
                     "empty" => {}
                     _ => ui.invoke_row_selected(1),
                 },
                 4 if step == "rich" => editor::load(&ui, editor::sample()),
+                4 if step == "tooltip" => {
+                    let tip = ui.global::<Tooltip>();
+                    tip.set_text("全員に返信".into());
+                    tip.set_x(1000.0);
+                    tip.set_y(170.0);
+                    tip.set_shown(true);
+                }
                 5 if step == "rich" => {
                     editor::focus(&ui);
                     editor::pointer(&ui, 0, 30.0, 60.0, 2, false);

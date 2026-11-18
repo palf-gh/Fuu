@@ -6,6 +6,8 @@ use std::ops::Range;
 
 pub const BULLET: &str = "• ";
 pub const QUOTE: &str = "│ ";
+/// A line holding only this character is a horizontal rule.
+pub const RULE: &str = "\u{2500}";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Size {
@@ -89,6 +91,7 @@ pub enum Block {
     Bullet,
     Number,
     Quote,
+    Rule,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -378,6 +381,9 @@ impl RichDoc {
         if line.starts_with(QUOTE) {
             return (Block::Quote, QUOTE.len());
         }
+        if line == RULE {
+            return (Block::Rule, RULE.len());
+        }
         let digits = line.bytes().take_while(u8::is_ascii_digit).count();
         if (1..=4).contains(&digits) && line[digits..].starts_with(". ") && !line.starts_with('0') {
             return (Block::Number, digits + 2);
@@ -403,7 +409,7 @@ impl RichDoc {
                     Block::Bullet => BULLET.to_owned(),
                     Block::Quote => QUOTE.to_owned(),
                     Block::Number => format!("{}. ", n + 1),
-                    Block::Paragraph => String::new(),
+                    Block::Paragraph | Block::Rule => String::new(),
                 }
             };
             self.replace(start..start + prefix_len, &prefix, &Style::default());
@@ -423,7 +429,7 @@ impl RichDoc {
     pub fn enter_in_block(&mut self, caret: usize) -> Option<usize> {
         let line = self.lines_in(caret..caret).into_iter().next()?;
         let (kind, prefix_len) = Self::block_of(&self.text[line.clone()]);
-        if kind == Block::Paragraph || caret < line.start + prefix_len {
+        if matches!(kind, Block::Paragraph | Block::Rule) || caret < line.start + prefix_len {
             return None;
         }
         if line.end == line.start + prefix_len {
@@ -438,7 +444,7 @@ impl RichDoc {
                 let n: usize = self.text[line.start..].split('.').next().and_then(|d| d.parse().ok()).unwrap_or(0);
                 format!("{}. ", n + 1)
             }
-            Block::Paragraph => unreachable!(),
+            Block::Paragraph | Block::Rule => unreachable!(),
         };
         let style = self.style_at(caret);
         self.replace(caret..caret, "\n", &style);
@@ -531,7 +537,7 @@ impl RichDoc {
                 Block::Bullet => Open::Ul,
                 Block::Number => Open::Ol,
                 Block::Quote => Open::Quote,
-                Block::Paragraph => Open::None,
+                Block::Paragraph | Block::Rule => Open::None,
             };
             if want != open {
                 out.push_str(match open {
@@ -547,6 +553,10 @@ impl RichDoc {
                     Open::None => "",
                 });
                 open = want;
+            }
+            if kind == Block::Rule {
+                out.push_str("<hr style=\"border:none;border-top:1px solid #d9d6cf;margin:12px 0;\">");
+                continue;
             }
             let content = self.inline_html(range.start + prefix..range.end);
             let content = if content.is_empty() { "<br>".to_owned() } else { content };
@@ -581,6 +591,10 @@ impl RichDoc {
             let body_start = range.start + prefix;
             match kind {
                 Block::Quote => out.push_str("> "),
+                Block::Rule => {
+                    out.push_str(&"_".repeat(32));
+                    continue;
+                }
                 _ => out.push_str(&line[..prefix]),
             }
             let mut pos = body_start;

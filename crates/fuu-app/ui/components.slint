@@ -2,6 +2,41 @@
 
 import { Theme } from "theme.slint";
 
+// Hover tooltip shared by the whole window: controls publish their label and
+// anchor here, and AppWindow draws one `TooltipLayer` above everything.
+export global Tooltip {
+    in-out property <string> text;
+    in-out property <length> x;
+    in-out property <length> y;
+    in-out property <bool> shown;
+}
+
+export component TooltipLayer inherits Rectangle {
+    // Show after a short hover delay; hide immediately.
+    delay := Timer {
+        interval: 450ms;
+        running: Tooltip.text != "" && !Tooltip.shown;
+        triggered => { Tooltip.shown = true; }
+    }
+    if Tooltip.shown && Tooltip.text != "": Rectangle {
+        x: Math.max(6px, Math.min(Tooltip.x - self.width / 2, root.width - self.width - 6px));
+        y: Tooltip.y + 6px;
+        width: tip-label.preferred-width + 16px;
+        height: 24px;
+        border-radius: Theme.radius-s;
+        background: Theme.dark ? #3a3a3e : #2b2b29;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #00000030;
+        tip-label := Text {
+            text: Tooltip.text;
+            font-size: Theme.font-xs;
+            color: #f4f4f2;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+    }
+}
+
 export component Divider inherits Rectangle {
     background: Theme.hairline;
 }
@@ -20,15 +55,35 @@ export component IconButton inherits Rectangle {
     in property <length> size: 30px;
     in property <length> icon-size: 17px;
     in property <color> tint: Theme.text-faint;
+    // Label shown as a hover tooltip (icon-only buttons).
+    in property <string> tooltip;
     callback clicked;
     width: root.size;
     height: root.size;
     border-radius: Theme.radius-m;
     background: !root.enabled ? transparent : area.pressed ? Theme.pressed : area.has-hover ? Theme.hover : transparent;
     animate background { duration: 80ms; }
+    property <bool> hovering: area.has-hover;
+    changed hovering => {
+        if (root.tooltip != "") {
+            if (root.hovering) {
+                Tooltip.shown = false;
+                Tooltip.text = root.tooltip;
+                Tooltip.x = root.absolute-position.x + root.width / 2;
+                Tooltip.y = root.absolute-position.y + root.height;
+            } else if (Tooltip.text == root.tooltip) {
+                Tooltip.text = "";
+                Tooltip.shown = false;
+            }
+        }
+    }
     area := TouchArea {
         enabled: root.enabled;
-        clicked => { root.clicked(); }
+        clicked => {
+            Tooltip.text = "";
+            Tooltip.shown = false;
+            root.clicked();
+        }
     }
     Icon {
         source: root.icon;
