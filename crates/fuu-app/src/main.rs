@@ -735,6 +735,18 @@ fn main() -> Result<(), slint::PlatformError> {
             }
         });
         ui.on_setup_oauth_cancel(mail::cancel_oauth);
+        let weak = ui.as_weak();
+        ui.on_reauth(move || {
+            if let Some(ui) = weak.upgrade() {
+                mail::reauth(&ui);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_reauth_cancel(move || {
+            if let Some(ui) = weak.upgrade() {
+                mail::cancel_reauth(&ui);
+            }
+        });
     }
     {
         let weak = ui.as_weak();
@@ -1417,6 +1429,10 @@ fn main() -> Result<(), slint::PlatformError> {
                         ui.invoke_reply(false);
                     }
                     "tooltip" => ui.invoke_row_selected(1),
+                    "reauth" => {
+                        ui.set_reauth_email("someone@gmail.com".into());
+                        ui.set_reauth_error("再ログインが必要です（invalid_grant: Token has been expired or revoked.）".into());
+                    }
                     "empty" => {}
                     _ => ui.invoke_row_selected(1),
                 },

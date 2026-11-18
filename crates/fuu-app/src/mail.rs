@@ -43,6 +43,9 @@ pub struct AppData {
     /// Documents with remote images the user allowed (per message, this session).
     allowed: HashMap<(String, String, u32), Rc<SafeDocument>>,
     remote_pending: Vec<(String, String, u32)>,
+    /// Account whose OAuth sign-in must be renewed, and whether a renewal runs.
+    reauth: Option<String>,
+    reauth_running: bool,
 }
 
 /// What the reader shows about remote images for a message.
@@ -321,12 +324,35 @@ fn handle(ui: &AppWindow, event: Event) {
         }
         Event::AccountAdded(account) => {
             ui.set_setup_oauth_waiting(false);
+            let renewed = DATA.with(|d| {
+                let mut d = d.borrow_mut();
+                d.reauth_running = false;
+                if d.reauth.as_deref() == Some(account.id.as_str()) {
+                    d.reauth = None;
+                    true
+                } else {
+                    false
+                }
+            });
+            if renewed {
+                ui.set_reauth_email(SharedString::default());
+                ui.set_reauth_error(SharedString::default());
+                ui.set_reauth_busy(false);
+            }
             DATA.with(|d| d.borrow_mut().active = Some(account.id.clone()));
             render_accounts(ui);
             ui.set_setup_busy(false);
             ui.set_setup_error(SharedString::default());
             ui.set_setup_password(SharedString::default());
             ui.invoke_setup_finished();
+        }
+        Event::ReauthRequired { account_id, message } => {
+            let email = DATA.with(|d| d.borrow().accounts.iter().find(|a| a.id == account_id).map(|a| a.email.clone()));
+            let Some(email) = email else { return };
+            DATA.with(|d| d.borrow_mut().reauth = Some(account_id));
+            ui.set_reauth_email(email.into());
+            ui.set_reauth_error(message.into());
+            ui.set_reauth_busy(false);
         }
         Event::OAuthBrowser { url } => {
             // Only provider sign-in URLs built by the engine arrive here.
@@ -336,6 +362,11 @@ fn handle(ui: &AppWindow, event: Event) {
                     ui.set_setup_error(format!("ブラウザを開けませんでした: {e}").into());
                 }
             }
+        }
+        Event::AccountAddFailed(message) if DATA.with(|d| d.borrow().reauth_running) => {
+            DATA.with(|d| d.borrow_mut().reauth_running = false);
+            ui.set_reauth_busy(false);
+            ui.set_reauth_error(message.into());
         }
         Event::AccountAddFailed(message) => {
             ui.set_setup_oauth_waiting(false);
@@ -483,6 +514,7 @@ pub fn render_accounts(ui: &AppWindow) {
     });
     ui.set_accounts(ModelRc::new(VecModel::from(items)));
     ui.set_active_account(active_index.map_or(-1, |i| i as i32));
+    ui.set_active_oauth(active_is_oauth());
     match active {
         Some(a) => {
             let item = account_item(&a);
@@ -753,6 +785,41 @@ pub fn setup_oauth_submit(ui: &AppWindow) {
 
 pub fn cancel_oauth() {
     send(Command::CancelOAuth);
+}
+
+/// Sign in again: the account needing it (banner), else the active account.
+pub fn reauth(ui: &AppWindow) {
+    let account = DATA.with(|d| {
+        let d = d.borrow();
+        let id = d.reauth.clone().or_else(|| d.active.clone())?;
+        d.accounts.iter().find(|a| a.id == id).cloned()
+    });
+    let Some(account) = account.filter(|a| a.auth == AuthKind::OAuth2 && a.oauth.is_some()) else { return };
+    if is_spike() {
+        return;
+    }
+    DATA.with(|d| {
+        let mut d = d.borrow_mut();
+        d.reauth = Some(account.id.clone());
+        d.reauth_running = true;
+    });
+    ui.set_reauth_email(account.email.clone().into());
+    ui.set_reauth_error(SharedString::default());
+    ui.set_reauth_busy(true);
+    send(Command::AddOAuthAccount { account });
+}
+
+pub fn cancel_reauth(ui: &AppWindow) {
+    send(Command::CancelOAuth);
+    ui.set_reauth_busy(false);
+}
+
+/// Whether the active account signs in with OAuth (offers "sign in again").
+pub fn active_is_oauth() -> bool {
+    DATA.with(|d| {
+        let d = d.borrow();
+        d.active.as_ref().and_then(|id| d.accounts.iter().find(|a| &a.id == id)).is_some_and(|a| a.auth == AuthKind::OAuth2)
+    })
 }
 
 fn form_account(ui: &AppWindow, email: String) -> Account {

@@ -66,6 +66,9 @@ pub enum Event {
     RemoteImages { account_id: String, folder: String, uid: u32, images: Vec<Option<crate::remote::Image>> },
     /// Open this URL in the system browser to continue an OAuth sign-in.
     OAuthBrowser { url: String },
+    /// The account's sign-in expired or was revoked; sign in again with
+    /// `AddOAuthAccount` (same account id) to restore it.
+    ReauthRequired { account_id: String, message: String },
     /// Short progress text for the status line.
     Status(String),
     Error(String),
@@ -270,8 +273,25 @@ impl Inner {
         let client = self.clients.get(provider).cloned().ok_or_else(|| {
             format!("{} の OAuth クライアント ID が設定されていません（{}）", provider.name(), oauth::CLIENTS_FILE)
         })?;
-        let refresh_token = secrets::get_long(self.secrets.as_ref(), &account.id).map_err(|e| e.to_string())?;
-        let response = oauth::refresh(provider, &client, &refresh_token).await.map_err(|e| e.to_string())?;
+        let refresh_token = match secrets::get_long(self.secrets.as_ref(), &account.id) {
+            Ok(t) => t,
+            Err(crate::secrets::SecretError::NotFound) => {
+                let message = "ログイン情報が見つかりません。再ログインしてください".to_owned();
+                self.emit(Event::ReauthRequired { account_id: account.id.clone(), message: message.clone() });
+                return Err(message);
+            }
+            Err(e) => return Err(e.to_string()),
+        };
+        let response = match oauth::refresh(provider, &client, &refresh_token).await {
+            Ok(r) => r,
+            Err(OAuthError::InvalidGrant(detail)) => {
+                self.tokens.lock().await.remove(&account.id);
+                let message = format!("ログインの有効期限が切れたか、取り消されました（{detail}）");
+                self.emit(Event::ReauthRequired { account_id: account.id.clone(), message });
+                return Err(OAuthError::InvalidGrant(detail).to_string());
+            }
+            Err(e) => return Err(e.to_string()),
+        };
         if let Some(rotated) = response.refresh_token.as_deref().filter(|t| *t != refresh_token) {
             secrets::set_long(self.secrets.as_ref(), &account.id, rotated).map_err(|e| e.to_string())?;
         }
@@ -282,8 +302,11 @@ impl Inner {
     async fn save_new_account(&self, account: Account, session: ImapSession) {
         let saved = {
             let mut file = self.accounts.lock().await;
-            file.accounts.retain(|a| a.id != account.id);
-            file.accounts.push(account.clone());
+            // Signing in again replaces the account in place (keeps its position).
+            match file.accounts.iter_mut().find(|a| a.id == account.id) {
+                Some(existing) => *existing = account.clone(),
+                None => file.accounts.push(account.clone()),
+            }
             config::save(&self.config_path, &file).map(|_| file.accounts.clone())
         };
         match saved {

@@ -262,6 +262,13 @@ export component AppWindow inherits Window {
     // Shown in the list when there are no rows (loading, error, empty folder).
     in property <string> list-message;
     in property <bool> list-busy;
+    // OAuth sign-in renewal (banner above the message list)
+    in property <string> reauth-email;
+    in property <string> reauth-error;
+    in property <bool> reauth-busy;
+    in property <bool> active-oauth;
+    callback reauth();
+    callback reauth-cancel();
     // Account setup tab
     in property <bool> setup-open;
     in-out property <string> setup-name;
@@ -528,6 +535,41 @@ callback setup-oauth-cancel();
                     }
                 }
                 Rectangle { horizontal-stretch: 1; }
+              }
+              if root.reauth-email != "": Rectangle {
+                height: reauth-col.preferred-height + 12px;
+                Rectangle {
+                    x: 16px;
+                    y: 0px;
+                    width: parent.width - 32px;
+                    height: parent.height - 12px;
+                    border-radius: Theme.radius-l;
+                    background: Theme.field;
+                    border-width: 1px;
+                    border-color: Theme.hairline;
+                    reauth-col := VerticalLayout {
+                        padding: 12px;
+                        spacing: 8px;
+                        Text {
+                            text: root.reauth-busy ? "ブラウザでログインを続けてください" : "再ログインが必要です";
+                            font-size: Theme.font-m;
+                            font-weight: 600;
+                            color: Theme.text;
+                        }
+                        Text {
+                            text: root.reauth-email + (root.reauth-error != "" && !root.reauth-busy ? "\n" + root.reauth-error : "");
+                            font-size: Theme.font-s;
+                            color: Theme.text-muted;
+                            wrap: word-wrap;
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+                            if !root.reauth-busy: PrimaryButton { text: "ログイン"; clicked => { root.reauth(); } }
+                            if root.reauth-busy: SecondaryButton { text: "取り消す"; clicked => { root.reauth-cancel(); } }
+                        }
+                    }
+                }
               }
               if root.messages.length == 0: VerticalLayout {
                 alignment: center;
@@ -1018,6 +1060,7 @@ callback setup-oauth-cancel();
                     }
                 }
                 if root.accounts.length > 0: Rectangle { height: 4px; }
+                if root.active-oauth: MenuRow { icon: @image-url("icons/shield.svg"); label: "再ログイン"; clicked => { account-popup.close(); root.reauth(); } }
                 MenuRow { icon: @image-url("icons/plus.svg"); label: "アカウントを追加"; clicked => { root.open-account-setup(); } }
             }
         }
