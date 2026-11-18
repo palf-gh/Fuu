@@ -83,6 +83,14 @@ export component AppWindow inherits Window {
     in-out property <string> feed-summary;
     in property <string> renderer-error;
     in property <bool> use-fallback;
+    // Host-composited renderer (Blitz): the painted page and its logical size.
+    in property <bool> use-page-image;
+    in property <image> page-image;
+    in property <length> page-width;
+    in property <length> page-height;
+    in property <bool> page-link-hover;
+    in property <string> renderer-label: "Blitz";
+    out property <bool> dark-mode: Palette.color-scheme == ColorScheme.dark;
     in property <string> fallback-text;
     in property <string> link-url;
     in-out property <bool> link-dialog-open;
@@ -101,6 +109,9 @@ export component AppWindow inherits Window {
     out property <bool> reader-covered: link-dialog-open || info-dialog-open || composing;
 
     callback row-selected(int);
+    callback page-clicked(length, length);
+    callback page-pointer-moved(length, length);
+    callback toggle-renderer();
     callback load-security-sample();
     callback load-cjk-sample();
     callback link-confirmed();
@@ -128,6 +139,7 @@ export component AppWindow inherits Window {
                 SideItem { label: "セキュリティ検査文書"; clicked => { root.load-security-sample(); } }
                 SideItem { label: "CJK 表示サンプル"; clicked => { root.load-cjk-sample(); } }
                 SideItem { label: "重なり検査（ダイアログ）"; clicked => { root.info-dialog-open = true; } }
+                SideItem { label: "描画エンジン"; badge: root.renderer-label; clicked => { root.toggle-renderer(); } }
                 Rectangle { }  // spacer
                 Text { text: root.status-text; wrap: word-wrap; font-size: 11px; color: Palette.foreground.with-alpha(0.55); }
             }
@@ -199,6 +211,25 @@ export component AppWindow inherits Window {
             Divider { height: 1px; }
             reader-host := Rectangle {
                 background: Palette.background;
+                if root.use-page-image: ScrollView {
+                    content-width: root.page-width;
+                    content-height: root.page-height;
+                    Image {
+                        x: 0; y: 0;
+                        width: root.page-width;
+                        height: root.page-height;
+                        source: root.page-image;
+                        image-fit: fill;
+                    }
+                    TouchArea {
+                        x: 0; y: 0;
+                        width: root.page-width;
+                        height: root.page-height;
+                        mouse-cursor: root.page-link-hover ? pointer : default;
+                        clicked => { root.page-clicked(self.pressed-x, self.pressed-y); }
+                        moved => { root.page-pointer-moved(self.mouse-x, self.mouse-y); }
+                    }
+                }
                 if root.use-fallback: ScrollView {
                     VerticalLayout {
                         padding: 18px;

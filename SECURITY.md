@@ -29,6 +29,14 @@
      activations classified (`http(s)`/`mailto` only) and handed to the host.
    - No IPC handler, devtools off, incognito, no clipboard API, no drag and drop,
      no autofill, no default context menu or browser accelerator keys (Windows).
+3b. **Blitz renderer hardening** (`fuu-render::blitz`):
+   - No JavaScript engine exists in the process path.
+   - Every load goes through `ManifestNet`: only manifest raster entries
+     (`fuu://doc/res/<n>`) and raster `data:` images are served. Everything else
+     (remote URLs, stylesheets, fonts, SVG) is refused and completed with an empty
+     body so render-blocking resources cannot stall layout.
+   - Navigation and form submission are refused by `RefuseNavigation`; links are
+     hit-tested from host clicks and classified (`http(s)`/`mailto` only).
 4. **Remote content policy**: block by default, per-message allow, pixel candidates
    never fetched, no automatic read receipts.
 5. **Attachments**: never auto-opened; file names sanitised; executable types

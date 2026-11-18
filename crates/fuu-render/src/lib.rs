@@ -8,8 +8,12 @@
 
 pub use fuu_model::{Rect, RemoteContentPolicy, SafeDocument};
 
+#[cfg(feature = "blitz")]
+pub mod blitz;
 pub mod text;
 pub mod webview;
+
+use std::sync::atomic::AtomicUsize;
 
 /// What the user asked to do with a link inside a rendered message.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,6 +44,14 @@ impl std::fmt::Display for RenderError {
 
 impl std::error::Error for RenderError {}
 
+/// Request counters, for diagnostics and the renderer test-suite.
+#[derive(Debug, Default)]
+pub struct RenderStats {
+    pub served: AtomicUsize,
+    pub refused: AtomicUsize,
+    pub navigations_blocked: AtomicUsize,
+}
+
 /// A swappable rendering engine.
 pub trait BodyRenderer {
     /// Short engine identifier for diagnostics.
@@ -53,6 +65,22 @@ pub trait BodyRenderer {
     fn set_bounds(&mut self, rect: Rect) -> Result<(), RenderError>;
     /// Hide while host popups or dialogs overlap the reading pane.
     fn set_visible(&mut self, visible: bool) -> Result<(), RenderError>;
+    /// Whether the engine draws through the host (an image the host composites,
+    /// so host overlays can sit above it) rather than a native child surface.
+    fn composited_by_host(&self) -> bool {
+        false
+    }
+    /// Host-delivered click at physical pixel coordinates within the rendered
+    /// document. Engines with their own native input ignore it.
+    fn pointer_click(&mut self, _x: f32, _y: f32) {}
+    /// Whether a link lies under the given document coordinates (for the cursor).
+    fn link_at(&self, _x: f32, _y: f32) -> bool {
+        false
+    }
+    /// Device pixel ratio of the host surface.
+    fn set_scale_factor(&mut self, _scale: f32) {}
+    /// Light or dark colour scheme for documents that support both.
+    fn set_dark_mode(&mut self, _dark: bool) {}
 }
 
 /// Classify a URL the user activated. Anything that is not `http`, `https` or

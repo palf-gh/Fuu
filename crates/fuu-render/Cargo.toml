@@ -12,3 +12,17 @@ fuu-model.workspace = true
 wry = { version = "0.57", default-features = false, features = ["os-webview"] }
 raw-window-handle = "0.6"
 http = "1"
+base64 = "0.22"
+
+# Blitz: HTML/CSS-only engine (no JavaScript), painted on the CPU into an RGBA
+# buffer that the host shows as an image. Exact pins: Blitz is in beta.
+blitz-dom = { version = "=0.3.0-beta.4", optional = true, default-features = false, features = ["system-fonts", "floats", "complex-scripts", "woff"] }
+blitz-html = { version = "=0.3.0-beta.4", optional = true }
+blitz-paint = { version = "=0.3.0-beta.4", optional = true, default-features = false }
+blitz-traits = { version = "=0.3.0-beta.4", optional = true }
+anyrender = { version = "0.14", optional = true }
+anyrender_vello_cpu = { version = "0.18", optional = true }
+
+[features]
+default = ["blitz"]
+blitz = ["dep:blitz-dom", "dep:blitz-html", "dep:blitz-paint", "dep:blitz-traits", "dep:anyrender", "dep:anyrender_vello_cpu"]

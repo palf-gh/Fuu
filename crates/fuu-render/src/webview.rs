@@ -14,7 +14,7 @@
 use std::borrow::Cow;
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hasher};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use raw_window_handle::HasWindowHandle;
@@ -22,7 +22,7 @@ use wry::dpi::{PhysicalPosition, PhysicalSize};
 use wry::http::{header, Request, Response, StatusCode};
 use wry::{NewWindowResponse, WebView, WebViewBuilder};
 
-use crate::{classify_link, BodyRenderer, LinkHandler, Rect, RemoteContentPolicy, RenderError, SafeDocument};
+use crate::{classify_link, BodyRenderer, RenderStats, LinkHandler, Rect, RemoteContentPolicy, RenderError, SafeDocument};
 use fuu_model::DOCUMENT_CSP;
 
 const SCHEME: &str = "fuu";
@@ -41,14 +41,6 @@ pub fn document_origin() -> &'static str {
 /// MIME types a document may load as resources. Anything else is refused,
 /// including SVG (scriptable) and HTML.
 const SERVABLE_RESOURCE_TYPES: &[&str] = &["image/png", "image/jpeg", "image/gif", "image/webp"];
-
-/// Request counters, for diagnostics and the renderer test-suite.
-#[derive(Debug, Default)]
-pub struct RenderStats {
-    pub served: AtomicUsize,
-    pub refused: AtomicUsize,
-    pub navigations_blocked: AtomicUsize,
-}
 
 #[derive(Default)]
 struct Served {

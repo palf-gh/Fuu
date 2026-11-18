@@ -37,3 +37,14 @@ rectangle. Its geometry is exported from Slint (`reader-x/y/w/h`) and synchronis
 from Rust. Anything Slint draws over the reader (dialogs, the composer) sets
 `reader-covered`, which hides the webview, because a native child always sits above
 Slint's own drawing.
+
+## Renderers
+
+| Engine | Module | Composition | Notes |
+|---|---|---|---|
+| Blitz (default) | `fuu-render::blitz` | Host-composited image | HTML/CSS only, no JavaScript engine. Painted on the CPU (vello_cpu) into a premultiplied RGBA buffer shown as a Slint `Image`, so Slint overlays draw above the document. Re-laid out when the pane width settles (debounced). Links are hit-tested by the renderer from host clicks. |
+| WebView | `fuu-render::webview` | Native child window | Hardened wry. Hidden while Slint overlays cover the reader. |
+| Text | `fuu-render::text` | Slint `Text` | Fallback when nothing else is available. |
+
+Select with `FUU_RENDERER=blitz|webview`, or toggle at runtime from the sidebar during
+the spike.
