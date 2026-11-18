@@ -45,6 +45,8 @@ pub struct Outgoing {
     pub attachments: Vec<OutgoingAttachment>,
     pub in_reply_to: Option<String>,
     pub references: Vec<String>,
+    /// Also send an HTML alternative generated from the text (multipart/alternative).
+    pub html: bool,
 }
 
 impl Outgoing {
@@ -220,6 +222,113 @@ pub fn forward_block(original: &Headers, original_text: &str, date: &str) -> Str
     out
 }
 
+
+const FONT_STACK: &str = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', Meiryo, sans-serif";
+
+fn escape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+/// Escape a line and turn bare http(s) URLs into links.
+fn linkify(line: &str) -> String {
+    let mut out = String::new();
+    let mut rest = line;
+    loop {
+        let next = ["https://", "http://"].iter().filter_map(|p| rest.find(p)).min();
+        let Some(start) = next else {
+            out.push_str(&escape(rest));
+            return out;
+        };
+        out.push_str(&escape(&rest[..start]));
+        let url_len = rest[start..]
+            .find(|c: char| c.is_whitespace() || matches!(c, '<' | '>' | '"' | '「' | '」' | '（' | '）' | '、' | '。'))
+            .unwrap_or(rest.len() - start);
+        let mut url = &rest[start..start + url_len];
+        // Trailing punctuation is usually not part of the URL.
+        while let Some(last) = url.chars().last() {
+            if matches!(last, '.' | ',' | ')' | '!' | '?' | ';' | ':') {
+                url = &url[..url.len() - last.len_utf8()];
+            } else {
+                break;
+            }
+        }
+        let escaped = escape(url);
+        out.push_str(&format!("<a href=\"{escaped}\" style=\"color:#3b4fd1;\">{escaped}</a>"));
+        rest = &rest[start + url.len()..];
+    }
+}
+
+/// Quote depth of a line (`> > text` → 2) and the text after the markers.
+fn quote_depth(line: &str) -> (usize, &str) {
+    let mut depth = 0;
+    let mut rest = line;
+    loop {
+        let trimmed = rest.trim_start_matches(' ');
+        match trimmed.strip_prefix('>') {
+            Some(r) => {
+                depth += 1;
+                rest = r.strip_prefix(' ').unwrap_or(r);
+            }
+            None => return (depth, rest),
+        }
+    }
+}
+
+/// HTML rendition of a plain-text body for the text/html alternative: paragraphs
+/// and line breaks kept, `>` quotes as blockquotes, the `-- ` signature muted,
+/// URLs linked. Inline styles only (many mail clients strip `<style>`).
+pub fn text_to_html(body: &str) -> String {
+    let body = body.replace("\r\n", "\n");
+    let (main, signature) = match body.find("\n-- \n").or_else(|| body.starts_with("-- \n").then_some(0)) {
+        Some(i) => {
+            let sig_start = if i == 0 { 4 } else { i + 5 };
+            (&body[..i], Some(&body[sig_start..]))
+        }
+        None => (body.as_str(), None),
+    };
+    let mut html = String::new();
+    let mut depth = 0usize;
+    for line in main.lines() {
+        let (d, text) = quote_depth(line);
+        while depth < d {
+            html.push_str("<blockquote style=\"margin:0 0 0 2px;padding:0 0 0 12px;border-left:3px solid #d9d6cf;color:#6b6a66;\">");
+            depth += 1;
+        }
+        while depth > d {
+            html.push_str("</blockquote>");
+            depth -= 1;
+        }
+        if text.is_empty() {
+            html.push_str("<br>");
+        } else {
+            html.push_str(&format!("<div>{}</div>", linkify(text)));
+        }
+    }
+    while depth > 0 {
+        html.push_str("</blockquote>");
+        depth -= 1;
+    }
+    if let Some(sig) = signature {
+        html.push_str("<div style=\"color:#8a877f;margin-top:16px;\">-- <br>");
+        html.push_str(&sig.trim_end().lines().map(linkify).collect::<Vec<_>>().join("<br>"));
+        html.push_str("</div>");
+    }
+    format!(
+        "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body><div style=\"font-family:{FONT_STACK};font-size:14px;line-height:1.6;color:#1f1f1d;\">{html}</div></body></html>"
+    )
+}
+
 /// MIME type from a file name (for attachments picked from disk).
 pub fn guess_mime(name: &str) -> &'static str {
     match name.rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase()).as_deref() {
@@ -275,6 +384,9 @@ pub fn build(outgoing: &Outgoing) -> Result<(String, Vec<u8>), String> {
         .date(now)
         .message_id(message_id.clone())
         .text_body(outgoing.body.replace("\r\n", "\n"));
+    if outgoing.html {
+        builder = builder.html_body(text_to_html(&outgoing.body));
+    }
     if !outgoing.to.is_empty() {
         builder = builder.to(mb_list(&outgoing.to));
     }
@@ -366,6 +478,7 @@ mod tests {
             attachments: vec![OutgoingAttachment { name: "見積書.pdf".into(), mime: "application/pdf".into(), data: b"%PDF-1.4".to_vec() }],
             in_reply_to: Some("orig@example.jp".into()),
             references: vec!["root@example.jp".into(), "orig@example.jp".into()],
+            html: false,
         };
         let (id, raw) = build(&outgoing).unwrap();
         assert!(id.ends_with("@example.jp"));
@@ -381,6 +494,39 @@ mod tests {
         assert_eq!(parsed.attachments[0].file_name, "見積書.pdf");
         assert!(matches!(&parsed.body[0], fuu_model::BodyPart::Text(t) if t.contains("本文です")));
         assert_eq!(outgoing.envelope_recipients(), ["hanako@example.jp", "cc@example.jp", "secret@example.jp"]);
+    }
+
+    #[test]
+    fn text_to_html_structure_and_escaping() {
+        let html = text_to_html("こんにちは <b>太字ではない</b>\n詳細: https://example.org/a?b=1&c=2.\n\n2026/11/18、Taro さんは書きました:\n> 元の本文\n>> さらに前\n> 戻る\n\n-- \n山田 太郎\nhttps://example.jp");
+        assert!(html.contains("&lt;b&gt;太字ではない&lt;/b&gt;"), "{html}");
+        assert!(html.contains(r#"<a href="https://example.org/a?b=1&amp;c=2" "#), "trailing dot excluded: {html}");
+        assert_eq!(html.matches("<blockquote").count(), 2, "{html}");
+        assert_eq!(html.matches("</blockquote>").count(), 2, "{html}");
+        assert!(html.contains("<div>元の本文</div>"));
+        assert!(html.contains("color:#8a877f") && html.contains("山田 太郎"), "signature muted: {html}");
+        assert!(!html.contains("<style"), "inline styles only");
+    }
+
+    #[test]
+    fn html_messages_are_multipart_alternative() {
+        let outgoing = Outgoing {
+            from_email: "a@example.jp".into(),
+            to: vec![Recipient { name: None, email: "b@example.jp".into() }],
+            subject: "件名".into(),
+            body: "本文 https://example.org\n\n-- \n署名".into(),
+            html: true,
+            ..Outgoing::default()
+        };
+        let (_, raw) = build(&outgoing).unwrap();
+        let text = String::from_utf8_lossy(&raw).to_ascii_lowercase();
+        assert!(text.contains("multipart/alternative"), "{text}");
+        let parsed = MailParserEngine.parse(&raw, &ParseLimits::default()).unwrap();
+        assert!(parsed.body.iter().any(|b| matches!(b, fuu_model::BodyPart::Html(h) if h.contains("<a href=\"https://example.org\""))));
+        assert!(parsed.body.iter().any(|b| matches!(b, fuu_model::BodyPart::Text(t) if t.contains("本文"))));
+        let plain = Outgoing { html: false, ..outgoing };
+        let (_, raw) = build(&plain).unwrap();
+        assert!(!String::from_utf8_lossy(&raw).to_ascii_lowercase().contains("text/html"));
     }
 
     #[test]

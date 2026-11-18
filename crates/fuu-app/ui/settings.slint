@@ -125,6 +125,7 @@ component NavLink inherits Rectangle {
 export component SettingsView inherits Rectangle {
     in-out property <int> page;
     in-out property <int> theme-mode;   // 0 system, 1 light, 2 dark
+    in-out property <bool> compose-html: true;
     in-out property <string> signature-text;
     in-out property <bool> signature-enabled;
     in property <[AccountItem]> accounts;
@@ -167,6 +168,12 @@ export component SettingsView inherits Rectangle {
                     title: "テーマ";
                     description: "システムに合わせるか、明るい／暗い表示に固定します。";
                     Segmented { options: ["システム", "ライト", "ダーク"]; selected <=> root.theme-mode; }
+                }
+                Divider { height: 1px; }
+                SettingRow {
+                    title: "HTML メールで送信";
+                    description: "本文から HTML 版を作り、テキスト版と一緒に送ります（引用・署名・リンクを整えて表示）。オフにするとテキストのみで送ります。";
+                    Toggle { checked <=> root.compose-html; }
                 }
             }
 

@@ -200,6 +200,7 @@ fn engine_sends_reply_saves_sent_and_marks_answered() {
         body: "本文\n\n-- \n署名".into(),
         in_reply_to: Some("orig@example.jp".into()),
         references: vec!["orig@example.jp".into()],
+        html: true,
         ..Default::default()
     };
     engine.send(Command::Send { account_id: added.id.clone(), outgoing, answered: Some(("INBOX".into(), original.uid)), draft_id: 7 });

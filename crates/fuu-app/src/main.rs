@@ -1104,6 +1104,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     .collect(),
                 in_reply_to: d.in_reply_to.clone(),
                 references: d.references.clone(),
+                html: ui.get_compose_html(),
             };
             if let Some(Tab { content: TabContent::Draft(d), .. }) = tabs.borrow_mut().active_mut() {
                 d.sending = true;
