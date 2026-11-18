@@ -5,6 +5,7 @@ pub mod cache;
 pub mod config;
 pub mod engine;
 pub mod imap;
+pub mod remote;
 pub mod secrets;
 pub mod tls;
 

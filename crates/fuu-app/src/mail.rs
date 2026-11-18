@@ -40,6 +40,46 @@ pub struct AppData {
     pending: Vec<(String, String, u32)>,
     /// Last body failure per message, shown instead of the body.
     failures: HashMap<(String, String, u32), String>,
+    /// Documents with remote images the user allowed (per message, this session).
+    allowed: HashMap<(String, String, u32), Rc<SafeDocument>>,
+    remote_pending: Vec<(String, String, u32)>,
+}
+
+/// What the reader shows about remote images for a message.
+pub struct RemoteState {
+    /// The document to display (with images when allowed).
+    pub doc: SafeDocument,
+    /// Some remote content was blocked.
+    pub blocked: bool,
+    /// Blocked images can be allowed (not only tracking pixels).
+    pub allowable: bool,
+    pub loading: bool,
+}
+
+/// The document to show for a loaded body, with remote images if allowed.
+pub fn remote_state(r: &MessageRef, body: &Body) -> RemoteState {
+    let k = key(r);
+    if let Some(doc) = DATA.with(|d| d.borrow().allowed.get(&k).cloned()) {
+        return RemoteState { doc: (*doc).clone(), blocked: false, allowable: false, loading: false };
+    }
+    let loading = DATA.with(|d| d.borrow().remote_pending.contains(&k));
+    RemoteState {
+        doc: body.doc.clone(),
+        blocked: body.doc.flags.remote_images,
+        allowable: !body.doc.remote_images.is_empty(),
+        loading,
+    }
+}
+
+/// Fetch the remote images of this message (the user pressed "show").
+pub fn allow_remote(r: &MessageRef) {
+    let k = key(r);
+    let urls = DATA.with(|d| d.borrow().bodies.get(&k).map(|b| b.doc.remote_images.clone())).unwrap_or_default();
+    if urls.is_empty() || DATA.with(|d| d.borrow().remote_pending.contains(&k)) {
+        return;
+    }
+    DATA.with(|d| d.borrow_mut().remote_pending.push(k.clone()));
+    send(Command::FetchRemoteImages { account_id: k.0, folder: k.1, uid: k.2, urls });
 }
 
 /// A message body ready for display.
@@ -90,7 +130,7 @@ pub fn notice_document(text: &str) -> SafeDocument {
         "<!doctype html><html><head><meta charset=\"utf-8\"><style>:root{{color-scheme:light dark}}body{{font:14px/1.7 system-ui,'Segoe UI','Hiragino Sans','Yu Gothic UI',sans-serif;margin:6px 40px 48px;opacity:.55}}</style></head><body><p>{}</p></body></html>",
         escape_html(text)
     );
-    SafeDocument { html, text: text.to_owned(), resources: ResourceManifest::default(), flags: Default::default() }
+    SafeDocument { html, text: text.to_owned(), resources: ResourceManifest::default(), flags: Default::default(), remote_images: Vec::new() }
 }
 
 /// The body for a message tab: cached, failed, or requested now (loading).
@@ -312,6 +352,20 @@ fn handle(ui: &AppWindow, event: Event) {
             });
             ui.invoke_body_ready();
         }
+        Event::RemoteImages { account_id, folder, uid, images } => {
+            let k = (account_id, folder, uid);
+            let fetched = images.iter().filter(|i| i.is_some()).count();
+            DATA.with(|d| {
+                let mut d = d.borrow_mut();
+                d.remote_pending.retain(|p| p != &k);
+                if let Some(body) = d.bodies.get(&k).cloned() {
+                    let doc = fuu_sanitiser::with_remote_images(&body.doc, &images);
+                    d.allowed.insert(k, Rc::new(doc));
+                }
+            });
+            ui.set_feed_summary(format!("外部画像を {fetched} / {} 件読み込みました", images.len()).into());
+            ui.invoke_body_ready();
+        }
         Event::Moved { account_id, folder, uid, target } => {
             let removed_row = DATA.with(|d| {
                 let mut d = d.borrow_mut();
@@ -522,7 +576,7 @@ pub fn placeholder_document(r: &MessageRef) -> SafeDocument {
         "<!doctype html><html><head><meta charset=\"utf-8\"><style>body{{font:14px/1.7 system-ui,'Segoe UI','Hiragino Sans','Yu Gothic UI',sans-serif;margin:6px 40px 48px;color:#8a877f}}</style></head><body><p>{}</p></body></html>",
         escape_html(&text).replace('\n', "<br>")
     );
-    SafeDocument { html, text, resources: ResourceManifest { entries: Vec::<ManifestEntry>::new() }, flags: Default::default() }
+    SafeDocument { html, text, resources: ResourceManifest { entries: Vec::<ManifestEntry>::new() }, flags: Default::default(), remote_images: Vec::new() }
 }
 
 // ───────────── Account setup form

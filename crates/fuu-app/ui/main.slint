@@ -170,6 +170,8 @@ export component AppWindow inherits Window {
     in property <string> reader-cc;
     in property <[AttachmentItem]> attachments;
     in property <bool> remote-blocked;
+    in property <bool> remote-allowable;
+    in property <bool> remote-loading;
     in-out property <string> exec-warning;
     in property <string> reader-initials;
     in property <int> reader-avatar;
@@ -301,6 +303,7 @@ export component AppWindow inherits Window {
     callback body-ready();
     callback message-moved(string, string, int);
     callback save-attachment(int, bool);
+    callback allow-remote();
     callback setup-email-edited(string);
     callback setup-submit();
     callback select-account(int);
@@ -639,9 +642,38 @@ export component AppWindow inherits Window {
                         background: Theme.field;
                         HorizontalLayout {
                             padding-left: 10px;
+                            padding-right: 4px;
                             spacing: 8px;
                             Icon { source: @image-url("icons/shield.svg"); width: 14px; height: 14px; y: (parent.height - self.height) / 2; }
-                            Text { text: "外部画像をブロックしました（送信者に開封を知られないため）"; font-size: Theme.font-s; color: Theme.text-muted; vertical-alignment: center; }
+                            Text {
+                                text: root.remote-allowable
+                                    ? "外部画像をブロックしました（送信者に開封を知られないため）"
+                                    : "追跡用の画像をブロックしました";
+                                font-size: Theme.font-s;
+                                color: Theme.text-muted;
+                                vertical-alignment: center;
+                                overflow: elide;
+                                horizontal-stretch: 1;
+                            }
+                            if root.remote-allowable: Rectangle {
+                                width: show-label.preferred-width + 20px;
+                                height: 24px;
+                                y: (parent.height - self.height) / 2;
+                                border-radius: Theme.radius-s;
+                                background: show-area.has-hover && !root.remote-loading ? Theme.hover : transparent;
+                                show-area := TouchArea {
+                                    enabled: !root.remote-loading;
+                                    clicked => { root.allow-remote(); }
+                                }
+                                show-label := Text {
+                                    text: root.remote-loading ? "読み込み中…" : "表示する";
+                                    font-size: Theme.font-s;
+                                    font-weight: 600;
+                                    color: root.remote-loading ? Theme.text-faint : Theme.accent;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
                         }
                     }
                 }

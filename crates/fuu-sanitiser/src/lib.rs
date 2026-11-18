@@ -7,7 +7,7 @@ pub mod filename;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub use fuu_model::{ParsedMessage, SafeDocument, DOCUMENT_CSP};
 use fuu_model::{BodyPart, ManifestEntry, ResourceManifest, SafetyFlags};
@@ -81,6 +81,139 @@ fn extract_styles(html: &str) -> Vec<String> {
     out
 }
 
+/// Undo the character references that can appear in attribute values.
+fn unescape_attr(value: &str) -> String {
+    value.replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">")
+}
+
+/// Parse the attributes of one start tag (`<img a=b c="d">`), lower-casing names.
+fn tag_attributes(tag: &str) -> HashMap<String, String> {
+    let mut attrs = HashMap::new();
+    let body = tag.trim_start_matches('<');
+    let mut chars = body.char_indices().peekable();
+    // skip the tag name
+    while let Some(&(_, c)) = chars.peek() {
+        if c.is_whitespace() || c == '>' || c == '/' {
+            break;
+        }
+        chars.next();
+    }
+    loop {
+        while matches!(chars.peek(), Some(&(_, c)) if c.is_whitespace() || c == '/') {
+            chars.next();
+        }
+        let Some(&(start, c)) = chars.peek() else { break };
+        if c == '>' {
+            break;
+        }
+        let mut end = start;
+        while let Some(&(i, c)) = chars.peek() {
+            if c.is_whitespace() || c == '=' || c == '>' || c == '/' {
+                break;
+            }
+            end = i + c.len_utf8();
+            chars.next();
+        }
+        let name = body[start..end].to_ascii_lowercase();
+        while matches!(chars.peek(), Some(&(_, c)) if c.is_whitespace()) {
+            chars.next();
+        }
+        let mut value = String::new();
+        if matches!(chars.peek(), Some(&(_, '='))) {
+            chars.next();
+            while matches!(chars.peek(), Some(&(_, c)) if c.is_whitespace()) {
+                chars.next();
+            }
+            match chars.peek().map(|&(_, c)| c) {
+                Some(q @ ('"' | '\'')) => {
+                    chars.next();
+                    for (_, c) in chars.by_ref() {
+                        if c == q {
+                            break;
+                        }
+                        value.push(c);
+                    }
+                }
+                _ => {
+                    while let Some(&(_, c)) = chars.peek() {
+                        if c.is_whitespace() || c == '>' {
+                            break;
+                        }
+                        value.push(c);
+                        chars.next();
+                    }
+                }
+            }
+        }
+        if name.is_empty() {
+            chars.next();
+            continue;
+        }
+        attrs.entry(name).or_insert_with(|| unescape_attr(&value));
+    }
+    attrs
+}
+
+fn tiny_length(value: &str) -> bool {
+    let v = value.trim().trim_end_matches("px").trim();
+    v.parse::<f32>().map(|n| n <= 2.0).unwrap_or(false)
+}
+
+/// Remote image URLs that look like tracking pixels: 0–2 px in either dimension,
+/// or hidden. These are never fetched, even when remote images are allowed.
+fn tracking_pixel_sources(html: &str) -> HashSet<String> {
+    let lower = html.to_ascii_lowercase();
+    let mut out = HashSet::new();
+    let mut from = 0;
+    while let Some(i) = lower[from..].find("<img") {
+        let start = from + i;
+        let Some(end) = lower[start..].find('>') else { break };
+        let attrs = tag_attributes(&html[start..start + end + 1]);
+        from = start + end + 1;
+        let Some(src) = attrs.get("src") else { continue };
+        let style = attrs.get("style").map(|s| s.to_ascii_lowercase().replace(' ', "")).unwrap_or_default();
+        let style_tiny = ["width:0", "width:1px", "width:2px", "height:0", "height:1px", "height:2px", "width:1;", "height:1;"]
+            .iter()
+            .any(|p| style.contains(p));
+        let hidden = style.contains("display:none") || style.contains("visibility:hidden") || style.contains("opacity:0");
+        let tiny = attrs.get("width").is_some_and(|w| tiny_length(w)) || attrs.get("height").is_some_and(|h| tiny_length(h));
+        if tiny || style_tiny || hidden {
+            out.insert(src.trim().to_owned());
+        }
+    }
+    out
+}
+
+/// Normalise a remote image URL (protocol-relative → https); `None` if not remote.
+fn remote_url(value: &str) -> Option<String> {
+    let v = value.trim();
+    let lower = v.to_ascii_lowercase();
+    if lower.starts_with("https://") || lower.starts_with("http://") {
+        Some(v.to_owned())
+    } else if lower.starts_with("//") {
+        Some(format!("https:{v}"))
+    } else {
+        None
+    }
+}
+
+/// Insert fetched remote images into a document: `images[k]` is the image for
+/// `remote_images[k]` (`None` when it could not be fetched; that image stays blank).
+pub fn with_remote_images(doc: &SafeDocument, images: &[Option<(String, Vec<u8>)>]) -> SafeDocument {
+    let mut out = doc.clone();
+    for (k, image) in images.iter().enumerate() {
+        let Some((mime, data)) = image else { continue };
+        if !RASTER_TYPES.contains(&mime.as_str()) {
+            continue;
+        }
+        let index = out.resources.entries.len();
+        out.resources.entries.push(ManifestEntry { mime: mime.clone(), data: data.clone() });
+        out.html = out.html.replace(&format!("src=\"remote/{k}\""), &format!("src=\"res/{index}\""));
+    }
+    out.remote_images.clear();
+    out
+}
+
 fn data_url_is_raster(url: &str) -> bool {
     let lower = url.to_ascii_lowercase();
     let Some(meta) = lower.strip_prefix("data:").and_then(|r| r.split(',').next()) else { return false };
@@ -114,13 +247,13 @@ pub fn sanitise(message: &ParsedMessage) -> SafeDocument {
 
     match html {
         Some(html) => {
-            let (body, flags) = sanitise_html(html, &cid_index);
+            let (body, flags, remote_images) = sanitise_html(html, &cid_index);
             let css: String = extract_styles(html).iter().map(|s| css::sanitise_stylesheet(s)).collect();
             let document = format!(
                 "<!doctype html><html><head><meta charset=\"utf-8\"><style>{BASE_STYLE}</style><style>{css}</style></head><body>{body}</body></html>"
             );
             let plain = text.map(str::to_owned).unwrap_or_else(|| html_to_text(html));
-            SafeDocument { html: document, text: plain, resources: manifest, flags }
+            SafeDocument { html: document, text: plain, resources: manifest, flags, remote_images }
         }
         None => {
             let plain = text.unwrap_or_default();
@@ -129,6 +262,7 @@ pub fn sanitise(message: &ParsedMessage) -> SafeDocument {
                 text: plain.to_owned(),
                 resources: ResourceManifest::default(),
                 flags: SafetyFlags::default(),
+                remote_images: Vec::new(),
             }
         }
     }
@@ -149,10 +283,13 @@ fn text_document(text: &str) -> String {
     format!("<!doctype html><html><head><meta charset=\"utf-8\"><style>{TEXT_STYLE}</style></head><body><pre class=\"fuu-text\">{body}</pre></body></html>")
 }
 
-fn sanitise_html(html: &str, cid_index: &HashMap<String, usize>) -> (String, SafetyFlags) {
+fn sanitise_html(html: &str, cid_index: &HashMap<String, usize>) -> (String, SafetyFlags, Vec<String>) {
     let remote_images = Arc::new(AtomicBool::new(false));
     let remote_flag = remote_images.clone();
     let cids: HashMap<String, usize> = cid_index.clone();
+    let pixels = tracking_pixel_sources(html);
+    let remote_list: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let remote_sink = remote_list.clone();
 
     let mut tag_attributes: HashMap<&str, HashSet<&str>> = HashMap::new();
     tag_attributes.insert("a", ["href"].into_iter().collect());
@@ -179,10 +316,18 @@ fn sanitise_html(html: &str, cid_index: &HashMap<String, usize>) -> (String, Saf
                         cids.get(cid.trim()).map(|i| Cow::Owned(format!("res/{i}")))
                     } else if lower.starts_with("data:") {
                         data_url_is_raster(v).then(|| Cow::Borrowed(value))
-                    } else {
-                        if lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("//") {
-                            remote_flag.store(true, Ordering::Relaxed);
+                    } else if let Some(url) = remote_url(v) {
+                        remote_flag.store(true, Ordering::Relaxed);
+                        if pixels.contains(v) {
+                            return None; // tracking-pixel candidate: never fetchable
                         }
+                        let mut list = remote_sink.lock().unwrap();
+                        let k = list.iter().position(|u| u == &url).unwrap_or_else(|| {
+                            list.push(url.clone());
+                            list.len() - 1
+                        });
+                        Some(Cow::Owned(format!("remote/{k}")))
+                    } else {
                         None
                     }
                 }
@@ -198,7 +343,8 @@ fn sanitise_html(html: &str, cid_index: &HashMap<String, usize>) -> (String, Saf
         .to_string();
 
     let flags = SafetyFlags { remote_images: remote_images.load(Ordering::Relaxed), ..SafetyFlags::default() };
-    (cleaned, flags)
+    let list = remote_list.lock().unwrap().clone();
+    (cleaned, flags, list)
 }
 
 /// Rough plain-text rendition of HTML (for reply quoting and the text renderer).
@@ -287,7 +433,54 @@ mod tests {
         assert!(!body.contains("t.example"), "{body}");
         assert!(!body.contains("cid:"), "unknown cid left blank: {body}");
         assert!(doc.flags.remote_images);
+        // The 1x1 pixel is never listed; the protocol-relative image is, as https.
+        assert_eq!(doc.remote_images, vec!["https://t.example/p2.gif".to_owned()]);
+        assert!(body.contains(r#"src="remote/0""#), "{body}");
         assert_eq!(doc.resources.entries.len(), 1, "SVG is never a resource");
+    }
+
+    #[test]
+    fn tracking_pixels_are_never_listed() {
+        let doc = sanitise(&html_message(
+            r#"<img src="https://a.example/1.gif" width="1" height="1">
+               <img src="https://a.example/2.gif" style="display:none">
+               <img src="https://a.example/3.gif" style="width: 0px">
+               <img src="https://a.example/4.gif" height=2>
+               <img src="https://a.example/photo.jpg?x=1&amp;y=2" width="600">
+               <img src="https://a.example/photo.jpg?x=1&amp;y=2">"#,
+        ));
+        assert_eq!(doc.remote_images, vec!["https://a.example/photo.jpg?x=1&y=2".to_owned()], "duplicates share one entry");
+        assert!(doc.flags.remote_images);
+        let body = body_of(&doc);
+        assert_eq!(body.matches(r#"src="remote/0""#).count(), 2);
+        assert!(!body.contains("a.example"));
+    }
+
+    #[test]
+    fn allowed_images_become_manifest_entries() {
+        let doc = sanitise(&html_message(r#"<img src="https://a.example/a.png"><img src="https://a.example/b.png"><img src="https://a.example/c.svg">"#));
+        assert_eq!(doc.remote_images.len(), 3);
+        let fetched = vec![
+            Some(("image/png".to_owned(), vec![1, 2])),
+            None,
+            Some(("image/svg+xml".to_owned(), vec![3])),
+        ];
+        let allowed = with_remote_images(&doc, &fetched);
+        let body = body_of(&allowed);
+        assert!(body.contains(r#"src="res/0""#), "{body}");
+        assert!(body.contains(r#"src="remote/1""#), "failed fetch stays blank: {body}");
+        assert!(body.contains(r#"src="remote/2""#), "SVG is never inserted: {body}");
+        assert_eq!(allowed.resources.entries.len(), 1);
+        assert!(allowed.remote_images.is_empty());
+    }
+
+    #[test]
+    fn parses_tag_attributes() {
+        let a = tag_attributes(r#"<img SRC='x.png' width=1 alt="a b" data-x>"#);
+        assert_eq!(a.get("src").map(String::as_str), Some("x.png"));
+        assert_eq!(a.get("width").map(String::as_str), Some("1"));
+        assert_eq!(a.get("alt").map(String::as_str), Some("a b"));
+        assert!(a.contains_key("data-x"));
     }
 
     #[test]

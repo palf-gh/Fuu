@@ -77,6 +77,7 @@ pub fn security_document() -> SafeDocument {
             ],
         },
         flags: Default::default(),
+        remote_images: Vec::new(),
     }
 }
 
@@ -97,6 +98,7 @@ pub fn cjk_document() -> SafeDocument {
         text: CJK_TEXT.into(),
         resources: ResourceManifest::default(),
         flags: Default::default(),
+        remote_images: Vec::new(),
     }
 }
 
@@ -106,7 +108,7 @@ pub fn message_document(index: usize, subject: &str) -> SafeDocument {
         "<p>{}</p>",
         escape_html(&text).replace('\n', "<br>")
     ));
-    SafeDocument { html, text, resources: ResourceManifest::default(), flags: Default::default() }
+    SafeDocument { html, text, resources: ResourceManifest::default(), flags: Default::default(), remote_images: Vec::new() }
 }
 
 #[cfg(test)]

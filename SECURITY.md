@@ -27,8 +27,14 @@
      body so render-blocking resources cannot stall layout.
    - Navigation and form submission are refused by `RefuseNavigation`; links are
      hit-tested from host clicks and classified (`http(s)`/`mailto` only).
-4. **Remote content policy**: block by default, per-message allow, pixel candidates
-   never fetched, no automatic read receipts.
+4. **Remote content policy** (`fuu-sanitiser`, `fuu-core::remote`): blocked by
+   default; each remote `<img>` points at an unloadable `remote/<n>` placeholder.
+   Tracking-pixel candidates (0–2 px, hidden) are never listed. On "表示する" for one
+   message, Fuu (never the renderer) fetches the listed images with no cookies, no
+   Referer, a generic User-Agent, at most 3 http(s) redirects, timeouts, an 8 MB cap,
+   raster formats confirmed by magic bytes, and refuses loopback, private, link-local
+   and CGNAT addresses; fetched images become manifest entries. Permission lasts for
+   that message in the current session. No automatic read receipts.
 5. **Attachments**: never auto-opened; file names sanitised; executable types
    warned; Mark-of-the-Web / quarantine attribute on save.
 

@@ -106,6 +106,11 @@ pub struct SafeDocument {
     pub text: String,
     pub resources: ResourceManifest,
     pub flags: SafetyFlags,
+    /// Remote images the user may allow for this message. Each `<img>` points at
+    /// `remote/<index>` (never loadable by the renderer) until Fuu fetches the
+    /// image and rewrites it to a manifest entry. Tracking-pixel candidates are
+    /// not listed.
+    pub remote_images: Vec<String>,
 }
 
 /// Whether remote content may be fetched (by Fuu, never by the renderer itself).

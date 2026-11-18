@@ -28,6 +28,8 @@ pub enum Command {
     OpenFolder { account_id: String, path: String },
     /// Load a message body (cache first), marking it as read on the server.
     FetchBody { account_id: String, folder: String, uid: u32 },
+    /// Fetch remote images the user allowed for one message.
+    FetchRemoteImages { account_id: String, folder: String, uid: u32, urls: Vec<String> },
     /// Move a message to the account's Trash or Archive folder.
     Move { account_id: String, folder: String, uid: u32, target: MoveTarget },
 }
@@ -48,6 +50,7 @@ pub enum Event {
     Body { account_id: String, folder: String, uid: u32, raw: Arc<Vec<u8>> },
     BodyFailed { account_id: String, folder: String, uid: u32, message: String },
     Moved { account_id: String, folder: String, uid: u32, target: MoveTarget },
+    RemoteImages { account_id: String, folder: String, uid: u32, images: Vec<Option<crate::remote::Image>> },
     /// Short progress text for the status line.
     Status(String),
     Error(String),
@@ -127,6 +130,10 @@ impl Inner {
             Command::OpenFolder { account_id, path } => self.open_folder(&account_id, &path).await,
             Command::FetchBody { account_id, folder, uid } => self.fetch_body(&account_id, &folder, uid).await,
             Command::Move { account_id, folder, uid, target } => self.move_message(&account_id, &folder, uid, target).await,
+            Command::FetchRemoteImages { account_id, folder, uid, urls } => {
+                let images = crate::remote::fetch_images(&urls).await;
+                self.emit(Event::RemoteImages { account_id, folder, uid, images });
+            }
         }
     }
 

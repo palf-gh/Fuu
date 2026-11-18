@@ -399,6 +399,8 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
     ui.set_reader_cc(SharedString::default());
     ui.set_attachments(ModelRc::new(VecModel::<AttachmentItem>::default()));
     ui.set_remote_blocked(false);
+    ui.set_remote_allowable(false);
+    ui.set_remote_loading(false);
     let doc = match content {
         None => None,
         Some(TabContent::Message(r)) => Some(show_message(ui, &r)),
@@ -463,8 +465,11 @@ fn show_message(ui: &AppWindow, r: &MessageRef) -> SafeDocument {
             ui.set_reader_to(body.to.clone().into());
             ui.set_reader_cc(body.cc.clone().into());
             ui.set_attachments(ModelRc::new(VecModel::from(mail::attachment_items(&body))));
-            ui.set_remote_blocked(body.doc.flags.remote_images);
-            body.doc.clone()
+            let remote = mail::remote_state(r, &body);
+            ui.set_remote_blocked(remote.blocked);
+            ui.set_remote_allowable(remote.allowable);
+            ui.set_remote_loading(remote.loading);
+            remote.doc
         }
         Err(notice) => notice,
     }
@@ -713,6 +718,18 @@ fn main() -> Result<(), slint::PlatformError> {
             if active_is_message {
                 apply_active(&ui, &state, &tabs);
             }
+        });
+    }
+    {
+        // "Show images" for the active message only.
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_allow_remote(move || {
+            let Some(ui) = weak.upgrade() else { return };
+            if let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) {
+                mail::allow_remote(&r);
+                ui.set_remote_loading(true);
+            }
+            let _ = &state;
         });
     }
     {

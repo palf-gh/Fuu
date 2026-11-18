@@ -29,6 +29,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 rustls-platform-verifier = "0.7"
 webpki-roots = "1"
 rusqlite = { version = "0.43", features = ["bundled"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 utf7-imap = "0.3"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 
