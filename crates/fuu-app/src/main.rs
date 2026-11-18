@@ -15,7 +15,7 @@ use fuu_model::{Rect, RemoteContentPolicy, SafeDocument};
 use fuu_render::blitz::{BlitzRenderer, RenderedPage};
 use fuu_render::text::TextRenderer;
 use fuu_render::webview::WebViewRenderer;
-use fuu_render::{BodyRenderer, LinkHandler, LinkRequest, RenderStats};
+use fuu_render::{BodyRenderer, LinkHandler, LinkRequest, PointerPhase, RenderStats};
 use slint::{ComponentHandle, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
 
 slint::include_modules!();
@@ -278,7 +278,10 @@ fn main() -> Result<(), slint::PlatformError> {
             // Take the renderer out of the borrow so link callbacks may touch state.
             let reader = state.borrow_mut().reader.take();
             if let Some(mut r) = reader {
-                r.renderer.pointer_click(x * scale, y * scale);
+                // A click that ends a text selection is not a link activation.
+                if r.renderer.selected_text().is_none() {
+                    r.renderer.pointer_click(x * scale, y * scale);
+                }
                 state.borrow_mut().reader = Some(r);
             }
         });
@@ -286,14 +289,40 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let state = state.clone();
         let weak = ui.as_weak();
-        ui.on_page_pointer_moved(move |x, y| {
+        ui.on_page_pointer(move |phase, x, y| {
             let Some(ui) = weak.upgrade() else { return };
             let scale = ui.window().scale_factor();
-            let hover = state
-                .borrow()
-                .reader
-                .as_ref()
-                .is_some_and(|r| r.renderer.link_at(x * scale, y * scale));
+            let phase = if phase == 0 { PointerPhase::Down } else { PointerPhase::Up };
+            if let Some(r) = state.borrow_mut().reader.as_mut() {
+                r.renderer.pointer_event(phase, x * scale, y * scale, phase == PointerPhase::Down);
+            }
+        });
+    }
+    {
+        let state = state.clone();
+        let weak = ui.as_weak();
+        ui.on_copy_selection(move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let text = state.borrow().reader.as_ref().and_then(|r| r.renderer.selected_text());
+            let Some(text) = text else { return };
+            match arboard::Clipboard::new().and_then(|mut c| c.set_text(text.clone())) {
+                Ok(()) => ui.set_feed_summary(format!("{} 文字をコピー", text.chars().count()).into()),
+                Err(e) => eprintln!("clipboard: {e}"),
+            }
+        });
+    }
+    {
+        let state = state.clone();
+        let weak = ui.as_weak();
+        ui.on_page_pointer_moved(move |x, y, pressed| {
+            let Some(ui) = weak.upgrade() else { return };
+            let scale = ui.window().scale_factor();
+            let mut st = state.borrow_mut();
+            let Some(r) = st.reader.as_mut() else { return };
+            if pressed {
+                r.renderer.pointer_event(PointerPhase::Move, x * scale, y * scale, true);
+            }
+            let hover = !pressed && r.renderer.link_at(x * scale, y * scale);
             if hover != ui.get_page_link_hover() {
                 ui.set_page_link_hover(hover);
             }
@@ -387,6 +416,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let composited = r.renderer.composited_by_host();
 
             if composited {
+                r.renderer.poll_repaint();
                 if scale != r.last_scale {
                     r.last_scale = scale;
                     r.renderer.set_scale_factor(scale);

@@ -110,7 +110,10 @@ export component AppWindow inherits Window {
 
     callback row-selected(int);
     callback page-clicked(length, length);
-    callback page-pointer-moved(length, length);
+    callback page-pointer-moved(length, length, bool);
+    // phase: 0 = down, 2 = up
+    callback page-pointer(int, length, length);
+    callback copy-selection();
     callback page-pointer-left();
     callback toggle-renderer();
     callback load-security-sample();
@@ -212,26 +215,45 @@ export component AppWindow inherits Window {
             Divider { height: 1px; }
             reader-host := Rectangle {
                 background: Palette.background;
-                if root.use-page-image: ScrollView {
-                    content-width: root.page-width;
-                    content-height: root.page-height;
-                    Image {
-                        x: 0; y: 0;
-                        width: root.page-width;
-                        height: root.page-height;
-                        source: root.page-image;
-                        image-fit: fill;
+                if root.use-page-image: page-focus := FocusScope {
+                    key-pressed(event) => {
+                        if ((event.modifiers.control || event.modifiers.meta) && (event.text == "c" || event.text == "C")) {
+                            root.copy-selection();
+                            return accept;
+                        }
+                        return reject;
                     }
-                    TouchArea {
-                        x: 0; y: 0;
-                        width: root.page-width;
-                        height: root.page-height;
-                        mouse-cursor: root.page-link-hover ? pointer : default;
-                        clicked => { root.page-clicked(self.pressed-x, self.pressed-y); }
-                        // `moved` only fires while pressed; track hover via the mouse position.
-                        changed mouse-x => { root.page-pointer-moved(self.mouse-x, self.mouse-y); }
-                        changed mouse-y => { root.page-pointer-moved(self.mouse-x, self.mouse-y); }
-                        changed has-hover => { if (!self.has-hover) { root.page-pointer-left(); } }
+                    ScrollView {
+                        content-width: root.page-width;
+                        content-height: root.page-height;
+                        Image {
+                            x: 0; y: 0;
+                            width: root.page-width;
+                            height: root.page-height;
+                            source: root.page-image;
+                            image-fit: fill;
+                        }
+                        TouchArea {
+                            x: 0; y: 0;
+                            width: root.page-width;
+                            height: root.page-height;
+                            mouse-cursor: root.page-link-hover ? pointer : text;
+                            clicked => { root.page-clicked(self.pressed-x, self.pressed-y); }
+                            pointer-event(e) => {
+                                if (e.button == PointerEventButton.left) {
+                                    if (e.kind == PointerEventKind.down) {
+                                        page-focus.focus();
+                                        root.page-pointer(0, self.mouse-x, self.mouse-y);
+                                    } else if (e.kind == PointerEventKind.up) {
+                                        root.page-pointer(2, self.mouse-x, self.mouse-y);
+                                    }
+                                }
+                            }
+                            // `moved` only fires while pressed; track hover via the mouse position.
+                            changed mouse-x => { root.page-pointer-moved(self.mouse-x, self.mouse-y, self.pressed); }
+                            changed mouse-y => { root.page-pointer-moved(self.mouse-x, self.mouse-y, self.pressed); }
+                            changed has-hover => { if (!self.has-hover) { root.page-pointer-left(); } }
+                        }
                     }
                 }
                 if root.use-fallback: ScrollView {

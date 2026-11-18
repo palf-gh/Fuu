@@ -16,13 +16,19 @@ use std::sync::Arc;
 use anyrender::render_to_buffer;
 use anyrender_vello_cpu::VelloCpuImageRenderer;
 use base64::Engine as _;
-use blitz_dom::{local_name, BaseDocument, DocumentConfig};
+use atomic_refcell::AtomicRefCell;
+use blitz_dom::{local_name, BaseDocument, DocumentConfig, EventDriver, NoopEventHandler};
 use blitz_html::HtmlDocument;
+use blitz_traits::events::{
+    BlitzPointerEvent, BlitzPointerId, MouseEventButton, MouseEventButtons, Point, PointerCoords, PointerDetails, UiEvent,
+};
 use blitz_traits::navigation::{NavigationOptions, NavigationProvider};
 use blitz_traits::net::{Bytes, NetHandler, NetProvider, Request, Url};
 use blitz_traits::shell::{ColorScheme, Viewport};
 
-use crate::{classify_link, BodyRenderer, LinkHandler, Rect, RemoteContentPolicy, RenderError, RenderStats, SafeDocument};
+use crate::{
+    classify_link, BodyRenderer, LinkHandler, PointerPhase, Rect, RemoteContentPolicy, RenderError, RenderStats, SafeDocument,
+};
 
 /// Base URL of every document; manifest entries resolve to `fuu://doc/res/<n>`.
 const DOCUMENT_BASE: &str = "fuu://doc/";
@@ -30,6 +36,8 @@ const DOCUMENT_BASE: &str = "fuu://doc/";
 const SERVABLE_RESOURCE_TYPES: &[&str] = &["image/png", "image/jpeg", "image/gif", "image/webp"];
 /// Upper bound on the painted height, in physical pixels.
 const MAX_PAINT_HEIGHT: u32 = 16_000;
+/// Minimum interval between selection repaints (full-page CPU paints).
+const REPAINT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33);
 
 /// A painted document handed to the host.
 #[derive(Debug, Clone)]
@@ -103,8 +111,11 @@ pub struct BlitzRenderer {
     doc: Option<BaseDocument>,
     source: Option<(String, Arc<Vec<(String, Vec<u8>)>>)>,
     width: u32,
+    height: u32,
     scale: f32,
     dark: bool,
+    dirty: bool,
+    last_paint: std::time::Instant,
 }
 
 impl BlitzRenderer {
@@ -116,8 +127,11 @@ impl BlitzRenderer {
             doc: None,
             source: None,
             width: 600,
+            height: 1,
             scale: 1.0,
             dark: false,
+            dirty: false,
+            last_paint: std::time::Instant::now(),
         }
     }
 
@@ -150,28 +164,31 @@ impl BlitzRenderer {
         self.doc = Some(doc);
     }
 
-    fn layout_and_paint(&self, doc: &mut BaseDocument) {
+    fn layout_and_paint(&mut self, doc: &mut BaseDocument) {
         doc.set_viewport(self.viewport(1));
         for _ in 0..2 {
             doc.handle_messages();
             doc.resolve(0.0);
         }
         let layout = *doc.root_element().final_layout();
-        if std::env::var_os("FUU_BLITZ_DEBUG").is_some() {
-            eprintln!("root size={:?} overflow={:?} viewport={:?}", layout.size, layout.scrollable_overflow_rect, doc.viewport().window_size);
-        }
         let content_css = layout.size.height.max(layout.scrollable_overflow_rect.bottom);
-        let height = ((content_css * self.scale).ceil() as u32).clamp(1, MAX_PAINT_HEIGHT);
-        doc.set_viewport(self.viewport(height));
-        doc.resolve(0.0);
+        self.height = ((content_css * self.scale).ceil() as u32).clamp(1, MAX_PAINT_HEIGHT);
+        doc.set_viewport(self.viewport(self.height));
+        self.paint(doc);
+    }
 
-        let width = self.width.max(1);
+    /// Paint the already laid-out document (e.g. after a selection change).
+    fn paint(&mut self, doc: &mut BaseDocument) {
+        doc.resolve(0.0);
+        let (width, height) = (self.width.max(1), self.height);
         let scale = f64::from(self.scale);
         let rgba = render_to_buffer::<VelloCpuImageRenderer, _>(
             |scene| blitz_paint::paint_scene(scene, doc, scale, width, height, 0, 0),
             width,
             height,
         );
+        self.dirty = false;
+        self.last_paint = std::time::Instant::now();
         (self.sink)(RenderedPage { width, height, scale: self.scale, rgba_premultiplied: rgba });
     }
 
@@ -262,6 +279,46 @@ impl BodyRenderer for BlitzRenderer {
         self.href_at(x, y).is_some_and(|href| classify_link(&href).is_some())
     }
 
+    fn pointer_event(&mut self, phase: PointerPhase, x: f32, y: f32, pressed: bool) {
+        let Some(doc) = self.doc.as_mut() else { return };
+        // The viewport spans the whole document at scroll 0: page == client coords.
+        let (cx, cy) = (x / self.scale, y / self.scale);
+        let event = BlitzPointerEvent {
+            id: BlitzPointerId::Mouse,
+            is_primary: true,
+            coords: PointerCoords { page_x: cx, page_y: cy, screen_x: cx, screen_y: cy, client_x: cx, client_y: cy },
+            button: MouseEventButton::Main,
+            buttons: if pressed { MouseEventButtons::Primary } else { MouseEventButtons::None },
+            mods: keyboard_types::Modifiers::empty(),
+            details: PointerDetails { pressure: if pressed { 0.5 } else { 0.0 }, ..PointerDetails::default() },
+            element: Point { x: cx, y: cy },
+            active_pointers: Arc::new(AtomicRefCell::new(Vec::new())),
+        };
+        let ui_event = match phase {
+            PointerPhase::Down => UiEvent::PointerDown(event),
+            PointerPhase::Move => UiEvent::PointerMove(event),
+            PointerPhase::Up => UiEvent::PointerUp(event),
+        };
+        let before = doc.get_text_selection_ranges();
+        EventDriver::new(doc, NoopEventHandler).handle_ui_event(ui_event);
+        if doc.get_text_selection_ranges() != before {
+            self.dirty = true;
+        }
+    }
+
+    fn selected_text(&self) -> Option<String> {
+        self.doc.as_ref()?.get_selected_text().filter(|t| !t.is_empty())
+    }
+
+    fn poll_repaint(&mut self) {
+        if self.dirty && self.last_paint.elapsed() >= REPAINT_INTERVAL {
+            if let Some(mut doc) = self.doc.take() {
+                self.paint(&mut doc);
+                self.doc = Some(doc);
+            }
+        }
+    }
+
     fn set_scale_factor(&mut self, scale: f32) {
         if (scale - self.scale).abs() > f32::EPSILON && scale > 0.0 {
             self.scale = scale;
@@ -339,6 +396,26 @@ mod tests {
         r.pointer_click(10.0, 10.0);
         assert_eq!(links.borrow().as_slice(), &[crate::LinkRequest::Web("https://example.org/".into())]);
         assert!(!r.link_at(10.0, 220.0));
+    }
+}
+
+#[cfg(test)]
+mod selection_tests {
+    use super::*;
+
+    #[test]
+    fn drag_selects_text() {
+        let mut r = BlitzRenderer::new(Box::new(|_| {}), Box::new(|_| {}));
+        r.set_bounds(Rect { x: 0, y: 0, width: 600, height: 100 }).unwrap();
+        let html = r#"<body style="margin:0;font-size:20px"><p style="margin:0">hello brave world</p></body>"#;
+        r.show(&SafeDocument { html: html.into(), ..SafeDocument::default() }, RemoteContentPolicy::Block).unwrap();
+        assert_eq!(r.selected_text(), None);
+        r.pointer_event(PointerPhase::Down, 1.0, 10.0, true);
+        r.pointer_event(PointerPhase::Move, 300.0, 10.0, true);
+        r.pointer_event(PointerPhase::Up, 300.0, 10.0, false);
+        let text = r.selected_text().expect("drag selected something");
+        assert!(text.starts_with("hello"), "{text:?}");
+        assert!(r.dirty, "selection change requests a repaint");
     }
 }
 

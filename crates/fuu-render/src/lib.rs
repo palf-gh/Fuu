@@ -52,6 +52,14 @@ pub struct RenderStats {
     pub navigations_blocked: AtomicUsize,
 }
 
+/// Phase of a host-delivered pointer event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PointerPhase {
+    Down,
+    Move,
+    Up,
+}
+
 /// A swappable rendering engine.
 pub trait BodyRenderer {
     /// Short engine identifier for diagnostics.
@@ -77,6 +85,15 @@ pub trait BodyRenderer {
     fn link_at(&self, _x: f32, _y: f32) -> bool {
         false
     }
+    /// Host-delivered primary-button pointer event at physical document coordinates
+    /// (drives text selection in host-composited engines).
+    fn pointer_event(&mut self, _phase: PointerPhase, _x: f32, _y: f32, _pressed: bool) {}
+    /// Currently selected text, if the engine tracks a selection itself.
+    fn selected_text(&self) -> Option<String> {
+        None
+    }
+    /// Called by the host on every frame tick; engines repaint deferred changes here.
+    fn poll_repaint(&mut self) {}
     /// Device pixel ratio of the host surface.
     fn set_scale_factor(&mut self, _scale: f32) {}
     /// Light or dark colour scheme for documents that support both.

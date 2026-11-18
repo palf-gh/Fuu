@@ -22,7 +22,9 @@ blitz-paint = { version = "=0.3.0-beta.4", optional = true, default-features = f
 blitz-traits = { version = "=0.3.0-beta.4", optional = true }
 anyrender = { version = "0.14", optional = true }
 anyrender_vello_cpu = { version = "0.18", optional = true }
+atomic_refcell = { version = "0.1.13", optional = true }
+keyboard-types = { version = "0.8", optional = true }
 
 [features]
 default = ["blitz"]
-blitz = ["dep:blitz-dom", "dep:blitz-html", "dep:blitz-paint", "dep:blitz-traits", "dep:anyrender", "dep:anyrender_vello_cpu"]
+blitz = ["dep:blitz-dom", "dep:blitz-html", "dep:blitz-paint", "dep:blitz-traits", "dep:anyrender", "dep:anyrender_vello_cpu", "dep:atomic_refcell", "dep:keyboard-types"]

@@ -1881,6 +1881,7 @@ dependencies = [
 name = "fuu-app"
 version = "0.1.0"
 dependencies = [
+ "arboard",
  "fuu-model",
  "fuu-render",
  "fuu-sanitiser",
@@ -1917,6 +1918,7 @@ version = "0.1.0"
 dependencies = [
  "anyrender",
  "anyrender_vello_cpu",
+ "atomic_refcell",
  "base64 0.22.1",
  "blitz-dom",
  "blitz-html",
@@ -1924,6 +1926,7 @@ dependencies = [
  "blitz-traits",
  "fuu-model",
  "http",
+ "keyboard-types",
  "raw-window-handle",
  "wry",
 ]
