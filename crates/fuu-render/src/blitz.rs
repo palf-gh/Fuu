@@ -27,7 +27,7 @@ use blitz_traits::net::{Bytes, NetHandler, NetProvider, Request, Url};
 use blitz_traits::shell::{ColorScheme, Viewport};
 
 use crate::{
-    classify_link, BodyRenderer, LinkHandler, PointerPhase, Rect, RemoteContentPolicy, RenderError, RenderStats, SafeDocument,
+    classify_link, BodyRenderer, Cursor, LinkHandler, PointerPhase, Rect, RemoteContentPolicy, RenderError, RenderStats, SafeDocument,
 };
 
 /// Base URL of every document; manifest entries resolve to `fuu://doc/res/<n>`.
@@ -38,6 +38,23 @@ const SERVABLE_RESOURCE_TYPES: &[&str] = &["image/png", "image/jpeg", "image/gif
 const MAX_PAINT_HEIGHT: u32 = 16_000;
 /// Minimum interval between selection repaints (full-page CPU paints).
 const REPAINT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33);
+
+fn map_cursor(icon: cursor_icon::CursorIcon) -> Cursor {
+    use cursor_icon::CursorIcon as C;
+    match icon {
+        C::Text | C::VerticalText => Cursor::Text,
+        C::Pointer => Cursor::Pointer,
+        C::Help | C::ContextMenu => Cursor::Help,
+        C::NotAllowed | C::NoDrop => Cursor::NotAllowed,
+        C::Crosshair | C::Cell => Cursor::Crosshair,
+        C::Move | C::AllScroll => Cursor::Move,
+        C::Wait => Cursor::Wait,
+        C::Progress => Cursor::Progress,
+        C::Grab => Cursor::Grab,
+        C::Grabbing => Cursor::Grabbing,
+        _ => Cursor::Default,
+    }
+}
 
 /// A painted document handed to the host.
 #[derive(Debug, Clone)]
@@ -274,9 +291,39 @@ impl BodyRenderer for BlitzRenderer {
         }
     }
 
-    /// Only links the host would act on count; `javascript:` and the like are inert.
-    fn link_at(&self, x: f32, y: f32) -> bool {
-        self.href_at(x, y).is_some_and(|href| classify_link(&href).is_some())
+    fn hover(&mut self, x: f32, y: f32) -> Cursor {
+        self.pointer_event(PointerPhase::Move, x, y, false);
+        let Some(doc) = self.doc.as_ref() else { return Cursor::Default };
+        let cursor = doc.get_cursor().map(map_cursor).unwrap_or_default();
+        // Links the host would never open (`javascript:` and the like) are inert.
+        if cursor == Cursor::Pointer && self.href_at(x, y).is_some_and(|h| classify_link(&h).is_none()) {
+            return Cursor::Default;
+        }
+        cursor
+    }
+
+    fn select_all(&mut self) {
+        let Some(doc) = self.doc.as_mut() else { return };
+        let roots: Vec<(blitz_dom::NodeId, usize)> = blitz_dom::traversal::TreeTraverser::new(doc)
+            .filter_map(|id| {
+                let node = doc.get_node(id)?;
+                let len = node.element_data()?.inline_layout_data.as_ref()?.text.len();
+                node.flags.is_inline_root().then_some((id, len))
+            })
+            .collect();
+        if let (Some(&(first, _)), Some(&(last, len))) = (roots.first(), roots.last()) {
+            doc.set_text_selection(first, 0, last, len);
+            self.dirty = true;
+        }
+    }
+
+    fn clear_selection(&mut self) {
+        if let Some(doc) = self.doc.as_mut() {
+            if !doc.get_text_selection_ranges().is_empty() {
+                doc.clear_text_selection();
+                self.dirty = true;
+            }
+        }
     }
 
     fn pointer_event(&mut self, phase: PointerPhase, x: f32, y: f32, pressed: bool) {
@@ -392,10 +439,10 @@ mod tests {
         assert!(stats.refused.load(Ordering::Relaxed) >= 2, "remote css and pixel refused");
         assert_eq!(stats.served.load(Ordering::Relaxed), 1, "only the data: image served");
 
-        assert!(r.link_at(10.0, 10.0));
+        assert_eq!(r.hover(10.0, 10.0), crate::Cursor::Pointer);
         r.pointer_click(10.0, 10.0);
         assert_eq!(links.borrow().as_slice(), &[crate::LinkRequest::Web("https://example.org/".into())]);
-        assert!(!r.link_at(10.0, 220.0));
+        assert_ne!(r.hover(10.0, 220.0), crate::Cursor::Pointer);
     }
 }
 
@@ -416,6 +463,26 @@ mod selection_tests {
         let text = r.selected_text().expect("drag selected something");
         assert!(text.starts_with("hello"), "{text:?}");
         assert!(r.dirty, "selection change requests a repaint");
+
+        r.clear_selection();
+        assert_eq!(r.selected_text(), None);
+        r.select_all();
+        assert_eq!(r.selected_text().as_deref().map(str::trim), Some("hello brave world"));
+    }
+
+    #[test]
+    fn cursor_follows_content() {
+        let mut r = BlitzRenderer::new(Box::new(|_| {}), Box::new(|_| {}));
+        r.set_bounds(Rect { x: 0, y: 0, width: 600, height: 200 }).unwrap();
+        let html = r#"<body style="margin:0;font-size:20px">
+            <p style="margin:0;width:200px">text here</p>
+            <div style="height:60px"></div>
+            <div style="height:30px;cursor:help">help</div></body>"#;
+        r.show(&SafeDocument { html: html.into(), ..SafeDocument::default() }, RemoteContentPolicy::Block).unwrap();
+        assert_eq!(r.hover(10.0, 10.0), Cursor::Text, "over text");
+        assert_eq!(r.hover(400.0, 10.0), Cursor::Default, "beside the text");
+        assert_eq!(r.hover(10.0, 50.0), Cursor::Default, "empty block");
+        assert_eq!(r.hover(300.0, 100.0), Cursor::Help, "CSS cursor respected");
     }
 }
 
@@ -430,7 +497,7 @@ mod inert_link_tests {
         let html = r#"<body style="margin:0"><a href="javascript:alert(1)" style="display:block;height:30px">x</a>
             <a href="mailto:a@example.com" style="display:block;height:30px">m</a></body>"#;
         r.show(&SafeDocument { html: html.into(), ..SafeDocument::default() }, RemoteContentPolicy::Block).unwrap();
-        assert!(!r.link_at(5.0, 10.0));
-        assert!(r.link_at(5.0, 40.0));
+        assert_eq!(r.hover(5.0, 10.0), Cursor::Default);
+        assert_eq!(r.hover(5.0, 40.0), Cursor::Pointer);
     }
 }

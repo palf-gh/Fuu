@@ -52,6 +52,31 @@ pub struct RenderStats {
     pub navigations_blocked: AtomicUsize,
 }
 
+/// Mouse cursor an engine asks the host to show. Fuu's own type, so no engine's
+/// cursor type crosses the boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Cursor {
+    #[default]
+    Default,
+    Text,
+    Pointer,
+    Help,
+    NotAllowed,
+    Crosshair,
+    Move,
+    Wait,
+    Progress,
+    Grab,
+    Grabbing,
+}
+
+impl Cursor {
+    /// Stable index used by the Slint side.
+    pub fn index(self) -> i32 {
+        self as i32
+    }
+}
+
 /// Phase of a host-delivered pointer event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PointerPhase {
@@ -81,10 +106,15 @@ pub trait BodyRenderer {
     /// Host-delivered click at physical pixel coordinates within the rendered
     /// document. Engines with their own native input ignore it.
     fn pointer_click(&mut self, _x: f32, _y: f32) {}
-    /// Whether a link lies under the given document coordinates (for the cursor).
-    fn link_at(&self, _x: f32, _y: f32) -> bool {
-        false
+    /// Pointer hovering (no button) at physical document coordinates; returns the
+    /// cursor to show there.
+    fn hover(&mut self, _x: f32, _y: f32) -> Cursor {
+        Cursor::Default
     }
+    /// Select the whole document.
+    fn select_all(&mut self) {}
+    /// Drop the current selection.
+    fn clear_selection(&mut self) {}
     /// Host-delivered primary-button pointer event at physical document coordinates
     /// (drives text selection in host-composited engines).
     fn pointer_event(&mut self, _phase: PointerPhase, _x: f32, _y: f32, _pressed: bool) {}

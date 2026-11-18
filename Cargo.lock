@@ -1924,6 +1924,7 @@ dependencies = [
  "blitz-html",
  "blitz-paint",
  "blitz-traits",
+ "cursor-icon",
  "fuu-model",
  "http",
  "keyboard-types",

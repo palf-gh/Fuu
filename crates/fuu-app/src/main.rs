@@ -300,6 +300,22 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     {
         let state = state.clone();
+        ui.on_select_all(move || {
+            if let Some(r) = state.borrow_mut().reader.as_mut() {
+                r.renderer.select_all();
+            }
+        });
+    }
+    {
+        let state = state.clone();
+        ui.on_clear_selection(move || {
+            if let Some(r) = state.borrow_mut().reader.as_mut() {
+                r.renderer.clear_selection();
+            }
+        });
+    }
+    {
+        let state = state.clone();
         let weak = ui.as_weak();
         ui.on_copy_selection(move || {
             let Some(ui) = weak.upgrade() else { return };
@@ -320,11 +336,13 @@ fn main() -> Result<(), slint::PlatformError> {
             let mut st = state.borrow_mut();
             let Some(r) = st.reader.as_mut() else { return };
             if pressed {
+                // Dragging a selection keeps the text cursor.
                 r.renderer.pointer_event(PointerPhase::Move, x * scale, y * scale, true);
-            }
-            let hover = !pressed && r.renderer.link_at(x * scale, y * scale);
-            if hover != ui.get_page_link_hover() {
-                ui.set_page_link_hover(hover);
+            } else {
+                let cursor = r.renderer.hover(x * scale, y * scale).index();
+                if cursor != ui.get_page_cursor() {
+                    ui.set_page_cursor(cursor);
+                }
             }
         });
     }
@@ -332,7 +350,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = ui.as_weak();
         ui.on_page_pointer_left(move || {
             if let Some(ui) = weak.upgrade() {
-                ui.set_page_link_hover(false);
+                ui.set_page_cursor(0);
             }
         });
     }
@@ -417,6 +435,10 @@ fn main() -> Result<(), slint::PlatformError> {
 
             if composited {
                 r.renderer.poll_repaint();
+                let has_selection = r.renderer.selected_text().is_some();
+                if has_selection != ui.get_has_selection() {
+                    ui.set_has_selection(has_selection);
+                }
                 if scale != r.last_scale {
                     r.last_scale = scale;
                     r.renderer.set_scale_factor(scale);

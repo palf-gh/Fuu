@@ -88,7 +88,9 @@ export component AppWindow inherits Window {
     in property <image> page-image;
     in property <length> page-width;
     in property <length> page-height;
-    in property <bool> page-link-hover;
+    // Cursor index from fuu_render::Cursor (0 default, 1 text, 2 pointer, ...).
+    in property <int> page-cursor;
+    in property <bool> has-selection;
     in property <string> renderer-label: "Blitz";
     out property <bool> dark-mode: Palette.color-scheme == ColorScheme.dark;
     in property <string> fallback-text;
@@ -114,6 +116,8 @@ export component AppWindow inherits Window {
     // phase: 0 = down, 2 = up
     callback page-pointer(int, length, length);
     callback copy-selection();
+    callback select-all();
+    callback clear-selection();
     callback page-pointer-left();
     callback toggle-renderer();
     callback load-security-sample();
@@ -216,43 +220,85 @@ export component AppWindow inherits Window {
             reader-host := Rectangle {
                 background: Palette.background;
                 if root.use-page-image: page-focus := FocusScope {
+                    // Visible-area y of the pointer while dragging (for auto-scroll).
+                    property <length> drag-visible-y;
                     key-pressed(event) => {
-                        if ((event.modifiers.control || event.modifiers.meta) && (event.text == "c" || event.text == "C")) {
-                            root.copy-selection();
-                            return accept;
+                        if (event.modifiers.control || event.modifiers.meta) {
+                            if (event.text == "c" || event.text == "C") { root.copy-selection(); return accept; }
+                            if (event.text == "a" || event.text == "A") { root.select-all(); return accept; }
                         }
+                        if (event.text == Key.Escape) { root.clear-selection(); return accept; }
                         return reject;
                     }
-                    ScrollView {
-                        content-width: root.page-width;
-                        content-height: root.page-height;
-                        Image {
-                            x: 0; y: 0;
-                            width: root.page-width;
-                            height: root.page-height;
-                            source: root.page-image;
-                            image-fit: fill;
+                    ContextMenuArea {
+                        Menu {
+                            MenuItem { title: "コピー"; enabled: root.has-selection; activated => { root.copy-selection(); } }
+                            MenuItem { title: "すべて選択"; activated => { root.select-all(); } }
                         }
-                        TouchArea {
-                            x: 0; y: 0;
-                            width: root.page-width;
-                            height: root.page-height;
-                            mouse-cursor: root.page-link-hover ? pointer : text;
-                            clicked => { root.page-clicked(self.pressed-x, self.pressed-y); }
-                            pointer-event(e) => {
-                                if (e.button == PointerEventButton.left) {
-                                    if (e.kind == PointerEventKind.down) {
-                                        page-focus.focus();
-                                        root.page-pointer(0, self.mouse-x, self.mouse-y);
-                                    } else if (e.kind == PointerEventKind.up) {
-                                        root.page-pointer(2, self.mouse-x, self.mouse-y);
+                        page-scroll := ScrollView {
+                            width: parent.width;
+                            height: parent.height;
+                            content-width: root.page-width;
+                            content-height: root.page-height;
+                            Image {
+                                x: 0; y: 0;
+                                width: root.page-width;
+                                height: root.page-height;
+                                source: root.page-image;
+                                image-fit: fill;
+                            }
+                            page-touch := TouchArea {
+                                x: 0; y: 0;
+                                width: root.page-width;
+                                height: root.page-height;
+                                mouse-cursor:
+                                    root.page-cursor == 1 ? MouseCursor.text :
+                                    root.page-cursor == 2 ? MouseCursor.pointer :
+                                    root.page-cursor == 3 ? MouseCursor.help :
+                                    root.page-cursor == 4 ? MouseCursor.not-allowed :
+                                    root.page-cursor == 5 ? MouseCursor.crosshair :
+                                    root.page-cursor == 6 ? MouseCursor.move :
+                                    root.page-cursor == 7 ? MouseCursor.wait :
+                                    root.page-cursor == 8 ? MouseCursor.progress :
+                                    root.page-cursor == 9 ? MouseCursor.grab :
+                                    root.page-cursor == 10 ? MouseCursor.grabbing :
+                                    MouseCursor.default;
+                                clicked => { root.page-clicked(self.pressed-x, self.pressed-y); }
+                                pointer-event(e) => {
+                                    if (e.button == PointerEventButton.left) {
+                                        if (e.kind == PointerEventKind.down) {
+                                            page-focus.focus();
+                                            page-focus.drag-visible-y = self.mouse-y + page-scroll.content-y;
+                                            root.page-pointer(0, self.mouse-x, self.mouse-y);
+                                        } else if (e.kind == PointerEventKind.up) {
+                                            root.page-pointer(2, self.mouse-x, self.mouse-y);
+                                        }
                                     }
                                 }
+                                // `moved` only fires while pressed; track hover via the mouse position.
+                                changed mouse-x => {
+                                    page-focus.drag-visible-y = self.mouse-y + page-scroll.content-y;
+                                    root.page-pointer-moved(self.mouse-x, self.mouse-y, self.pressed);
+                                }
+                                changed mouse-y => {
+                                    page-focus.drag-visible-y = self.mouse-y + page-scroll.content-y;
+                                    root.page-pointer-moved(self.mouse-x, self.mouse-y, self.pressed);
+                                }
+                                changed has-hover => { if (!self.has-hover) { root.page-pointer-left(); } }
                             }
-                            // `moved` only fires while pressed; track hover via the mouse position.
-                            changed mouse-x => { root.page-pointer-moved(self.mouse-x, self.mouse-y, self.pressed); }
-                            changed mouse-y => { root.page-pointer-moved(self.mouse-x, self.mouse-y, self.pressed); }
-                            changed has-hover => { if (!self.has-hover) { root.page-pointer-left(); } }
+                        }
+                    }
+                    // Auto-scroll while a selection drag is held near the top or bottom edge.
+                    Timer {
+                        interval: 16ms;
+                        running: page-touch.pressed && (page-focus.drag-visible-y < 24px || page-focus.drag-visible-y > page-scroll.visible-height - 24px);
+                        triggered => {
+                            if (page-focus.drag-visible-y > page-scroll.visible-height - 24px) {
+                                page-scroll.content-y = max(min(0px, page-scroll.visible-height - root.page-height), page-scroll.content-y - 14px);
+                            } else {
+                                page-scroll.content-y = min(0px, page-scroll.content-y + 14px);
+                            }
+                            root.page-pointer-moved(page-touch.mouse-x, page-focus.drag-visible-y - page-scroll.content-y, true);
                         }
                     }
                 }
