@@ -1,0 +1,286 @@
+// Reusable building blocks for Fuu's UI.
+
+import { Theme } from "theme.slint";
+
+export component Divider inherits Rectangle {
+    background: Theme.border;
+}
+
+export component Icon inherits Image {
+    in property <color> tint: Theme.text-muted;
+    width: 18px;
+    height: 18px;
+    colorize: root.tint;
+    image-rendering: smooth;
+}
+
+export component IconButton inherits Rectangle {
+    in property <image> icon;
+    in property <bool> enabled: true;
+    in property <length> size: 32px;
+    in property <color> tint: Theme.text-muted;
+    callback clicked;
+    width: root.size;
+    height: root.size;
+    border-radius: Theme.radius-m;
+    background: !root.enabled ? transparent : area.pressed ? Theme.pressed : area.has-hover ? Theme.hover : transparent;
+    animate background { duration: 90ms; }
+    area := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    Icon {
+        source: root.icon;
+        tint: !root.enabled ? Theme.text-faint : area.has-hover ? Theme.text : root.tint;
+    }
+}
+
+export component PrimaryButton inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> has-icon: false;
+    callback clicked;
+    height: 36px;
+    min-width: layout.preferred-width;
+    border-radius: Theme.radius-m;
+    background: area.pressed ? Theme.accent-hover.darker(0.08) : area.has-hover ? Theme.accent-hover : Theme.accent;
+    drop-shadow-blur: 6px;
+    drop-shadow-offset-y: 1px;
+    drop-shadow-color: Theme.dark ? #00000055 : #3f55d433;
+    animate background { duration: 90ms; }
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    layout := HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 16px;
+        spacing: 8px;
+        alignment: center;
+        if root.has-icon: Icon { source: root.icon; tint: Theme.on-accent; y: (parent.height - self.height) / 2; }
+        Text {
+            text: root.text;
+            color: Theme.on-accent;
+            font-size: Theme.font-m;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component SecondaryButton inherits Rectangle {
+    in property <string> text;
+    callback clicked;
+    height: 34px;
+    min-width: layout.preferred-width;
+    border-radius: Theme.radius-m;
+    border-width: 1px;
+    border-color: Theme.border-strong;
+    background: area.pressed ? Theme.pressed : area.has-hover ? Theme.hover : transparent;
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    layout := HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        Text { text: root.text; color: Theme.text; font-size: Theme.font-m; vertical-alignment: center; horizontal-alignment: center; }
+    }
+}
+
+export component Avatar inherits Rectangle {
+    in property <string> initials;
+    in property <int> hue;
+    in property <length> size: 34px;
+    width: root.size;
+    height: root.size;
+    border-radius: root.size / 2;
+    background: Theme.avatars[Math.mod(root.hue, 8)];
+    Text {
+        text: root.initials;
+        color: #ffffff;
+        font-size: root.size * 0.4;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+export component CountBadge inherits Rectangle {
+    in property <string> text;
+    in property <bool> strong;
+    visible: root.text != "";
+    height: 18px;
+    width: max(18px, label.preferred-width + 12px);
+    border-radius: 9px;
+    background: root.strong ? Theme.accent-soft : transparent;
+    label := Text {
+        text: root.text;
+        font-size: Theme.font-xs;
+        font-weight: root.strong ? 600 : 400;
+        color: root.strong ? Theme.accent : Theme.text-faint;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+export component NavItem inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <string> count;
+    in property <bool> selected;
+    in property <bool> strong-count: true;
+    callback clicked;
+    height: 34px;
+    border-radius: Theme.radius-m;
+    background: root.selected ? Theme.selected : area.has-hover ? Theme.hover : transparent;
+    animate background { duration: 90ms; }
+    area := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 8px;
+        spacing: 10px;
+        Icon {
+            source: root.icon;
+            y: (parent.height - self.height) / 2;
+            tint: root.selected ? Theme.accent : Theme.text-muted;
+        }
+        Text {
+            text: root.label;
+            vertical-alignment: center;
+            overflow: elide;
+            color: root.selected ? Theme.text : Theme.text-muted;
+            font-weight: root.selected ? 600 : 500;
+            font-size: Theme.font-m;
+        }
+        CountBadge { text: root.count; strong: root.strong-count; y: (parent.height - self.height) / 2; }
+    }
+}
+
+export component SectionLabel inherits Text {
+    font-size: Theme.font-xs;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    color: Theme.text-faint;
+    height: 26px;
+    vertical-alignment: center;
+}
+
+export component SearchField inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder: "検索";
+    height: 34px;
+    border-radius: Theme.radius-m;
+    background: Theme.field;
+    border-width: 1px;
+    border-color: input.has-focus ? Theme.accent : transparent;
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 8px;
+        Icon { source: @image-url("icons/search.svg"); width: 16px; height: 16px; y: (parent.height - self.height) / 2; tint: Theme.text-faint; }
+        Rectangle {
+            input := TextInput {
+                text <=> root.text;
+                color: Theme.text;
+                font-size: Theme.font-m;
+                vertical-alignment: center;
+                single-line: true;
+            }
+            Text {
+                visible: root.text == "" && !input.has-focus;
+                text: root.placeholder;
+                color: Theme.text-faint;
+                font-size: Theme.font-m;
+                vertical-alignment: center;
+                x: 0;
+            }
+        }
+    }
+}
+
+/// Borderless labelled single-line field used in the composer.
+export component ComposeField inherits Rectangle {
+    in property <string> label;
+    in property <string> placeholder;
+    in-out property <string> text;
+    height: 42px;
+    HorizontalLayout {
+        padding-left: 20px;
+        padding-right: 20px;
+        spacing: 12px;
+        Text { text: root.label; width: 44px; color: Theme.text-faint; font-size: Theme.font-m; vertical-alignment: center; }
+        Rectangle {
+            input := TextInput {
+                text <=> root.text;
+                color: Theme.text;
+                font-size: Theme.font-m;
+                vertical-alignment: center;
+                single-line: true;
+            }
+            Text {
+                visible: root.text == "" && !input.has-focus;
+                text: root.placeholder;
+                color: Theme.text-faint;
+                font-size: Theme.font-m;
+                vertical-alignment: center;
+                x: 0;
+            }
+        }
+    }
+    Divider { y: parent.height - 1px; height: 1px; x: 20px; width: parent.width - 40px; }
+}
+
+export component Dialog inherits Rectangle {
+    in property <string> title;
+    in property <string> body;
+    in property <string> detail;
+    in property <string> confirm-label: "OK";
+    in property <bool> show-cancel: true;
+    callback confirmed;
+    callback cancelled;
+    background: Theme.scrim;
+    TouchArea { }  // swallow clicks behind the card
+    Rectangle {
+        width: min(parent.width - 48px, 440px);
+        height: layout.preferred-height;
+        border-radius: Theme.radius-xl;
+        background: Theme.raised;
+        border-width: 1px;
+        border-color: Theme.border;
+        drop-shadow-blur: 40px;
+        drop-shadow-offset-y: 12px;
+        drop-shadow-color: #00000040;
+        layout := VerticalLayout {
+            padding: 24px;
+            spacing: 10px;
+            Text { text: root.title; font-size: Theme.font-l; font-weight: 650; color: Theme.text; }
+            Text { text: root.body; wrap: word-wrap; color: Theme.text-muted; font-size: Theme.font-m; }
+            if root.detail != "": Rectangle {
+                height: detail-text.preferred-height + 16px;
+                border-radius: Theme.radius-m;
+                background: Theme.field;
+                detail-text := Text {
+                    x: 10px;
+                    width: parent.width - 20px;
+                    text: root.detail;
+                    wrap: word-wrap;
+                    color: Theme.text;
+                    font-size: Theme.font-s;
+                    vertical-alignment: center;
+                }
+            }
+            Rectangle { height: 6px; }
+            HorizontalLayout {
+                alignment: end;
+                spacing: 8px;
+                if root.show-cancel: SecondaryButton { text: "キャンセル"; clicked => { root.cancelled(); } }
+                PrimaryButton { text: root.confirm-label; clicked => { root.confirmed(); } }
+            }
+        }
+    }
+}

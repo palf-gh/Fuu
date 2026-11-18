@@ -26,7 +26,7 @@ fn base64_decode(input: &str) -> Vec<u8> {
 
 const BASE_STYLE: &str = "<style>
 :root { color-scheme: light dark; }
-body { font: 14px/1.7 system-ui, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', 'Microsoft YaHei UI', 'Malgun Gothic', sans-serif; margin: 18px; }
+body { font: 14px/1.7 system-ui, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', 'Microsoft YaHei UI', 'Malgun Gothic', sans-serif; margin: 20px 28px 32px; }
 table { border-collapse: collapse; } td, th { border: 1px solid #8884; padding: 4px 8px; text-align: left; }
 code { font-family: ui-monospace, Consolas, Menlo, monospace; }
 .ok { color: #2a8a3a; } .ng { color: #c0392b; font-weight: bold; }

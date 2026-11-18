@@ -1,8 +1,13 @@
-// Fuu — M0 spike window. Three panes: sidebar / message list / reader.
-// The reader body is a placeholder rectangle that the native child webview is laid
-// over; its absolute geometry is exported so Rust can keep the webview aligned.
+// Fuu main window: sidebar / message list / reader.
+// The reader body hosts either a host-composited page image (Blitz), a native
+// child webview laid over `reader-host`, or the plain-text fallback.
 
-import { ListView, TextEdit, LineEdit, Button, Palette, ScrollView } from "std-widgets.slint";
+import { ListView, TextEdit, ScrollView } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import {
+    Divider, Icon, IconButton, PrimaryButton, SecondaryButton, Avatar, NavItem,
+    SectionLabel, SearchField, ComposeField, Dialog,
+} from "components.slint";
 
 export struct MessageRow {
     sender: string,
@@ -10,56 +15,76 @@ export struct MessageRow {
     preview: string,
     date: string,
     unread: bool,
+    initials: string,
+    avatar: int,
 }
 
-component Divider inherits Rectangle {
-    background: Palette.border;
-    opacity: 0.6;
-}
-
-component SideItem inherits Rectangle {
-    in property <string> label;
-    in property <string> badge;
+component MessageItem inherits Rectangle {
+    in property <MessageRow> message;
     in property <bool> selected;
     callback clicked;
-    height: 30px;
-    border-radius: 6px;
-    background: selected ? Palette.selection-background.with-alpha(0.18) : area.has-hover ? Palette.border.with-alpha(0.25) : transparent;
-    area := TouchArea { clicked => { root.clicked(); } }
-    HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
-        Text { text: root.label; vertical-alignment: center; color: Palette.foreground; font-weight: root.selected ? 600 : 400; }
-        Text { text: root.badge; vertical-alignment: center; horizontal-alignment: right; color: Palette.foreground.with-alpha(0.55); font-size: 11px; }
-    }
-}
-
-component Overlay inherits Rectangle {
-    in property <string> title;
-    in property <string> body;
-    in property <string> confirm-label: "OK";
-    in property <bool> show-cancel: true;
-    callback confirmed;
-    callback cancelled;
-    background: #00000066;
-    TouchArea { }  // swallow clicks behind the card
+    height: 82px;
     card := Rectangle {
-        width: min(parent.width - 48px, 460px);
-        height: layout.preferred-height;
-        border-radius: 10px;
-        background: Palette.background;
-        drop-shadow-blur: 24px;
-        drop-shadow-color: #00000055;
-        layout := VerticalLayout {
-            padding: 20px;
+        x: 8px;
+        y: 2px;
+        width: parent.width - 16px;
+        height: parent.height - 4px;
+        border-radius: Theme.radius-l;
+        background: root.selected ? Theme.selected : area.has-hover ? Theme.hover : transparent;
+        animate background { duration: 90ms; }
+        area := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.clicked(); }
+        }
+        HorizontalLayout {
+            padding: 12px;
+            padding-right: 14px;
             spacing: 12px;
-            Text { text: root.title; font-size: 15px; font-weight: 600; color: Palette.foreground; }
-            Text { text: root.body; wrap: word-wrap; color: Palette.foreground.with-alpha(0.8); }
-            HorizontalLayout {
-                alignment: end;
-                spacing: 8px;
-                if root.show-cancel: Button { text: "キャンセル"; clicked => { root.cancelled(); } }
-                Button { text: root.confirm-label; primary: true; clicked => { root.confirmed(); } }
+            VerticalLayout {
+                alignment: start;
+                Avatar { initials: root.message.initials; hue: root.message.avatar; size: 34px; }
+            }
+            VerticalLayout {
+                spacing: 3px;
+                HorizontalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: root.message.sender;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                        font-size: Theme.font-m;
+                        font-weight: root.message.unread ? 650 : 500;
+                        color: Theme.text;
+                    }
+                    Text {
+                        text: root.message.date;
+                        font-size: Theme.font-xs;
+                        color: root.message.unread ? Theme.accent : Theme.text-faint;
+                        font-weight: root.message.unread ? 600 : 400;
+                        vertical-alignment: center;
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: root.message.subject;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                        font-size: Theme.font-m;
+                        font-weight: root.message.unread ? 600 : 400;
+                        color: root.message.unread ? Theme.text : Theme.text-muted;
+                    }
+                    if root.message.unread: Rectangle {
+                        width: 8px;
+                        Rectangle { y: (parent.height - 8px) / 2; width: 8px; height: 8px; border-radius: 4px; background: Theme.accent; }
+                    }
+                }
+                Text {
+                    text: root.message.preview;
+                    overflow: elide;
+                    font-size: Theme.font-s;
+                    color: Theme.text-faint;
+                }
             }
         }
     }
@@ -67,17 +92,22 @@ component Overlay inherits Rectangle {
 
 export component AppWindow inherits Window {
     title: "Fuu";
-    preferred-width: 1180px;
-    preferred-height: 760px;
-    min-width: 760px;
-    min-height: 480px;
-    background: Palette.background;
+    preferred-width: 1240px;
+    preferred-height: 800px;
+    min-width: 900px;
+    min-height: 540px;
+    background: Theme.window-bg;
     default-font-size: 13px;
 
     in property <[MessageRow]> messages;
     in-out property <int> current-row: -1;
-    in property <string> reader-subject: "メールを選択してください";
-    in property <string> reader-from;
+    in property <bool> has-message;
+    in property <string> reader-subject;
+    in property <string> reader-name;
+    in property <string> reader-address;
+    in property <string> reader-to: "自分";
+    in property <string> reader-initials;
+    in property <int> reader-avatar;
     in property <string> reader-date;
     in property <string> status-text;
     in-out property <string> feed-summary;
@@ -92,23 +122,25 @@ export component AppWindow inherits Window {
     in property <int> page-cursor;
     in property <bool> has-selection;
     in property <string> renderer-label: "Blitz";
-    out property <bool> dark-mode: Palette.color-scheme == ColorScheme.dark;
+    out property <bool> dark-mode: Theme.dark;
     in property <string> fallback-text;
     in property <string> link-url;
     in-out property <bool> link-dialog-open;
     in-out property <bool> info-dialog-open;
     in-out property <bool> composing;
+    in-out property <string> compose-title: "新規メッセージ";
     in-out property <string> compose-to;
     in-out property <string> compose-subject;
     in-out property <string> compose-body;
+    in-out property <string> search-text;
 
-    // Geometry of the webview host, in logical pixels relative to the window.
+    // Geometry of the reader body, in logical pixels relative to the window.
     out property <length> reader-x: reader-host.absolute-position.x;
     out property <length> reader-y: reader-host.absolute-position.y;
     out property <length> reader-w: reader-host.width;
     out property <length> reader-h: reader-host.height;
     // True whenever something drawn by Slint overlaps the reader body.
-    out property <bool> reader-covered: link-dialog-open || info-dialog-open || composing;
+    out property <bool> reader-covered: link-dialog-open || info-dialog-open || composing || !has-message;
 
     callback row-selected(int);
     callback page-clicked(length, length);
@@ -125,233 +157,343 @@ export component AppWindow inherits Window {
     callback link-confirmed();
     callback start-compose();
     callback send-compose();
+    callback reply(bool);
+    callback forward();
+    callback archive();
+    callback delete();
 
     HorizontalLayout {
-        // Sidebar
+        // ───────────── Sidebar
         Rectangle {
-            width: 210px;
-            background: Palette.alternate-background;
+            width: 240px;
+            background: Theme.sidebar-bg;
             VerticalLayout {
-                padding: 12px;
+                padding: 14px;
+                padding-top: 16px;
                 spacing: 2px;
-                Text { text: "Fuu"; font-size: 18px; font-weight: 700; color: Palette.foreground; height: 40px; vertical-alignment: center; }
-                Button { text: "新規作成"; primary: true; clicked => { root.start-compose(); } }
+
+                // Account switcher
+                Rectangle {
+                    height: 48px;
+                    border-radius: Theme.radius-l;
+                    background: account-area.has-hover ? Theme.hover : transparent;
+                    account-area := TouchArea { mouse-cursor: pointer; }
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 8px;
+                        spacing: 10px;
+                        Avatar { initials: "F"; hue: 0; size: 30px; y: (parent.height - self.height) / 2; }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 1px;
+                            Text { text: "Fuu"; font-size: Theme.font-m; font-weight: 650; color: Theme.text; }
+                            Text { text: "spike@fuu.invalid"; font-size: Theme.font-xs; color: Theme.text-faint; overflow: elide; }
+                        }
+                        Icon { source: @image-url("icons/chevron-down.svg"); width: 16px; height: 16px; y: (parent.height - self.height) / 2; tint: Theme.text-faint; }
+                    }
+                }
                 Rectangle { height: 12px; }
-                Text { text: "SPIKE ACCOUNT"; font-size: 10px; letter-spacing: 1px; color: Palette.foreground.with-alpha(0.5); height: 22px; vertical-alignment: center; }
-                SideItem { label: "受信トレイ"; badge: "5000"; selected: true; }
-                SideItem { label: "送信済み"; }
-                SideItem { label: "下書き"; }
-                SideItem { label: "ゴミ箱"; }
+                PrimaryButton {
+                    text: "新規作成";
+                    icon: @image-url("icons/compose.svg");
+                    has-icon: true;
+                    clicked => { root.start-compose(); }
+                }
                 Rectangle { height: 16px; }
-                Text { text: "M0 CHECKS"; font-size: 10px; letter-spacing: 1px; color: Palette.foreground.with-alpha(0.5); height: 22px; vertical-alignment: center; }
-                SideItem { label: "セキュリティ検査文書"; clicked => { root.load-security-sample(); } }
-                SideItem { label: "CJK 表示サンプル"; clicked => { root.load-cjk-sample(); } }
-                SideItem { label: "重なり検査（ダイアログ）"; clicked => { root.info-dialog-open = true; } }
-                SideItem { label: "描画エンジン"; badge: root.renderer-label; clicked => { root.toggle-renderer(); } }
-                Rectangle { }  // spacer
-                Text { text: root.status-text; wrap: word-wrap; font-size: 11px; color: Palette.foreground.with-alpha(0.55); }
+
+                NavItem { icon: @image-url("icons/inbox.svg"); label: "受信トレイ"; count: "714"; selected: true; }
+                NavItem { icon: @image-url("icons/star.svg"); label: "スター付き"; }
+                NavItem { icon: @image-url("icons/send.svg"); label: "送信済み"; }
+                NavItem { icon: @image-url("icons/draft.svg"); label: "下書き"; count: "2"; strong-count: false; }
+                NavItem { icon: @image-url("icons/archive.svg"); label: "アーカイブ"; }
+                NavItem { icon: @image-url("icons/trash.svg"); label: "ゴミ箱"; }
+
+                Rectangle { height: 14px; }
+                SectionLabel { text: "開発（M0 検査）"; }
+                NavItem { icon: @image-url("icons/shield.svg"); label: "セキュリティ検査文書"; clicked => { root.load-security-sample(); } }
+                NavItem { icon: @image-url("icons/type.svg"); label: "CJK 表示サンプル"; clicked => { root.load-cjk-sample(); } }
+                NavItem { icon: @image-url("icons/overlap.svg"); label: "重なり検査"; clicked => { root.info-dialog-open = true; } }
+                NavItem { icon: @image-url("icons/layers.svg"); label: "描画エンジン"; count: root.renderer-label; strong-count: false; clicked => { root.toggle-renderer(); } }
+
+                Rectangle { vertical-stretch: 1; }
+                Text { text: root.status-text; wrap: word-wrap; font-size: Theme.font-xs; color: Theme.text-faint; }
             }
         }
         Divider { width: 1px; }
 
-        // Message list
+        // ───────────── Message list
         Rectangle {
-            width: 340px;
+            width: 370px;
+            background: Theme.surface;
             VerticalLayout {
-                Rectangle {
-                    height: 48px;
+                VerticalLayout {
+                    padding: 16px;
+                    padding-bottom: 10px;
+                    spacing: 12px;
                     HorizontalLayout {
-                        padding-left: 16px;
-                        Text { text: "受信トレイ"; font-size: 15px; font-weight: 600; vertical-alignment: center; color: Palette.foreground; }
+                        height: 32px;
+                        spacing: 8px;
+                        Text { text: "受信トレイ"; font-size: Theme.font-xl; font-weight: 700; color: Theme.text; vertical-alignment: center; }
+                        Text { text: root.messages.length + " 件"; font-size: Theme.font-s; color: Theme.text-faint; vertical-alignment: center; horizontal-stretch: 1; }
+                        IconButton { icon: @image-url("icons/more.svg"); y: 0; }
+                    }
+                    SearchField { text <=> root.search-text; placeholder: "メールを検索"; }
+                }
+                ListView {
+                    for row[i] in root.messages: MessageItem {
+                        message: row;
+                        selected: i == root.current-row;
+                        clicked => {
+                            root.current-row = i;
+                            root.row-selected(i);
+                        }
                     }
                 }
-                Divider { height: 1px; }
-                ListView {
-                    for row[i] in root.messages: Rectangle {
-                        height: 68px;
-                        background: i == root.current-row ? Palette.selection-background.with-alpha(0.16) : row-area.has-hover ? Palette.border.with-alpha(0.18) : transparent;
-                        row-area := TouchArea {
-                            clicked => {
-                                root.current-row = i;
-                                root.row-selected(i);
-                            }
-                        }
+            }
+        }
+        Divider { width: 1px; }
+
+        // ───────────── Reader
+        Rectangle {
+            background: Theme.surface;
+            VerticalLayout {
+                // Toolbar
+                Rectangle {
+                    height: 56px;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 4px;
+                        alignment: start;
+                        IconButton { icon: @image-url("icons/reply.svg"); enabled: root.has-message; y: (parent.height - self.height) / 2; clicked => { root.reply(false); } }
+                        IconButton { icon: @image-url("icons/reply-all.svg"); enabled: root.has-message; y: (parent.height - self.height) / 2; clicked => { root.reply(true); } }
+                        IconButton { icon: @image-url("icons/forward.svg"); enabled: root.has-message; y: (parent.height - self.height) / 2; clicked => { root.forward(); } }
+                        Rectangle { width: 1px; height: 20px; y: (parent.height - self.height) / 2; background: Theme.border; }
+                        IconButton { icon: @image-url("icons/archive.svg"); enabled: root.has-message; y: (parent.height - self.height) / 2; clicked => { root.archive(); } }
+                        IconButton { icon: @image-url("icons/trash.svg"); enabled: root.has-message; y: (parent.height - self.height) / 2; clicked => { root.delete(); } }
+                        Rectangle { horizontal-stretch: 1; }
+                        IconButton { icon: @image-url("icons/star.svg"); enabled: root.has-message; y: (parent.height - self.height) / 2; }
+                        IconButton { icon: @image-url("icons/more.svg"); enabled: root.has-message; y: (parent.height - self.height) / 2; }
+                    }
+                    Divider { y: parent.height - 1px; height: 1px; }
+                }
+
+                // Message header
+                if root.has-message: VerticalLayout {
+                    padding-left: 28px;
+                    padding-right: 28px;
+                    padding-top: 22px;
+                    padding-bottom: 16px;
+                    spacing: 16px;
+                    Text { text: root.reader-subject; font-size: Theme.font-xl; font-weight: 700; wrap: word-wrap; color: Theme.text; }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Avatar { initials: root.reader-initials; hue: root.reader-avatar; size: 38px; }
                         VerticalLayout {
-                            padding-left: 16px;
-                            padding-right: 14px;
-                            padding-top: 9px;
-                            padding-bottom: 9px;
+                            horizontal-stretch: 1;
+                            alignment: center;
                             spacing: 2px;
                             HorizontalLayout {
                                 spacing: 6px;
-                                Rectangle {
-                                    width: 7px;
-                                    Rectangle { y: (parent.height - 7px) / 2; width: 7px; height: 7px; border-radius: 3.5px; background: row.unread ? Palette.accent-background : transparent; }
-                                }
-                                Text { text: row.sender; overflow: elide; font-weight: row.unread ? 700 : 400; color: Palette.foreground; }
-                                Text { text: row.date; horizontal-alignment: right; font-size: 11px; color: Palette.foreground.with-alpha(0.5); }
+                                Text { text: root.reader-name; font-size: Theme.font-m; font-weight: 650; color: Theme.text; overflow: elide; }
+                                Text { text: "<" + root.reader-address + ">"; font-size: Theme.font-s; color: Theme.text-faint; overflow: elide; horizontal-stretch: 1; vertical-alignment: center; }
                             }
-                            Text { text: row.subject; overflow: elide; font-weight: row.unread ? 600 : 400; color: Palette.foreground; }
-                            Text { text: row.preview; overflow: elide; font-size: 12px; color: Palette.foreground.with-alpha(0.55); }
+                            Text { text: "宛先: " + root.reader-to; font-size: Theme.font-s; color: Theme.text-faint; }
                         }
-                        Divider { y: parent.height - 1px; height: 1px; x: 16px; width: parent.width - 16px; opacity: 0.35; }
+                        Text { text: root.reader-date; font-size: Theme.font-s; color: Theme.text-faint; vertical-alignment: center; }
                     }
                 }
-            }
-        }
-        Divider { width: 1px; }
+                if root.has-message: Divider { height: 1px; }
 
-        // Reader
-        VerticalLayout {
-            Rectangle {
-                height: header.preferred-height;
-                header := VerticalLayout {
-                    padding: 18px;
-                    padding-bottom: 12px;
-                    spacing: 4px;
-                    Text { text: root.reader-subject; font-size: 18px; font-weight: 600; wrap: word-wrap; color: Palette.foreground; }
-                    HorizontalLayout {
-                        Text { text: root.reader-from; color: Palette.foreground.with-alpha(0.75); overflow: elide; }
-                        Text { text: root.reader-date; horizontal-alignment: right; color: Palette.foreground.with-alpha(0.5); font-size: 12px; }
-                    }
-                }
-            }
-            Divider { height: 1px; }
-            reader-host := Rectangle {
-                background: Palette.background;
-                if root.use-page-image: page-focus := FocusScope {
-                    // Visible-area y of the pointer while dragging (for auto-scroll).
-                    property <length> drag-visible-y;
-                    key-pressed(event) => {
-                        if (event.modifiers.control || event.modifiers.meta) {
-                            if (event.text == "c" || event.text == "C") { root.copy-selection(); return accept; }
-                            if (event.text == "a" || event.text == "A") { root.select-all(); return accept; }
-                        }
-                        if (event.text == Key.Escape) { root.clear-selection(); return accept; }
-                        return reject;
-                    }
-                    ContextMenuArea {
-                        Menu {
-                            MenuItem { title: "コピー"; enabled: root.has-selection; activated => { root.copy-selection(); } }
-                            MenuItem { title: "すべて選択"; activated => { root.select-all(); } }
-                        }
-                        page-scroll := ScrollView {
-                            width: parent.width;
-                            height: parent.height;
-                            content-width: root.page-width;
-                            content-height: root.page-height;
-                            Image {
-                                x: 0; y: 0;
-                                width: root.page-width;
-                                height: root.page-height;
-                                source: root.page-image;
-                                image-fit: fill;
+                reader-host := Rectangle {
+                    vertical-stretch: 1;
+                    if root.use-page-image && root.has-message: page-focus := FocusScope {
+                        // Visible-area y of the pointer while dragging (for auto-scroll).
+                        property <length> drag-visible-y;
+                        key-pressed(event) => {
+                            if (event.modifiers.control || event.modifiers.meta) {
+                                if (event.text == "c" || event.text == "C") { root.copy-selection(); return accept; }
+                                if (event.text == "a" || event.text == "A") { root.select-all(); return accept; }
                             }
-                            page-touch := TouchArea {
-                                x: 0; y: 0;
-                                width: root.page-width;
-                                height: root.page-height;
-                                mouse-cursor:
-                                    root.page-cursor == 1 ? MouseCursor.text :
-                                    root.page-cursor == 2 ? MouseCursor.pointer :
-                                    root.page-cursor == 3 ? MouseCursor.help :
-                                    root.page-cursor == 4 ? MouseCursor.not-allowed :
-                                    root.page-cursor == 5 ? MouseCursor.crosshair :
-                                    root.page-cursor == 6 ? MouseCursor.move :
-                                    root.page-cursor == 7 ? MouseCursor.wait :
-                                    root.page-cursor == 8 ? MouseCursor.progress :
-                                    root.page-cursor == 9 ? MouseCursor.grab :
-                                    root.page-cursor == 10 ? MouseCursor.grabbing :
-                                    MouseCursor.default;
-                                clicked => { root.page-clicked(self.pressed-x, self.pressed-y); }
-                                pointer-event(e) => {
-                                    if (e.button == PointerEventButton.left) {
-                                        if (e.kind == PointerEventKind.down) {
-                                            page-focus.focus();
-                                            page-focus.drag-visible-y = self.mouse-y + page-scroll.content-y;
-                                            root.page-pointer(0, self.mouse-x, self.mouse-y);
-                                        } else if (e.kind == PointerEventKind.up) {
-                                            root.page-pointer(2, self.mouse-x, self.mouse-y);
+                            if (event.text == Key.Escape) { root.clear-selection(); return accept; }
+                            return reject;
+                        }
+                        ContextMenuArea {
+                            Menu {
+                                MenuItem { title: "コピー"; enabled: root.has-selection; activated => { root.copy-selection(); } }
+                                MenuItem { title: "すべて選択"; activated => { root.select-all(); } }
+                            }
+                            page-scroll := ScrollView {
+                                width: parent.width;
+                                height: parent.height;
+                                content-width: root.page-width;
+                                content-height: root.page-height;
+                                Image {
+                                    x: 0; y: 0;
+                                    width: root.page-width;
+                                    height: root.page-height;
+                                    source: root.page-image;
+                                    image-fit: fill;
+                                }
+                                page-touch := TouchArea {
+                                    x: 0; y: 0;
+                                    width: root.page-width;
+                                    height: root.page-height;
+                                    mouse-cursor:
+                                        root.page-cursor == 1 ? MouseCursor.text :
+                                        root.page-cursor == 2 ? MouseCursor.pointer :
+                                        root.page-cursor == 3 ? MouseCursor.help :
+                                        root.page-cursor == 4 ? MouseCursor.not-allowed :
+                                        root.page-cursor == 5 ? MouseCursor.crosshair :
+                                        root.page-cursor == 6 ? MouseCursor.move :
+                                        root.page-cursor == 7 ? MouseCursor.wait :
+                                        root.page-cursor == 8 ? MouseCursor.progress :
+                                        root.page-cursor == 9 ? MouseCursor.grab :
+                                        root.page-cursor == 10 ? MouseCursor.grabbing :
+                                        MouseCursor.default;
+                                    clicked => { root.page-clicked(self.pressed-x, self.pressed-y); }
+                                    pointer-event(e) => {
+                                        if (e.button == PointerEventButton.left) {
+                                            if (e.kind == PointerEventKind.down) {
+                                                page-focus.focus();
+                                                page-focus.drag-visible-y = self.mouse-y + page-scroll.content-y;
+                                                root.page-pointer(0, self.mouse-x, self.mouse-y);
+                                            } else if (e.kind == PointerEventKind.up) {
+                                                root.page-pointer(2, self.mouse-x, self.mouse-y);
+                                            }
                                         }
                                     }
+                                    // `moved` only fires while pressed; track hover via the mouse position.
+                                    changed mouse-x => {
+                                        page-focus.drag-visible-y = self.mouse-y + page-scroll.content-y;
+                                        root.page-pointer-moved(self.mouse-x, self.mouse-y, self.pressed);
+                                    }
+                                    changed mouse-y => {
+                                        page-focus.drag-visible-y = self.mouse-y + page-scroll.content-y;
+                                        root.page-pointer-moved(self.mouse-x, self.mouse-y, self.pressed);
+                                    }
+                                    changed has-hover => { if (!self.has-hover) { root.page-pointer-left(); } }
                                 }
-                                // `moved` only fires while pressed; track hover via the mouse position.
-                                changed mouse-x => {
-                                    page-focus.drag-visible-y = self.mouse-y + page-scroll.content-y;
-                                    root.page-pointer-moved(self.mouse-x, self.mouse-y, self.pressed);
+                            }
+                        }
+                        // Auto-scroll while a selection drag is held near the top or bottom edge.
+                        Timer {
+                            interval: 16ms;
+                            running: page-touch.pressed && (page-focus.drag-visible-y < 24px || page-focus.drag-visible-y > page-scroll.visible-height - 24px);
+                            triggered => {
+                                if (page-focus.drag-visible-y > page-scroll.visible-height - 24px) {
+                                    page-scroll.content-y = max(min(0px, page-scroll.visible-height - root.page-height), page-scroll.content-y - 14px);
+                                } else {
+                                    page-scroll.content-y = min(0px, page-scroll.content-y + 14px);
                                 }
-                                changed mouse-y => {
-                                    page-focus.drag-visible-y = self.mouse-y + page-scroll.content-y;
-                                    root.page-pointer-moved(self.mouse-x, self.mouse-y, self.pressed);
-                                }
-                                changed has-hover => { if (!self.has-hover) { root.page-pointer-left(); } }
+                                root.page-pointer-moved(page-touch.mouse-x, page-focus.drag-visible-y - page-scroll.content-y, true);
                             }
                         }
                     }
-                    // Auto-scroll while a selection drag is held near the top or bottom edge.
-                    Timer {
-                        interval: 16ms;
-                        running: page-touch.pressed && (page-focus.drag-visible-y < 24px || page-focus.drag-visible-y > page-scroll.visible-height - 24px);
-                        triggered => {
-                            if (page-focus.drag-visible-y > page-scroll.visible-height - 24px) {
-                                page-scroll.content-y = max(min(0px, page-scroll.visible-height - root.page-height), page-scroll.content-y - 14px);
-                            } else {
-                                page-scroll.content-y = min(0px, page-scroll.content-y + 14px);
-                            }
-                            root.page-pointer-moved(page-touch.mouse-x, page-focus.drag-visible-y - page-scroll.content-y, true);
+                    if root.use-fallback && root.has-message: ScrollView {
+                        VerticalLayout {
+                            padding: 28px;
+                            Text { text: root.fallback-text; wrap: word-wrap; color: Theme.text; }
                         }
                     }
-                }
-                if root.use-fallback: ScrollView {
-                    VerticalLayout {
-                        padding: 18px;
-                        Text { text: root.fallback-text; wrap: word-wrap; color: Palette.foreground; }
+                    // Empty state
+                    if !root.has-message: VerticalLayout {
+                        alignment: center;
+                        spacing: 12px;
+                        HorizontalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 64px;
+                                height: 64px;
+                                border-radius: 32px;
+                                background: Theme.accent-soft;
+                                Icon { source: @image-url("icons/mail-open.svg"); width: 28px; height: 28px; tint: Theme.accent; }
+                            }
+                        }
+                        Text { text: "メールを選択してください"; font-size: Theme.font-l; font-weight: 600; color: Theme.text; horizontal-alignment: center; }
+                        Text { text: "一覧から選ぶと、ここに本文が表示されます"; font-size: Theme.font-s; color: Theme.text-faint; horizontal-alignment: center; }
                     }
                 }
             }
         }
     }
 
-    // Composer (spike: IME check). Drawn by Slint over the reader, so the
-    // webview is hidden while it is open.
+    // ───────────── Composer sheet
     if root.composing: Rectangle {
-        background: #00000044;
+        background: Theme.scrim;
         TouchArea { }
         Rectangle {
-            width: min(parent.width - 64px, 720px);
-            height: min(parent.height - 64px, 560px);
-            border-radius: 10px;
-            background: Palette.background;
-            drop-shadow-blur: 24px;
-            drop-shadow-color: #00000055;
+            width: min(parent.width - 80px, 760px);
+            height: min(parent.height - 80px, 620px);
+            border-radius: Theme.radius-xl;
+            background: Theme.raised;
+            border-width: 1px;
+            border-color: Theme.border;
+            drop-shadow-blur: 48px;
+            drop-shadow-offset-y: 16px;
+            drop-shadow-color: #00000045;
+            clip: true;
             VerticalLayout {
-                padding: 18px;
-                spacing: 10px;
-                Text { text: "新規メッセージ"; font-size: 15px; font-weight: 600; color: Palette.foreground; }
-                HorizontalLayout { spacing: 8px; Text { text: "宛先"; width: 48px; vertical-alignment: center; color: Palette.foreground.with-alpha(0.7); } LineEdit { text <=> root.compose-to; placeholder-text: "name@example.com"; } }
-                HorizontalLayout { spacing: 8px; Text { text: "件名"; width: 48px; vertical-alignment: center; color: Palette.foreground.with-alpha(0.7); } LineEdit { text <=> root.compose-subject; placeholder-text: "件名"; } }
-                TextEdit { text <=> root.compose-body; wrap: word-wrap; vertical-stretch: 1; }
-                HorizontalLayout {
-                    alignment: end;
-                    spacing: 8px;
-                    Button { text: "破棄"; clicked => { root.composing = false; } }
-                    Button { text: "送信（M3）"; primary: true; clicked => { root.send-compose(); } }
+                Rectangle {
+                    height: 52px;
+                    HorizontalLayout {
+                        padding-left: 20px;
+                        padding-right: 12px;
+                        Text { text: root.compose-title; font-size: Theme.font-l; font-weight: 650; color: Theme.text; vertical-alignment: center; horizontal-stretch: 1; }
+                        IconButton { icon: @image-url("icons/close.svg"); y: (parent.height - self.height) / 2; clicked => { root.composing = false; } }
+                    }
+                    Divider { y: parent.height - 1px; height: 1px; }
+                }
+                ComposeField { label: "宛先"; placeholder: "name@example.com"; text <=> root.compose-to; }
+                ComposeField { label: "件名"; placeholder: "件名を入力"; text <=> root.compose-subject; }
+                Rectangle {
+                    vertical-stretch: 1;
+                    TextEdit {
+                        x: 16px;
+                        y: 10px;
+                        width: parent.width - 32px;
+                        height: parent.height - 16px;
+                        text <=> root.compose-body;
+                        wrap: word-wrap;
+                        font-size: 14px;
+                    }
+                }
+                Divider { height: 1px; }
+                Rectangle {
+                    height: 60px;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 4px;
+                        PrimaryButton {
+                            text: "送信";
+                            icon: @image-url("icons/send.svg");
+                            has-icon: true;
+                            y: (parent.height - self.height) / 2;
+                            clicked => { root.send-compose(); }
+                        }
+                        Rectangle { width: 8px; }
+                        IconButton { icon: @image-url("icons/paperclip.svg"); y: (parent.height - self.height) / 2; }
+                        Rectangle { horizontal-stretch: 1; }
+                        IconButton { icon: @image-url("icons/trash.svg"); y: (parent.height - self.height) / 2; clicked => { root.composing = false; } }
+                    }
                 }
             }
         }
     }
 
-    if root.link-dialog-open: Overlay {
+    if root.link-dialog-open: Dialog {
         title: "外部リンクを開きますか？";
-        body: "既定のブラウザで次の URL を開きます。\n\n" + root.link-url;
+        body: "既定のブラウザで次の URL を開きます。";
+        detail: root.link-url;
         confirm-label: "ブラウザで開く";
         confirmed => { root.link-dialog-open = false; root.link-confirmed(); }
         cancelled => { root.link-dialog-open = false; }
     }
 
-    if root.info-dialog-open: Overlay {
+    if root.info-dialog-open: Dialog {
         title: "重なり検査";
-        body: "このダイアログは Slint が描画しています。表示中はネイティブ WebView を隠すので、ダイアログが WebView の下に隠れていなければ成功です。";
+        body: "このダイアログは Slint が描画しています。Blitz では文書の上に重なり、WebView では表示中だけ WebView を隠します。";
         show-cancel: false;
         confirmed => { root.info-dialog-open = false; }
     }

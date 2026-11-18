@@ -1,0 +1,51 @@
+// Design tokens. Every colour in the UI comes from here so light and dark stay
+// consistent. Follows the OS colour scheme through Palette.
+
+import { Palette } from "std-widgets.slint";
+
+export global Theme {
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+
+    // Surfaces
+    out property <color> window-bg: dark ? #141416 : #f6f5f2;
+    out property <color> sidebar-bg: dark ? #19191c : #efeee9;
+    out property <color> surface: dark ? #1d1d20 : #ffffff;
+    out property <color> raised: dark ? #26262a : #ffffff;
+    out property <color> field: dark ? #ffffff0f : #0000000a;
+    out property <color> border: dark ? #2b2b30 : #e5e3dd;
+    out property <color> border-strong: dark ? #3a3a40 : #d6d3cb;
+    out property <color> scrim: dark ? #00000099 : #1b1a1766;
+
+    // Text
+    out property <color> text: dark ? #ececef : #1c1c1a;
+    out property <color> text-muted: dark ? #a1a1a8 : #66645f;
+    out property <color> text-faint: dark ? #6f6f77 : #9a978f;
+
+    // Accent and states
+    out property <color> accent: dark ? #8d9bff : #3f55d4;
+    out property <color> accent-hover: dark ? #a1adff : #3446b8;
+    out property <color> on-accent: dark ? #10132b : #ffffff;
+    out property <color> accent-soft: dark ? #8d9bff26 : #3f55d41a;
+    out property <color> hover: dark ? #ffffff0c : #00000009;
+    out property <color> pressed: dark ? #ffffff16 : #00000012;
+    out property <color> selected: dark ? #8d9bff1f : #3f55d413;
+    out property <color> danger: dark ? #ff8a80 : #c4372b;
+
+    // Avatar palette (index chosen per sender on the Rust side)
+    out property <[color]> avatars: dark
+        ? [#5b6cff, #e0679a, #3fb08f, #d9913a, #8f6bdc, #3a9bd9, #c9673f, #6b8f3a]
+        : [#4d5fe6, #d24f86, #2f9a7b, #c97f25, #7c58cc, #2d88c4, #b8562f, #5d7f2c];
+
+    // Shape and rhythm
+    out property <length> radius-s: 6px;
+    out property <length> radius-m: 8px;
+    out property <length> radius-l: 12px;
+    out property <length> radius-xl: 16px;
+
+    // Type scale
+    out property <length> font-xs: 11px;
+    out property <length> font-s: 12px;
+    out property <length> font-m: 13px;
+    out property <length> font-l: 15px;
+    out property <length> font-xl: 20px;
+}

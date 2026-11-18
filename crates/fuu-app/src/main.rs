@@ -21,11 +21,32 @@ use slint::{ComponentHandle, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, Shar
 slint::include_modules!();
 
 const SPIKE_ROWS: usize = 5000;
+/// Number of avatar colours in `Theme.avatars`.
+const AVATAR_COLOURS: i32 = 8;
 const BATCH: usize = 500;
 /// Logical width reserved for the reader's vertical scrollbar.
 const SCROLLBAR_ALLOWANCE: f32 = 16.0;
 /// Re-layout delay for host-composited engines while the pane is being resized.
 const RELAYOUT_DEBOUNCE: Duration = Duration::from_millis(120);
+
+#[cfg(test)]
+mod tests {
+    use super::{avatar_index, initials};
+
+    #[test]
+    fn initials_for_latin_and_cjk_names() {
+        assert_eq!(initials("Oliver Smith"), "OS");
+        assert_eq!(initials("newsletter"), "N");
+        assert_eq!(initials("佐藤 花子"), "佐");
+        assert_eq!(initials("  "), "");
+    }
+
+    #[test]
+    fn avatar_index_is_stable_and_in_range() {
+        assert_eq!(avatar_index("a@example.com"), avatar_index("a@example.com"));
+        assert!((0..super::AVATAR_COLOURS).contains(&avatar_index("x")));
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Engine {
@@ -76,6 +97,37 @@ struct ReaderState {
 
 type SharedState = Rc<RefCell<ReaderState>>;
 
+/// Initials for an avatar: the first character for CJK names, otherwise the first
+/// letters of up to two words.
+fn initials(name: &str) -> String {
+    let name = name.trim();
+    let Some(first) = name.chars().next() else { return String::new() };
+    if !first.is_ascii() {
+        return first.to_string();
+    }
+    name.split_whitespace()
+        .take(2)
+        .filter_map(|w| w.chars().next())
+        .flat_map(char::to_uppercase)
+        .collect()
+}
+
+/// Stable avatar colour index for a sender.
+fn avatar_index(key: &str) -> i32 {
+    let hash = key.bytes().fold(2166136261u32, |h, b| (h ^ u32::from(b)).wrapping_mul(16777619));
+    (hash % AVATAR_COLOURS as u32) as i32
+}
+
+fn set_reader_header(ui: &AppWindow, subject: &str, name: &str, address: &str, date: &str) {
+    ui.set_reader_subject(subject.into());
+    ui.set_reader_name(name.into());
+    ui.set_reader_address(address.into());
+    ui.set_reader_initials(initials(name).into());
+    ui.set_reader_avatar(avatar_index(address));
+    ui.set_reader_date(date.into());
+    ui.set_has_message(true);
+}
+
 fn show_document(state: &SharedState, doc: SafeDocument) {
     let mut st = state.borrow_mut();
     if let Some(r) = st.reader.as_mut() {
@@ -120,6 +172,8 @@ fn spawn_mail_feed(ui: slint::Weak<AppWindow>) {
                     let model = ui.get_messages();
                     let Some(vec) = model.as_any().downcast_ref::<VecModel<MessageRow>>() else { return };
                     vec.extend(rows.into_iter().map(|(sender, subject, preview, date, unread)| MessageRow {
+                        initials: initials(&sender).into(),
+                        avatar: avatar_index(&sender),
                         sender: sender.into(),
                         subject: subject.into(),
                         preview: preview.into(),
@@ -149,6 +203,7 @@ fn link_handler(ui: &AppWindow, pending_link: Rc<RefCell<Option<String>>>) -> Li
             }
             LinkRequest::Mailto(url) => {
                 let addr = url["mailto:".len()..].split('?').next().unwrap_or_default().to_owned();
+                ui.set_compose_title("新規メッセージ".into());
                 ui.set_compose_to(addr.into());
                 ui.set_compose_subject(SharedString::default());
                 ui.set_compose_body(SharedString::default());
@@ -233,9 +288,18 @@ fn main() -> Result<(), slint::PlatformError> {
         ui.on_row_selected(move |i| {
             let Some(ui) = weak.upgrade() else { return };
             let Some(row) = ui.get_messages().row_data(i as usize) else { return };
-            ui.set_reader_subject(row.subject.clone());
-            ui.set_reader_from(format!("{} <sender{}@example.com>", row.sender, i).into());
-            ui.set_reader_date(format!("2026/{} 10:{:02}", row.date, i % 60).into());
+            if let Some(vec) = ui.get_messages().as_any().downcast_ref::<VecModel<MessageRow>>() {
+                if row.unread {
+                    vec.set_row_data(i as usize, MessageRow { unread: false, ..row.clone() });
+                }
+            }
+            set_reader_header(
+                &ui,
+                &row.subject,
+                &row.sender,
+                &format!("sender{i}@example.com"),
+                &format!("2026/{} 10:{:02}", row.date, i % 60),
+            );
             let doc = samples::message_document(i as usize, &row.subject);
             ui.set_fallback_text(doc.text.clone().into());
             show_document(&state, doc);
@@ -247,9 +311,7 @@ fn main() -> Result<(), slint::PlatformError> {
         ui.on_load_security_sample(move || {
             let Some(ui) = weak.upgrade() else { return };
             ui.set_current_row(-1);
-            ui.set_reader_subject("セキュリティ検査文書".into());
-            ui.set_reader_from("M0 spike <spike@fuu.invalid>".into());
-            ui.set_reader_date(SharedString::default());
+            set_reader_header(&ui, "セキュリティ検査文書", "M0 spike", "spike@fuu.invalid", "");
             let doc = samples::security_document();
             ui.set_fallback_text(doc.text.clone().into());
             show_document(&state, doc);
@@ -261,9 +323,7 @@ fn main() -> Result<(), slint::PlatformError> {
         ui.on_load_cjk_sample(move || {
             let Some(ui) = weak.upgrade() else { return };
             ui.set_current_row(-1);
-            ui.set_reader_subject("CJK：日本語・简体・繁體・한국어 ✉️".into());
-            ui.set_reader_from("髙﨑 𠮷子 <takasaki@example.jp>".into());
-            ui.set_reader_date(SharedString::default());
+            set_reader_header(&ui, "CJK：日本語・简体・繁體・한국어 ✉️", "髙﨑 𠮷子", "takasaki@example.jp", "");
             let doc = samples::cjk_document();
             ui.set_fallback_text(doc.text.clone().into());
             show_document(&state, doc);
@@ -365,10 +425,52 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = ui.as_weak();
         ui.on_start_compose(move || {
             let Some(ui) = weak.upgrade() else { return };
+            ui.set_compose_title("新規メッセージ".into());
             ui.set_compose_to(SharedString::default());
             ui.set_compose_subject(SharedString::default());
             ui.set_compose_body("\n\n-- \n署名（M3 でアカウントごとに設定）".into());
             ui.set_composing(true);
+        });
+    }
+    {
+        // Spike replies: real quoting, threading headers and signatures land in M3.
+        let weak = ui.as_weak();
+        ui.on_reply(move |all| {
+            let Some(ui) = weak.upgrade() else { return };
+            let subject = ui.get_reader_subject();
+            let subject = if subject.starts_with("Re:") { subject.to_string() } else { format!("Re: {subject}") };
+            ui.set_compose_title(if all { "全員に返信" } else { "返信" }.into());
+            ui.set_compose_to(ui.get_reader_address());
+            ui.set_compose_subject(subject.into());
+            ui.set_compose_body("\n\n-- \n署名（M3 でアカウントごとに設定）\n\n> （引用は M3 で実装）".into());
+            ui.set_composing(true);
+        });
+    }
+    {
+        let weak = ui.as_weak();
+        ui.on_forward(move || {
+            let Some(ui) = weak.upgrade() else { return };
+            ui.set_compose_title("転送".into());
+            ui.set_compose_to(SharedString::default());
+            ui.set_compose_subject(format!("Fwd: {}", ui.get_reader_subject()).into());
+            ui.set_compose_body(SharedString::default());
+            ui.set_composing(true);
+        });
+    }
+    {
+        let weak = ui.as_weak();
+        ui.on_archive(move || {
+            if let Some(ui) = weak.upgrade() {
+                ui.set_feed_summary("アーカイブは M2 で実装".into());
+            }
+        });
+    }
+    {
+        let weak = ui.as_weak();
+        ui.on_delete(move || {
+            if let Some(ui) = weak.upgrade() {
+                ui.set_feed_summary("削除は M2 で実装".into());
+            }
         });
     }
     {
@@ -495,6 +597,50 @@ fn main() -> Result<(), slint::PlatformError> {
             let text: SharedString = format!("{}\n{}", ui.get_feed_summary(), stats_line).into();
             if ui.get_status_text() != text {
                 ui.set_status_text(text);
+            }
+        });
+    }
+
+    // Development aid: FUU_SNAPSHOT=<file.png> opens a sample, saves a snapshot of the
+    // window and exits. FUU_SNAPSHOT_STEP picks the scene (message|security|compose|dialog|empty).
+    let snapshot_timer = slint::Timer::default();
+    if let Ok(path) = std::env::var("FUU_SNAPSHOT") {
+        let weak = ui.as_weak();
+        let step = std::env::var("FUU_SNAPSHOT_STEP").unwrap_or_else(|_| "message".into());
+        let mut ticks = 0u32;
+        snapshot_timer.start(slint::TimerMode::Repeated, Duration::from_millis(500), move || {
+            let Some(ui) = weak.upgrade() else { return };
+            ticks += 1;
+            match ticks {
+                3 => match step.as_str() {
+                    "security" => ui.invoke_load_security_sample(),
+                    "compose" => ui.invoke_start_compose(),
+                    "dialog" => {
+                        ui.set_current_row(1);
+                        ui.invoke_row_selected(1);
+                        ui.set_info_dialog_open(true);
+                    }
+                    "empty" => {}
+                    _ => {
+                        ui.set_current_row(1);
+                        ui.invoke_row_selected(1);
+                    }
+                },
+                6 => {
+                    match ui.window().take_snapshot() {
+                        Ok(buf) => {
+                            let file = std::fs::File::create(&path).expect("snapshot file");
+                            let mut enc = png::Encoder::new(std::io::BufWriter::new(file), buf.width(), buf.height());
+                            enc.set_color(png::ColorType::Rgba);
+                            enc.set_depth(png::BitDepth::Eight);
+                            let mut writer = enc.write_header().expect("png header");
+                            writer.write_image_data(buf.as_bytes()).expect("png data");
+                        }
+                        Err(e) => eprintln!("snapshot failed: {e}"),
+                    }
+                    let _ = slint::quit_event_loop();
+                }
+                _ => {}
             }
         });
     }

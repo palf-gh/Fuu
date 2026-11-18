@@ -1886,6 +1886,7 @@ dependencies = [
  "fuu-render",
  "fuu-sanitiser",
  "open",
+ "png",
  "raw-window-handle",
  "slint",
  "slint-build",
