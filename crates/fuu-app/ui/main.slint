@@ -224,6 +224,7 @@ export component AppWindow inherits Window {
     callback editor-caret-moved(int, int);
     callback editor-preedit-changed(string);
     callback editor-resized(length);
+    callback editor-focus-gained();
     in-out property <string> search-text;
     in-out property <bool> searching;
     in-out property <string> compose-from;
@@ -878,6 +879,7 @@ export component AppWindow inherits Window {
                             caret-moved(a, c) => { root.editor-caret-moved(a, c); }
                             preedit-changed(p) => { root.editor-preedit-changed(p); }
                             resized(w) => { root.editor-resized(w); }
+                            focus-gained => { root.editor-focus-gained(); }
                         }
                         if root.compose-attachments.length > 0: VerticalLayout {
                             padding-top: 10px;

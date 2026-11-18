@@ -1107,6 +1107,12 @@ fn main() -> Result<(), slint::PlatformError> {
             }
         });
         let weak = ui.as_weak();
+        ui.on_editor_focus_gained(move || {
+            if let Some(ui) = weak.upgrade() {
+                editor::focus_gained(&ui);
+            }
+        });
+        let weak = ui.as_weak();
         ui.on_editor_resized(move |width| {
             if let Some(ui) = weak.upgrade() {
                 editor::resized(&ui, width);
@@ -1277,6 +1283,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let scale = ui.window().scale_factor();
             let composited = r.renderer.composited_by_host();
 
+            editor::poll(&ui);
             if composited {
                 r.renderer.poll_repaint();
                 let has_selection = r.renderer.selected_text().is_some();
@@ -1393,6 +1400,10 @@ fn main() -> Result<(), slint::PlatformError> {
                     _ => ui.invoke_row_selected(1),
                 },
                 4 if step == "rich" => editor::load(&ui, editor::sample()),
+                5 if step == "rich" => {
+                    editor::focus(&ui);
+                    editor::pointer(&ui, 0, 30.0, 60.0, 2, false);
+                }
                 6 => {
                     {
                         use slint::winit_030::WinitWindowAccessor;

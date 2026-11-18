@@ -97,13 +97,21 @@ export component RichEditor inherits Rectangle {
     callback caret-moved(int, int);
     callback preedit-changed(string);
     callback resized(length);
-    changed cursor => { root.caret-moved(root.anchor, root.cursor); }
-    changed anchor => { root.caret-moved(root.anchor, root.cursor); }
+    // Focus loss (e.g. the link popup) clears the TextInput's selection; ignore
+    // that so the document selection survives, and restore it on focus.
+    callback focus-gained();
+    changed cursor => { if (input.has-focus) { root.caret-moved(root.anchor, root.cursor); } }
+    changed anchor => { if (input.has-focus) { root.caret-moved(root.anchor, root.cursor); } }
+    changed focused => { if (root.focused) { root.focus-gained(); } }
     changed preedit => { root.preedit-changed(root.preedit); }
     changed content-width => { root.resized(root.content-width); }
     init => { root.resized(root.content-width); }
 
     property <int> clicks: 1;
+    // The TextInput's own cursor position, so the input can be shifted to put that
+    // cursor (and with it the IME candidate window) on the painted caret.
+    property <length> ime-x;
+    property <length> ime-y;
     property <duration> last-press;
     property <bool> link-open;
     property <string> link-text;
@@ -139,29 +147,6 @@ export component RichEditor inherits Rectangle {
             content-width: self.visible-width;
             content-height: max(root.page-height + 24px, self.visible-height);
 
-            // Clicks anywhere in the body place the caret.
-            TouchArea {
-                x: 0;
-                y: 0;
-                width: scroll.visible-width;
-                height: max(root.page-height + 24px, scroll.visible-height);
-                mouse-cursor: MouseCursor.text;
-                pointer-event(e) => {
-                    if (e.button == PointerEventButton.left) {
-                        if (e.kind == PointerEventKind.down) {
-                            input.focus();
-                            root.clicks = (animation-tick() - root.last-press < 400ms) ? Math.min(root.clicks + 1, 3) : 1;
-                            root.last-press = animation-tick();
-                            root.pointer(0, self.mouse-x - 2px, self.mouse-y - 8px, root.clicks, e.modifiers.shift);
-                        } else if (e.kind == PointerEventKind.up) {
-                            root.pointer(2, self.mouse-x - 2px, self.mouse-y - 8px, root.clicks, false);
-                        }
-                    }
-                }
-                moved => {
-                    if (self.pressed) { root.pointer(1, self.mouse-x - 2px, self.mouse-y - 8px, root.clicks, true); }
-                }
-            }
             for r in root.selection: Rectangle {
                 x: r.x + 2px;
                 y: r.y + 8px;
@@ -188,10 +173,10 @@ export component RichEditor inherits Rectangle {
             }
             // IME / keyboard bridge, kept at the caret so candidate windows appear there.
             input := TextInput {
-                x: root.caret-x + 2px;
-                y: root.caret-y + 8px;
-                width: 4px;
-                height: root.caret-h;
+                x: root.caret-x + 2px - root.ime-x;
+                y: root.caret-y + 8px - root.ime-y;
+                width: 20000px;
+                height: 20000px;
                 text <=> root.text;
                 single-line: false;
                 wrap: no-wrap;
@@ -200,6 +185,10 @@ export component RichEditor inherits Rectangle {
                 selection-foreground-color: transparent;
                 font-size: 14px;
                 edited => { root.edited(self.text); }
+                cursor-position-changed(p) => {
+                    root.ime-x = p.x;
+                    root.ime-y = p.y;
+                }
                 key-pressed(e) => {
                     if (e.text == Key.UpArrow) { root.navigate("up", e.modifiers.shift); return accept; }
                     if (e.text == Key.DownArrow) { root.navigate("down", e.modifiers.shift); return accept; }
@@ -219,6 +208,30 @@ export component RichEditor inherits Rectangle {
                         if (e.text == "y" || e.text == "Y") { root.command("redo"); return accept; }
                     }
                     return reject;
+                }
+            }
+            // Above the (invisible) input so clicks reach Rust, not the TextInput.
+            // Clicks anywhere in the body place the caret.
+            TouchArea {
+                x: 0;
+                y: 0;
+                width: scroll.visible-width;
+                height: max(root.page-height + 24px, scroll.visible-height);
+                mouse-cursor: MouseCursor.text;
+                pointer-event(e) => {
+                    if (e.button == PointerEventButton.left) {
+                        if (e.kind == PointerEventKind.down) {
+                            input.focus();
+                            root.clicks = (animation-tick() - root.last-press < 400ms) ? Math.min(root.clicks + 1, 3) : 1;
+                            root.last-press = animation-tick();
+                            root.pointer(0, self.mouse-x - 2px, self.mouse-y - 8px, root.clicks, e.modifiers.shift);
+                        } else if (e.kind == PointerEventKind.up) {
+                            root.pointer(2, self.mouse-x - 2px, self.mouse-y - 8px, root.clicks, false);
+                        }
+                    }
+                }
+                moved => {
+                    if (self.pressed) { root.pointer(1, self.mouse-x - 2px, self.mouse-y - 8px, root.clicks, true); }
                 }
             }
         }

@@ -509,9 +509,23 @@ impl RichDoc {
         let mut out = String::new();
         let mut open = Open::None;
         let mut start = 0;
+        let mut in_signature = false;
         for line in self.text.split('\n') {
             let range = start..start + line.len();
             start = range.end + 1;
+            if line == "-- " && !in_signature {
+                // Everything from the signature separator on is muted.
+                out.push_str(match open {
+                    Open::Ul => "</ul>",
+                    Open::Ol => "</ol>",
+                    Open::Quote => "</blockquote>",
+                    Open::None => "",
+                });
+                open = Open::None;
+                in_signature = true;
+                out.push_str("<div style=\"color:#8a877f;margin-top:16px;\"><div>--&nbsp;</div>");
+                continue;
+            }
             let (kind, prefix) = Self::block_of(line);
             let want = match kind {
                 Block::Bullet => Open::Ul,
@@ -547,6 +561,9 @@ impl RichDoc {
             Open::Quote => "</blockquote>",
             Open::None => "",
         });
+        if in_signature {
+            out.push_str("</div>");
+        }
         out
     }
 
@@ -591,6 +608,24 @@ impl RichDoc {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn html_export_escapes_text_and_links() {
+        let mut d = RichDoc::from_plain("<script>x</script> link");
+        let r = d.text().find("link").unwrap();
+        d.set_link(r..r + 4, Some("https://x.org/\"><b>".into()));
+        let html = d.to_html();
+        assert!(!html.contains("<script>") && html.contains("&lt;script&gt;"), "{html}");
+        assert!(html.contains("href=\"https://x.org/&quot;&gt;&lt;b&gt;\""), "{html}");
+        assert!(!html.contains("<b>"), "{html}");
+    }
+
+    #[test]
+    fn signature_is_muted_in_html() {
+        let html = RichDoc::from_plain("本文\n-- \n山田").to_html();
+        assert!(html.contains("color:#8a877f") && html.contains("山田"), "{html}");
+        assert!(!html.contains("<div>-- </div>"), "{html}");
+    }
 
     fn bold() -> Style {
         Style { bold: true, ..Style::default() }

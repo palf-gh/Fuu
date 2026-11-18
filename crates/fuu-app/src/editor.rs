@@ -7,7 +7,6 @@
 
 use std::cell::RefCell;
 use std::ops::Range;
-use std::time::Instant;
 
 use fuu_editor::history::{History, Snapshot};
 use fuu_editor::model::{Block, Mark, RichDoc, Size, QUOTE};
@@ -28,7 +27,8 @@ struct Editor {
     drag_unit: Option<Range<usize>>,
     sel_serial: i32,
     focus_serial: i32,
-    last_paint: Option<Instant>,
+    /// (dark, scale) the page was last painted for.
+    painted_for: Option<(bool, f32)>,
 }
 
 impl Editor {
@@ -44,7 +44,7 @@ impl Editor {
             drag_unit: None,
             sel_serial: 0,
             focus_serial: 0,
-            last_paint: None,
+            painted_for: None,
         }
     }
 
@@ -131,6 +131,22 @@ fn push_selection(ui: &AppWindow) {
     ui.set_editor_sel_serial(serial);
 }
 
+/// Repaint after a theme or display-scale change (called from the sync timer).
+pub fn poll(ui: &AppWindow) {
+    if !ui.get_composing() {
+        return;
+    }
+    let current = (ui.get_dark_mode(), ui.window().scale_factor());
+    if with(|e| e.painted_for != Some(current)) {
+        refresh(ui);
+    }
+}
+
+/// The editor regained focus: put the document selection back on the TextInput.
+pub fn focus_gained(ui: &AppWindow) {
+    push_selection(ui);
+}
+
 /// Re-lay out and repaint, then update caret, selection and toolbar.
 fn refresh(ui: &AppWindow) {
     let scale = ui.window().scale_factor();
@@ -140,7 +156,7 @@ fn refresh(ui: &AppWindow) {
         let preedit = (!e.preedit.is_empty()).then_some((caret, e.preedit.as_str()));
         let (doc, width) = (&e.doc, e.width);
         e.view.relayout(doc, preedit, width, scale, palette);
-        e.last_paint = Some(Instant::now());
+        e.painted_for = Some((palette == Palette::dark(), scale));
         e.view.paint()
     });
     let buffer = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&page.rgba_premultiplied, page.width, page.height);
