@@ -115,7 +115,9 @@ fn create_reader(ui: &AppWindow, pending_link: Rc<RefCell<Option<String>>>) -> R
             Reader { renderer: Box::new(webview), stats: Some(stats), last_rect: Rect::default(), last_visible: true }
         }
         Err(e) => {
-            eprintln!("webview unavailable, using text renderer: {e}");
+            let msg = format!("webview unavailable, using text renderer: {e}");
+            eprintln!("{msg}");
+            ui.set_renderer_error(msg.into());
             ui.set_use_fallback(true);
             let sink_ui = ui.as_weak();
             let sink = Box::new(move |text: &str| {
@@ -209,27 +211,29 @@ fn main() -> Result<(), slint::PlatformError> {
 
     ui.show()?;
 
-    // The native window is realised once the event loop runs; attach the webview
-    // then, falling back to the text renderer if it cannot be created.
-    {
-        let weak = ui.as_weak();
-        let reader = reader.clone();
-        let pending = pending_link.clone();
-        slint::Timer::single_shot(Duration::ZERO, move || {
-            let Some(ui) = weak.upgrade() else { return };
-            *reader.borrow_mut() = Some(create_reader(&ui, pending));
-        });
-    }
-
     // Keep the child webview aligned with the reader pane and hidden while
     // Slint-drawn overlays cover it. Polling is a spike simplification.
+    //
+    // The webview is attached on the first tick at which the native winit window
+    // exists (it is realised asynchronously after the event loop starts). If no
+    // handle appears within the grace period, the text renderer takes over.
     let sync_timer = slint::Timer::default();
     {
         let weak = ui.as_weak();
         let reader = reader.clone();
+        let pending = pending_link.clone();
+        let started = Instant::now();
         sync_timer.start(slint::TimerMode::Repeated, Duration::from_millis(16), move || {
+            use raw_window_handle::HasWindowHandle;
             let Some(ui) = weak.upgrade() else { return };
             let mut guard = reader.borrow_mut();
+            if guard.is_none() {
+                let realised = ui.window().window_handle().window_handle().is_ok();
+                if !realised && started.elapsed() < Duration::from_secs(3) {
+                    return;
+                }
+                *guard = Some(create_reader(&ui, pending.clone()));
+            }
             let Some(r) = guard.as_mut() else { return };
             let scale = ui.window().scale_factor();
             let rect = Rect {
@@ -255,7 +259,8 @@ fn main() -> Result<(), slint::PlatformError> {
                     s.refused.load(Ordering::Relaxed),
                     s.navigations_blocked.load(Ordering::Relaxed)
                 ),
-                None => format!("{}（WebView なし）", r.renderer.name()),
+                None => format!("{}（WebView なし）
+{}", r.renderer.name(), ui.get_renderer_error()),
             };
             let text: SharedString = format!("{}\n{}", ui.get_feed_summary(), stats_line).into();
             if ui.get_status_text() != text {

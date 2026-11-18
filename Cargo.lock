@@ -1632,6 +1632,7 @@ dependencies = [
  "fuu-render",
  "fuu-sanitiser",
  "open",
+ "raw-window-handle",
  "slint",
  "slint-build",
  "tokio",
