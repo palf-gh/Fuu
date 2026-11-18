@@ -372,7 +372,8 @@ impl EditorView {
                             let run = glyph_run.run();
                             let colour = style.brush.colour();
                             let coords: Vec<i16> = run.normalized_coords().iter().map(|c| c.to_bits()).collect();
-                            let glyph_transform = style.brush.1.then(|| Affine::skew(OBLIQUE_DEGREES.to_radians().tan(), 0.0));
+                            // Glyph outlines are y-up here, so a positive x-shear per y leans the top right.
+                            let glyph_transform = style.brush.1.then(|| Affine::skew(-OBLIQUE_DEGREES.to_radians().tan(), 0.0));
                             scene.draw_glyphs(
                                 run.font(),
                                 run.font_size(),
@@ -591,6 +592,32 @@ mod tests {
         let (_, empty) = view_of("a\n\nb", 300.0);
         assert!(empty.caret(2).y > empty.caret(0).y && empty.caret(3).y > empty.caret(2).y, "empty lines have height");
         assert_eq!(empty.move_lines(0, 0, 2, false).1, 3);
+    }
+
+    #[test]
+    fn italic_leans_right() {
+        let mut doc = RichDoc::from_plain("|");
+        doc.toggle_mark(0..1, crate::model::Mark::Italic);
+        let mut v = EditorView::new();
+        v.relayout(&doc, None, 100.0, 4.0, Palette::light());
+        let p = v.paint();
+        let (w, h) = (p.width as usize, p.height as usize);
+        // Ink-weighted mean x of the top and bottom quarters of the glyph rows.
+        let rows: Vec<(usize, f64)> = (0..h)
+            .filter_map(|y| {
+                let (mut sum, mut n) = (0.0, 0.0);
+                for x in 0..w {
+                    let a = f64::from(p.rgba_premultiplied[(y * w + x) * 4 + 3]);
+                    sum += a * x as f64;
+                    n += a;
+                }
+                (n > 0.0).then(|| (y, sum / n))
+            })
+            .collect();
+        let q = rows.len() / 4;
+        let mean = |r: &[(usize, f64)]| r.iter().map(|(_, x)| x).sum::<f64>() / r.len() as f64;
+        let (top, bottom) = (mean(&rows[..q]), mean(&rows[rows.len() - q..]));
+        assert!(top > bottom + 2.0, "top {top} should be right of bottom {bottom}");
     }
 
     #[test]
