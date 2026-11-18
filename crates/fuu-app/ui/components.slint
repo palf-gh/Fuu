@@ -320,7 +320,9 @@ export component Tab inherits Rectangle {
     max-width: 220px * root.presence;
     horizontal-stretch: 1;
     opacity: root.presence;
-    clip: true;
+    // The dragged tab draws above its neighbours. No clip here: the chip slides
+    // outside this slot while dragging.
+    z: root.being-dragged ? 10 : 0;
 
     area := TouchArea {
         enabled: !root.closing;
@@ -348,6 +350,8 @@ export component Tab inherits Rectangle {
         x: root.shift;
         width: root.width;
         height: root.height;
+        // Clip the content while the tab grows in or shrinks out.
+        clip: true;
         animate x { duration: root.being-dragged ? 0ms : 160ms; easing: ease-out; }
         border-radius: Theme.radius-m;
         background: root.active ? Theme.raised : area.has-hover ? Theme.hover : transparent;
