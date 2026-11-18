@@ -11,6 +11,7 @@ use tokio::net::TcpStream;
 use tokio_rustls::TlsConnector;
 
 use crate::account::{Security, ServerConfig};
+use crate::imap::Credential;
 
 const TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -142,9 +143,30 @@ async fn greeting(conn: &mut Conn) -> Result<(), SmtpError> {
     if reply.code == 220 { Ok(()) } else { Err(SmtpError::Connect(reply.text())) }
 }
 
-async fn authenticate(conn: &mut Conn, caps: &[String], username: &str, password: &str) -> Result<(), SmtpError> {
+async fn authenticate(conn: &mut Conn, caps: &[String], username: &str, credential: &Credential) -> Result<(), SmtpError> {
     let auth = caps.iter().find(|c| c.starts_with("AUTH")).cloned().unwrap_or_default();
     let b64 = base64::engine::general_purpose::STANDARD;
+    let password = match credential {
+        Credential::Password(p) => p.as_str(),
+        Credential::Bearer(token) => {
+            let r = conn.command(&format!("AUTH XOAUTH2 {}", b64.encode(crate::oauth::xoauth2(username, token)))).await?;
+            if r.code == 235 {
+                return Ok(());
+            }
+            if r.code == 334 {
+                // Error details arrive as a base64 JSON challenge; end the exchange.
+                let detail = r
+                    .lines
+                    .first()
+                    .and_then(|l| b64.decode(l.trim()).ok())
+                    .map(|d| String::from_utf8_lossy(&d).into_owned())
+                    .unwrap_or_default();
+                let fin = conn.command("").await?;
+                return Err(SmtpError::Auth(if detail.is_empty() { fin.text() } else { detail }));
+            }
+            return Err(SmtpError::Auth(r.text()));
+        }
+    };
     let reply = if auth.contains("PLAIN") || auth.is_empty() {
         conn.command(&format!("AUTH PLAIN {}", b64.encode(format!("\0{username}\0{password}")))).await?
     } else if auth.contains("LOGIN") {
@@ -183,10 +205,10 @@ pub fn data_payload(raw: &[u8]) -> Vec<u8> {
 }
 
 /// Submit one message.
-pub async fn send(server: &ServerConfig, username: &str, password: &str, from: &str, recipients: &[String], raw: &[u8]) -> Result<(), SmtpError> {
+pub async fn send(server: &ServerConfig, username: &str, credential: &Credential, from: &str, recipients: &[String], raw: &[u8]) -> Result<(), SmtpError> {
     let job = async {
         let (mut conn, caps) = open(server).await?;
-        authenticate(&mut conn, &caps, username, password).await?;
+        authenticate(&mut conn, &caps, username, credential).await?;
         let r = conn.command(&format!("MAIL FROM:<{from}>")).await?;
         if r.code != 250 {
             return Err(SmtpError::Rejected(r.text()));

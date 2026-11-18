@@ -268,6 +268,7 @@ pub fn start(ui: &AppWindow, spike: bool) {
                 imap: ServerConfig { host: String::new(), port: 993, security: Security::Tls },
                 smtp: ServerConfig { host: String::new(), port: 465, security: Security::Tls },
                 auth: AuthKind::Password,
+                oauth: None,
             }];
             d.active = Some("spike".into());
             d.folder = "INBOX".into();
@@ -319,6 +320,7 @@ fn handle(ui: &AppWindow, event: Event) {
             }
         }
         Event::AccountAdded(account) => {
+            ui.set_setup_oauth_waiting(false);
             DATA.with(|d| d.borrow_mut().active = Some(account.id.clone()));
             render_accounts(ui);
             ui.set_setup_busy(false);
@@ -326,7 +328,17 @@ fn handle(ui: &AppWindow, event: Event) {
             ui.set_setup_password(SharedString::default());
             ui.invoke_setup_finished();
         }
+        Event::OAuthBrowser { url } => {
+            // Only provider sign-in URLs built by the engine arrive here.
+            if url.starts_with("https://accounts.google.com/") || url.starts_with("https://login.microsoftonline.com/") {
+                ui.set_setup_oauth_waiting(true);
+                if let Err(e) = open::that_detached(&url) {
+                    ui.set_setup_error(format!("ブラウザを開けませんでした: {e}").into());
+                }
+            }
+        }
         Event::AccountAddFailed(message) => {
+            ui.set_setup_oauth_waiting(false);
             ui.set_setup_busy(false);
             ui.set_setup_error(message.into());
         }
@@ -631,12 +643,16 @@ pub fn setup_email_edited(ui: &AppWindow, email: &str) {
     if let Some(p) = account::preset_for(email) {
         ui.set_setup_provider(p.provider.into());
         ui.set_setup_note(p.note.unwrap_or_default().into());
+        ui.set_setup_oauth_provider(p.oauth.map(|o| o.name()).unwrap_or_default().into());
+        ui.set_setup_password_login(p.password_login);
         if auto {
             fill_servers(ui, &p.imap, &p.smtp);
         }
     } else {
         ui.set_setup_provider(SharedString::default());
         ui.set_setup_note(SharedString::default());
+        ui.set_setup_oauth_provider(SharedString::default());
+        ui.set_setup_password_login(true);
         if auto {
             if let Some((imap, smtp)) = account::guess_for(email) {
                 fill_servers(ui, &imap, &smtp);
@@ -678,6 +694,9 @@ pub fn reset_setup(ui: &AppWindow) {
     ui.set_setup_smtp_security(0);
     ui.set_setup_advanced(false);
     ui.set_setup_busy(false);
+    ui.set_setup_oauth_provider(SharedString::default());
+    ui.set_setup_password_login(true);
+    ui.set_setup_oauth_waiting(false);
     DATA.with(|d| d.borrow_mut().setup_auto = true);
 }
 
@@ -707,8 +726,39 @@ pub fn setup_submit(ui: &AppWindow) {
         ui.set_setup_error("開発用データの表示中は追加できません（FUU_SPIKE_FEED を外して起動してください）".into());
         return;
     }
+    let account = form_account(ui, email);
+    ui.set_setup_error(SharedString::default());
+    ui.set_setup_busy(true);
+    send(Command::AddAccount { account, password });
+}
+
+/// Start a browser sign-in for the provider detected from the address.
+pub fn setup_oauth_submit(ui: &AppWindow) {
+    let email = ui.get_setup_email().trim().to_owned();
+    let Some(provider) = account::preset_for(&email).and_then(|p| p.oauth) else {
+        ui.set_setup_error("このアドレスはブラウザでのログインに対応していません".into());
+        return;
+    };
+    if is_spike() {
+        ui.set_setup_error("開発用データの表示中は追加できません（FUU_SPIKE_FEED を外して起動してください）".into());
+        return;
+    }
+    let mut account = form_account(ui, email);
+    account.auth = AuthKind::OAuth2;
+    account.oauth = Some(provider);
+    ui.set_setup_error(SharedString::default());
+    ui.set_setup_busy(true);
+    send(Command::AddOAuthAccount { account });
+}
+
+pub fn cancel_oauth() {
+    send(Command::CancelOAuth);
+}
+
+fn form_account(ui: &AppWindow, email: String) -> Account {
+    let parse_port = |s: SharedString| s.trim().parse::<u16>().ok();
     let username = ui.get_setup_username().trim().to_owned();
-    let account = Account {
+    Account {
         id: String::new(),
         display_name: ui.get_setup_name().trim().to_owned(),
         email: email.clone(),
@@ -724,10 +774,8 @@ pub fn setup_submit(ui: &AppWindow) {
             security: security_from(ui.get_setup_smtp_security()),
         },
         auth: AuthKind::Password,
-    };
-    ui.set_setup_error(SharedString::default());
-    ui.set_setup_busy(true);
-    send(Command::AddAccount { account, password });
+        oauth: None,
+    }
 }
 
 pub fn select_account(ui: &AppWindow, index: usize) {

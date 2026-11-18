@@ -147,10 +147,55 @@ pub async fn connect(server: &ServerConfig) -> Result<Client<Stream>, ImapError>
     }
 }
 
-pub async fn login(server: &ServerConfig, username: &str, password: &str) -> Result<ImapSession, ImapError> {
+/// What an account logs in with.
+#[derive(Clone)]
+pub enum Credential {
+    Password(String),
+    /// OAuth 2.0 access token (SASL XOAUTH2).
+    Bearer(String),
+}
+
+impl std::fmt::Debug for Credential {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Never print secrets.
+        f.write_str(match self {
+            Credential::Password(_) => "Password(..)",
+            Credential::Bearer(_) => "Bearer(..)",
+        })
+    }
+}
+
+/// XOAUTH2 for async-imap: the first challenge gets the initial response; after
+/// a failure the server sends an error challenge, answered with an empty line.
+struct XOAuth2 {
+    payload: String,
+    sent: bool,
+}
+
+impl async_imap::Authenticator for XOAuth2 {
+    type Response = String;
+    fn process(&mut self, _challenge: &[u8]) -> String {
+        if self.sent {
+            String::new()
+        } else {
+            self.sent = true;
+            self.payload.clone()
+        }
+    }
+}
+
+pub async fn login(server: &ServerConfig, username: &str, credential: &Credential) -> Result<ImapSession, ImapError> {
     let client = connect(server).await?;
     timed(COMMAND_TIMEOUT, async {
-        client.login(username, password).await.map_err(|(e, _)| ImapError::Auth(e.to_string()))
+        match credential {
+            Credential::Password(password) => {
+                client.login(username, password).await.map_err(|(e, _)| ImapError::Auth(e.to_string()))
+            }
+            Credential::Bearer(token) => {
+                let auth = XOAuth2 { payload: crate::oauth::xoauth2(username, token), sent: false };
+                client.authenticate("XOAUTH2", auth).await.map_err(|(e, _)| ImapError::Auth(e.to_string()))
+            }
+        }
     })
     .await
 }

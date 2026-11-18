@@ -4,9 +4,10 @@ A minimal desktop mail client for Windows and macOS: read, send and reply, with
 multiple accounts and per-account signatures. Fuu talks to your IMAP/SMTP servers
 directly; there is no relay service.
 
-Status: **M3** — accounts (password / app password, kept in the OS keychain),
-folders, sanitised bodies (Blitz), remote images on request, attachments, and
-sending, replying and forwarding over SMTP. OAuth arrives in M4 — see `docs/plan.md`.
+Status: **M4** — accounts (password / app password, or Google / Microsoft sign-in
+with OAuth 2.0), folders, sanitised bodies (Blitz), remote images on request,
+attachments, a rich-text composer, and sending, replying and forwarding over SMTP.
+IDLE and packaging arrive in M5 — see `docs/plan.md`.
 
 Accounts are stored in `<config dir>/Fuu/accounts.toml` (no secrets). Run with
 `FUU_SPIKE_FEED=1` to use dummy data instead of real accounts.
@@ -50,13 +51,46 @@ SLINT_BACKEND=winit-skia cargo run -p fuu-app --features skia
 
 See `ARCHITECTURE.md` and `SECURITY.md`.
 
-## OAuth notes
+## OAuth sign-in (Gmail, Outlook.com)
 
-- Google: the `https://mail.google.com/` scope is restricted. While your OAuth
-  client is in "testing" status, refresh tokens expire after 7 days and you must
-  sign in again. This is Google policy, not a Fuu bug.
-- Microsoft: requires `IMAP.AccessAsUser.All`, `SMTP.Send` and `offline_access`.
-- Client IDs are read from user configuration and are never committed.
+Fuu ships without OAuth client IDs: register your own and tell Fuu about them in
+`<config dir>/Fuu/oauth.toml` (next to `accounts.toml`; on Windows
+`%APPDATA%\Fuu\oauth.toml`, on macOS `~/Library/Application Support/Fuu/oauth.toml`):
+
+```toml
+[google]
+client_id = "1234567890-abc.apps.googleusercontent.com"
+client_secret = "GOCSPX-..."   # Desktop clients have one; it is not confidential
+
+[microsoft]
+client_id = "00000000-0000-0000-0000-000000000000"
+```
+
+Environment variables override the file: `FUU_GOOGLE_CLIENT_ID`,
+`FUU_GOOGLE_CLIENT_SECRET`, `FUU_MICROSOFT_CLIENT_ID`. Restart Fuu after editing.
+
+**Google** (Google Cloud console):
+1. Create a project, enable the **Gmail API**, and configure the OAuth consent
+   screen (External; add yourself as a test user).
+2. Add the scope `https://mail.google.com/`.
+3. Create credentials → OAuth client ID → **Desktop app**. No redirect URI is
+   needed: Fuu uses `http://127.0.0.1:<random port>/`.
+4. While the app is in "Testing", refresh tokens expire after 7 days and Fuu asks
+   you to sign in again. This is Google policy, not a Fuu bug.
+
+**Microsoft** (Microsoft Entra admin centre → App registrations):
+1. New registration; supported account types: *accounts in any organisational
+   directory and personal Microsoft accounts*.
+2. Authentication → add a platform → **Mobile and desktop applications** →
+   custom redirect URI `http://localhost` (the port is ignored for localhost).
+   Enable *Allow public client flows*. No client secret.
+3. API permissions → add *Office 365 Exchange Online* delegated permissions
+   `IMAP.AccessAsUser.All` and `SMTP.Send` (plus `offline_access`).
+
+How it works: sign-in uses the authorisation code flow with PKCE in your normal
+browser; Fuu receives the redirect on a loopback port, keeps the refresh token in
+the OS keychain (split across entries when long) and the access token in memory
+only, and logs in to IMAP/SMTP with SASL XOAUTH2.
 
 ## Licence
 

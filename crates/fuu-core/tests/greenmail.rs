@@ -121,6 +121,7 @@ fn engine_adds_account_and_loads_inbox() {
         imap: imap_server(),
         smtp: ServerConfig { host: "127.0.0.1".into(), port: 3025, security: Security::InsecurePlainForTests },
         auth: AuthKind::Password,
+        oauth: None,
     };
 
     // A wrong password must not create the account.
@@ -185,6 +186,7 @@ fn engine_sends_reply_saves_sent_and_marks_answered() {
         imap: imap_server(),
         smtp: ServerConfig { host: "127.0.0.1".into(), port: 3025, security: Security::InsecurePlainForTests },
         auth: AuthKind::Password,
+        oauth: None,
     };
     engine.send(Command::AddAccount { account, password: PASSWORD.into() });
     let Event::AccountAdded(added) = wait_for(&rx, |e| matches!(e, Event::AccountAdded(_))) else { unreachable!() };

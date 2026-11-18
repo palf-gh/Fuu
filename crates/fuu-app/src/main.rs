@@ -728,6 +728,13 @@ fn main() -> Result<(), slint::PlatformError> {
                 mail::setup_submit(&ui);
             }
         });
+        let weak = ui.as_weak();
+        ui.on_setup_oauth_submit(move || {
+            if let Some(ui) = weak.upgrade() {
+                mail::setup_oauth_submit(&ui);
+            }
+        });
+        ui.on_setup_oauth_cancel(mail::cancel_oauth);
     }
     {
         let weak = ui.as_weak();

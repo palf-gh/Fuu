@@ -1,7 +1,7 @@
 // Account setup, shown as a tab in the right pane.
 
 import { Theme } from "theme.slint";
-import { Divider, Icon, PrimaryButton, ComposeField } from "components.slint";
+import { Divider, Icon, PrimaryButton, SecondaryButton, ComposeField } from "components.slint";
 import { Segmented } from "settings.slint";
 
 /// Labelled single-line input with an optional password mask.
@@ -54,8 +54,14 @@ export component AccountSetupView inherits Rectangle {
     in property <string> note;
     in property <string> error;
     in property <bool> busy;
+    // OAuth sign-in for the detected provider ("Google" / "Microsoft"), if any.
+    in property <string> oauth-provider;
+    in property <bool> password-login: true;
+    in property <bool> oauth-waiting;
     callback email-edited(string);
     callback submit();
+    callback oauth-submit();
+    callback oauth-cancel();
 
     VerticalLayout {
         padding-left: 40px;
@@ -68,7 +74,7 @@ export component AccountSetupView inherits Rectangle {
         Text { text: "アカウントを追加"; font-size: Theme.font-xl; font-weight: 600; color: Theme.text; }
         Rectangle { height: 6px; }
         Text {
-            text: "IMAP / SMTP でメールサーバーに直接接続します。パスワードは OS のキーチェーンにだけ保存されます。";
+            text: "IMAP / SMTP でメールサーバーに直接接続します。パスワードやログイン情報は OS のキーチェーンにだけ保存されます。";
             font-size: Theme.font-s;
             color: Theme.text-faint;
             wrap: word-wrap;
@@ -77,7 +83,7 @@ export component AccountSetupView inherits Rectangle {
 
         SetupField { label: "名前"; placeholder: "差出人に表示される名前"; text <=> root.name; }
         SetupField { label: "メールアドレス"; placeholder: "name@example.com"; text <=> root.email; edited(t) => { root.email-edited(t); } }
-        SetupField { label: "パスワード"; placeholder: "パスワードまたはアプリ パスワード"; password: true; text <=> root.password; }
+        if root.password-login: SetupField { label: "パスワード"; placeholder: root.oauth-provider != "" ? "アプリ パスワード（" + root.oauth-provider + " でログインする場合は不要）" : "パスワードまたはアプリ パスワード"; password: true; text <=> root.password; }
 
         if root.note != "": Rectangle {
             height: note-text.preferred-height + 20px;
@@ -147,11 +153,23 @@ export component AccountSetupView inherits Rectangle {
 
         Rectangle { height: 22px; }
         HorizontalLayout {
-            spacing: 14px;
+            spacing: 10px;
             alignment: start;
-            PrimaryButton {
+            if root.oauth-provider != "": PrimaryButton {
+                text: root.oauth-waiting ? "ブラウザでログインを続けてください…" : root.busy ? "接続を確認しています…" : root.oauth-provider + " でログイン";
+                clicked => { if (!root.busy) { root.oauth-submit(); } }
+            }
+            if root.oauth-waiting: SecondaryButton {
+                text: "取り消す";
+                clicked => { root.oauth-cancel(); }
+            }
+            if root.password-login && root.oauth-provider == "": PrimaryButton {
                 text: root.busy ? "接続を確認しています…" : "接続して追加";
                 clicked => { if (!root.busy) { root.submit(); } }
+            }
+            if root.password-login && root.oauth-provider != "" && !root.busy: SecondaryButton {
+                text: "パスワードで追加";
+                clicked => { root.submit(); }
             }
             if root.error != "": Text {
                 text: root.error;

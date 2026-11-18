@@ -11,8 +11,12 @@ use tokio::sync::{mpsc, Mutex};
 use crate::account::Account;
 use crate::cache::BodyCache;
 use crate::config::{self, AccountsFile};
-use crate::imap::{self, Folder, FolderPage, FolderRole, ImapError, ImapSession};
-use crate::secrets::SecretStore;
+use crate::imap::{self, Credential, Folder, FolderPage, FolderRole, ImapError, ImapSession};
+use crate::oauth::{self, OAuthClients, OAuthError, Provider};
+use crate::secrets::{self, SecretStore};
+
+/// How long the browser sign-in may take.
+const OAUTH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 
 /// Number of newest messages loaded per folder (paging arrives with the cache in M2).
 pub const PAGE_SIZE: u32 = 200;
@@ -22,6 +26,11 @@ pub enum Command {
     LoadAccounts,
     /// Verify the settings by logging in, then store the password and the account.
     AddAccount { account: Account, password: String },
+    /// Sign in with the account's OAuth provider in the browser, verify, then store
+    /// the refresh token and the account. Also used to sign in again.
+    AddOAuthAccount { account: Account },
+    /// Abandon a browser sign-in in progress.
+    CancelOAuth,
     RemoveAccount { account_id: String },
     /// Load the folder list and the given folder (INBOX when `None`).
     OpenAccount { account_id: String, folder: Option<String> },
@@ -55,6 +64,8 @@ pub enum Event {
     Sent { account_id: String, draft_id: u64, warning: Option<String> },
     SendFailed { draft_id: u64, message: String },
     RemoteImages { account_id: String, folder: String, uid: u32, images: Vec<Option<crate::remote::Image>> },
+    /// Open this URL in the system browser to continue an OAuth sign-in.
+    OAuthBrowser { url: String },
     /// Short progress text for the status line.
     Status(String),
     Error(String),
@@ -67,6 +78,12 @@ pub struct Engine {
 struct Inner {
     config_path: PathBuf,
     secrets: Arc<dyn SecretStore>,
+    clients: OAuthClients,
+    /// Access tokens in memory only: account id → (token, expiry).
+    tokens: Mutex<HashMap<String, (String, i64)>>,
+    /// One refresh at a time per account (providers may rotate refresh tokens).
+    refreshing: Mutex<HashMap<String, Arc<Mutex<()>>>>,
+    oauth_cancel: std::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     accounts: Mutex<AccountsFile>,
     sessions: Mutex<HashMap<String, Arc<Mutex<ImapSession>>>>,
     /// Last seen UIDVALIDITY per (account, folder), for cache lookups.
@@ -86,9 +103,14 @@ impl Engine {
         on_event: impl Fn(Event) + Send + Sync + 'static,
     ) -> Self {
         let (tx, mut rx) = mpsc::unbounded_channel::<Command>();
+        let clients_path = config_path.with_file_name(oauth::CLIENTS_FILE);
         let inner = Arc::new(Inner {
             config_path,
             secrets,
+            clients: OAuthClients::load(&clients_path),
+            tokens: Mutex::new(HashMap::new()),
+            refreshing: Mutex::new(HashMap::new()),
+            oauth_cancel: std::sync::Mutex::new(None),
             accounts: Mutex::new(AccountsFile::default()),
             sessions: Mutex::new(HashMap::new()),
             validity: Mutex::new(HashMap::new()),
@@ -129,6 +151,12 @@ impl Inner {
         match command {
             Command::LoadAccounts => self.load_accounts().await,
             Command::AddAccount { account, password } => self.add_account(account, password).await,
+            Command::AddOAuthAccount { account } => self.add_oauth_account(account).await,
+            Command::CancelOAuth => {
+                if let Some(cancel) = self.oauth_cancel.lock().unwrap().take() {
+                    let _ = cancel.send(());
+                }
+            }
             Command::RemoveAccount { account_id } => self.remove_account(&account_id).await,
             Command::OpenAccount { account_id, folder } => self.open_account(&account_id, folder).await,
             Command::OpenFolder { account_id, path } => self.open_folder(&account_id, &path).await,
@@ -158,13 +186,100 @@ impl Inner {
             account.id = Account::new_id(&account.email);
         }
         self.emit(Event::Status(format!("{} に接続しています…", account.imap.host)));
-        let session = match imap::login(&account.imap, &account.username, &password).await {
+        let session = match imap::login(&account.imap, &account.username, &Credential::Password(password.clone())).await {
             Ok(s) => s,
             Err(e) => return self.emit(Event::AccountAddFailed(e.to_string())),
         };
-        if let Err(e) = self.secrets.set(&account.id, &password) {
+        if let Err(e) = secrets::set_long(self.secrets.as_ref(), &account.id, &password) {
             return self.emit(Event::AccountAddFailed(e.to_string()));
         }
+        self.save_new_account(account, session).await;
+    }
+
+    async fn add_oauth_account(&self, mut account: Account) {
+        if account.id.is_empty() {
+            account.id = Account::new_id(&account.email);
+        }
+        account.auth = crate::account::AuthKind::OAuth2;
+        let Some(provider) = account.oauth else {
+            return self.emit(Event::AccountAddFailed("OAuth のプロバイダーが指定されていません".into()));
+        };
+        let tokens = match self.browser_sign_in(provider, &account.email).await {
+            Ok(t) => t,
+            Err(e) => return self.emit(Event::AccountAddFailed(e.to_string())),
+        };
+        let Some(refresh_token) = tokens.refresh_token.clone() else {
+            return self.emit(Event::AccountAddFailed(format!("{} がリフレッシュ トークンを発行しませんでした", provider.name())));
+        };
+        self.emit(Event::Status(format!("{} に接続しています…", account.imap.host)));
+        let credential = Credential::Bearer(tokens.access_token.clone());
+        let session = match imap::login(&account.imap, &account.username, &credential).await {
+            Ok(s) => s,
+            Err(e) => return self.emit(Event::AccountAddFailed(e.to_string())),
+        };
+        if let Err(e) = secrets::set_long(self.secrets.as_ref(), &account.id, &refresh_token) {
+            return self.emit(Event::AccountAddFailed(e.to_string()));
+        }
+        self.tokens.lock().await.insert(account.id.clone(), (tokens.access_token, oauth::now() + tokens.expires_in));
+        self.save_new_account(account, session).await;
+    }
+
+    /// Run the browser part of the OAuth flow and exchange the code for tokens.
+    async fn browser_sign_in(&self, provider: Provider, email: &str) -> Result<oauth::TokenResponse, OAuthError> {
+        let client = self.clients.get(provider).cloned().ok_or_else(|| {
+            OAuthError::Other(format!(
+                "{} の OAuth クライアント ID が設定されていません。設定フォルダーの {} に client_id を書いてください",
+                provider.name(),
+                oauth::CLIENTS_FILE
+            ))
+        })?;
+        let loopback = oauth::Loopback::bind(provider).await?;
+        let redirect_uri = loopback.redirect_uri.clone();
+        let state = oauth::random_token(24);
+        let verifier = oauth::random_token(48);
+        let url = oauth::authorise_url(provider, &client, &redirect_uri, &state, &oauth::pkce_challenge(&verifier), email);
+        let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel();
+        if let Some(previous) = self.oauth_cancel.lock().unwrap().replace(cancel_tx) {
+            let _ = previous.send(());
+        }
+        self.emit(Event::OAuthBrowser { url });
+        self.emit(Event::Status(format!("ブラウザで {} にログインしてください…", provider.name())));
+        let code = tokio::select! {
+            code = loopback.wait(&state, OAUTH_TIMEOUT) => code,
+            _ = cancel_rx => Err(OAuthError::Cancelled),
+        };
+        self.oauth_cancel.lock().unwrap().take();
+        oauth::exchange_code(provider, &client, &code?, &verifier, &redirect_uri).await
+    }
+
+    /// What to log in with: the stored password, or a (refreshed) access token.
+    async fn credential(&self, account: &Account, force_refresh: bool) -> Result<Credential, String> {
+        if account.auth != crate::account::AuthKind::OAuth2 {
+            return secrets::get_long(self.secrets.as_ref(), &account.id).map(Credential::Password).map_err(|e| e.to_string());
+        }
+        let provider = account.oauth.ok_or("OAuth のプロバイダーが不明です")?;
+        let lock = self.refreshing.lock().await.entry(account.id.clone()).or_default().clone();
+        let _guard = lock.lock().await;
+        if !force_refresh {
+            if let Some((token, expires)) = self.tokens.lock().await.get(&account.id) {
+                if !oauth::needs_refresh(*expires, oauth::now()) {
+                    return Ok(Credential::Bearer(token.clone()));
+                }
+            }
+        }
+        let client = self.clients.get(provider).cloned().ok_or_else(|| {
+            format!("{} の OAuth クライアント ID が設定されていません（{}）", provider.name(), oauth::CLIENTS_FILE)
+        })?;
+        let refresh_token = secrets::get_long(self.secrets.as_ref(), &account.id).map_err(|e| e.to_string())?;
+        let response = oauth::refresh(provider, &client, &refresh_token).await.map_err(|e| e.to_string())?;
+        if let Some(rotated) = response.refresh_token.as_deref().filter(|t| *t != refresh_token) {
+            secrets::set_long(self.secrets.as_ref(), &account.id, rotated).map_err(|e| e.to_string())?;
+        }
+        self.tokens.lock().await.insert(account.id.clone(), (response.access_token.clone(), oauth::now() + response.expires_in));
+        Ok(Credential::Bearer(response.access_token))
+    }
+
+    async fn save_new_account(&self, account: Account, session: ImapSession) {
         let saved = {
             let mut file = self.accounts.lock().await;
             file.accounts.retain(|a| a.id != account.id);
@@ -179,7 +294,7 @@ impl Inner {
                 self.open_account(&account.id, None).await;
             }
             Err(e) => {
-                let _ = self.secrets.delete(&account.id);
+                let _ = secrets::delete_long(self.secrets.as_ref(), &account.id);
                 self.emit(Event::AccountAddFailed(e.to_string()));
             }
         }
@@ -192,7 +307,8 @@ impl Inner {
             file.accounts.retain(|a| a.id != account_id);
             config::save(&self.config_path, &file).map(|_| file.accounts.clone())
         };
-        let _ = self.secrets.delete(account_id);
+        let _ = secrets::delete_long(self.secrets.as_ref(), account_id);
+        self.tokens.lock().await.remove(account_id);
         if let Some(cache) = &self.cache {
             let _ = cache.purge_account(account_id);
         }
@@ -211,9 +327,17 @@ impl Inner {
         if let Some(s) = self.sessions.lock().await.get(&account.id) {
             return Ok(s.clone());
         }
-        let password = self.secrets.get(&account.id).map_err(|e| e.to_string())?;
+        let credential = self.credential(account, false).await?;
         self.emit(Event::Status(format!("{} に接続しています…", account.imap.host)));
-        let session = imap::login(&account.imap, &account.username, &password).await.map_err(|e| e.to_string())?;
+        let session = match imap::login(&account.imap, &account.username, &credential).await {
+            Ok(s) => s,
+            // A rejected access token may just be revoked early: refresh once.
+            Err(ImapError::Auth(_)) if matches!(credential, Credential::Bearer(_)) => {
+                let fresh = self.credential(account, true).await?;
+                imap::login(&account.imap, &account.username, &fresh).await.map_err(|e| e.to_string())?
+            }
+            Err(e) => return Err(e.to_string()),
+        };
         let session = Arc::new(Mutex::new(session));
         self.sessions.lock().await.insert(account.id.clone(), session.clone());
         Ok(session)
@@ -347,13 +471,23 @@ impl Inner {
             Ok(v) => v,
             Err(message) => return self.emit(Event::SendFailed { draft_id, message }),
         };
-        let password = match self.secrets.get(&account.id) {
-            Ok(p) => p,
-            Err(e) => return self.emit(Event::SendFailed { draft_id, message: e.to_string() }),
+        let credential = match self.credential(&account, false).await {
+            Ok(c) => c,
+            Err(message) => return self.emit(Event::SendFailed { draft_id, message }),
         };
         self.emit(Event::Status("送信しています…".into()));
         let recipients = outgoing.envelope_recipients();
-        if let Err(e) = crate::smtp::send(&account.smtp, &account.username, &password, &account.email, &recipients, &raw).await {
+        let mut result = crate::smtp::send(&account.smtp, &account.username, &credential, &account.email, &recipients, &raw).await;
+        if matches!((&result, &credential), (Err(crate::smtp::SmtpError::Auth(_)), Credential::Bearer(_))) {
+            // Refresh once and retry: nothing was accepted when authentication failed.
+            match self.credential(&account, true).await {
+                Ok(fresh) => {
+                    result = crate::smtp::send(&account.smtp, &account.username, &fresh, &account.email, &recipients, &raw).await;
+                }
+                Err(message) => return self.emit(Event::SendFailed { draft_id, message }),
+            }
+        }
+        if let Err(e) = result {
             return self.emit(Event::SendFailed { draft_id, message: e.to_string() });
         }
         // Sent: the message is out. Follow-up failures are warnings, not send failures.

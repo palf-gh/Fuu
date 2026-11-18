@@ -65,6 +65,65 @@ impl SecretStore for KeychainStore {
     }
 }
 
+/// Largest value kept in one keychain entry. Windows Credential Manager caps a
+/// credential blob at 2560 bytes and may store text as UTF-16, so long values
+/// (OAuth refresh tokens) are split across `id`, `id#1`, `id#2`, ….
+const CHUNK: usize = 1000;
+const CHUNK_MARK: &str = "fuu-chunks:";
+
+fn chunks(value: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut rest = value;
+    while rest.len() > CHUNK {
+        let mut cut = CHUNK;
+        while !rest.is_char_boundary(cut) {
+            cut -= 1;
+        }
+        out.push(&rest[..cut]);
+        rest = &rest[cut..];
+    }
+    out.push(rest);
+    out
+}
+
+/// Store a value of any length (see [`CHUNK`]).
+pub fn set_long(store: &dyn SecretStore, id: &str, value: &str) -> Result<(), SecretError> {
+    delete_long(store, id)?;
+    let parts = chunks(value);
+    if parts.len() == 1 && !value.starts_with(CHUNK_MARK) {
+        return store.set(id, value);
+    }
+    for (i, part) in parts.iter().enumerate().skip(1) {
+        store.set(&format!("{id}#{i}"), part)?;
+    }
+    store.set(id, &format!("{CHUNK_MARK}{}:{}", parts.len(), parts[0]))
+}
+
+/// Read a value stored with [`set_long`] (or a plain single entry).
+pub fn get_long(store: &dyn SecretStore, id: &str) -> Result<String, SecretError> {
+    let first = store.get(id)?;
+    let Some(rest) = first.strip_prefix(CHUNK_MARK) else { return Ok(first) };
+    let (count, head) = rest.split_once(':').ok_or_else(|| SecretError::Store("壊れたエントリです".into()))?;
+    let count: usize = count.parse().map_err(|_| SecretError::Store("壊れたエントリです".into()))?;
+    let mut value = head.to_owned();
+    for i in 1..count {
+        value.push_str(&store.get(&format!("{id}#{i}"))?);
+    }
+    Ok(value)
+}
+
+/// Delete a value and any chunks it was split into.
+pub fn delete_long(store: &dyn SecretStore, id: &str) -> Result<(), SecretError> {
+    if let Ok(first) = store.get(id) {
+        if let Some((count, _)) = first.strip_prefix(CHUNK_MARK).and_then(|r| r.split_once(':')) {
+            for i in 1..count.parse::<usize>().unwrap_or(0) {
+                store.delete(&format!("{id}#{i}"))?;
+            }
+        }
+    }
+    store.delete(id)
+}
+
 /// In-memory store for tests.
 #[derive(Debug, Default)]
 pub struct MemoryStore(Mutex<HashMap<String, String>>);
@@ -98,6 +157,34 @@ mod tests {
         s.delete("a").unwrap();
         s.delete("a").unwrap();
         assert!(matches!(s.get("a"), Err(SecretError::NotFound)));
+    }
+
+    #[test]
+    fn long_values_are_chunked() {
+        let s = MemoryStore::default();
+        let long: String = "トークン-abc".repeat(400);
+        set_long(&s, "acc", &long).unwrap();
+        assert!(s.get("acc").unwrap().starts_with(CHUNK_MARK));
+        assert!(s.get("acc#1").is_ok());
+        assert_eq!(get_long(&s, "acc").unwrap(), long);
+        set_long(&s, "acc", "short").unwrap();
+        assert!(matches!(s.get("acc#1"), Err(SecretError::NotFound)), "old chunks removed");
+        assert_eq!(get_long(&s, "acc").unwrap(), "short");
+        delete_long(&s, "acc").unwrap();
+        assert!(matches!(get_long(&s, "acc"), Err(SecretError::NotFound)));
+    }
+
+    /// A refresh-token-sized value through the real keychain.
+    #[test]
+    #[ignore]
+    fn keychain_long_round_trip() {
+        let s = KeychainStore;
+        let id = format!("fuu-test-long-{}", std::process::id());
+        let value: String = (0..2400).map(|i| char::from(b'a' + (i % 26) as u8)).collect();
+        set_long(&s, &id, &value).expect("chunked store");
+        assert_eq!(get_long(&s, &id).unwrap(), value);
+        delete_long(&s, &id).unwrap();
+        assert!(matches!(s.get(&format!("{id}#1")), Err(SecretError::NotFound)));
     }
 
     /// Real OS keychain round trip. Ignored by default because it touches the

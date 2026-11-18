@@ -279,6 +279,9 @@ export component AppWindow inherits Window {
     in property <string> setup-note;
     in property <string> setup-error;
     in property <bool> setup-busy;
+in property <string> setup-oauth-provider;
+in property <bool> setup-password-login: true;
+in property <bool> setup-oauth-waiting;
     in property <int> account-hue: 0;
     in property <[TabItem]> tabs;
     in property <int> active-tab: -1;
@@ -343,6 +346,8 @@ export component AppWindow inherits Window {
     callback draft-failed(int, string);
     callback setup-email-edited(string);
     callback setup-submit();
+callback setup-oauth-submit();
+callback setup-oauth-cancel();
     callback select-account(int);
     callback select-folder(string);
     callback remove-account(string);
@@ -931,8 +936,13 @@ export component AppWindow inherits Window {
                         note: root.setup-note;
                         error: root.setup-error;
                         busy: root.setup-busy;
+                        oauth-provider: root.setup-oauth-provider;
+                        password-login: root.setup-password-login;
+                        oauth-waiting: root.setup-oauth-waiting;
                         email-edited(t) => { root.setup-email-edited(t); }
                         submit => { root.setup-submit(); }
+                        oauth-submit => { root.setup-oauth-submit(); }
+                        oauth-cancel => { root.setup-oauth-cancel(); }
                     }
                     Rectangle { horizontal-stretch: 1; min-width: 0px; }
                 }

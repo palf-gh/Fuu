@@ -32,7 +32,7 @@ pub enum AuthKind {
     /// Password or app password, kept in the OS keychain.
     #[default]
     Password,
-    /// OAuth 2.0 (XOAUTH2) — M4.
+    /// OAuth 2.0 (XOAUTH2); the refresh token is kept in the OS keychain.
     OAuth2,
 }
 
@@ -49,6 +49,9 @@ pub struct Account {
     pub smtp: ServerConfig,
     #[serde(default)]
     pub auth: AuthKind,
+    /// Identity provider for `AuthKind::OAuth2`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub oauth: Option<crate::oauth::Provider>,
 }
 
 impl Account {
@@ -84,6 +87,10 @@ pub struct Preset {
     pub smtp: ServerConfig,
     /// Shown to the user when password login needs extra steps at the provider.
     pub note: Option<&'static str>,
+    /// Sign-in with the provider's OAuth, when supported.
+    pub oauth: Option<crate::oauth::Provider>,
+    /// Whether password (app password) login is accepted.
+    pub password_login: bool,
 }
 
 fn server(host: &str, port: u16, security: Security) -> ServerConfig {
@@ -99,14 +106,18 @@ pub fn preset_for(email: &str) -> Option<Preset> {
             provider: "Gmail",
             imap: server("imap.gmail.com", 993, Security::Tls),
             smtp: server("smtp.gmail.com", 465, Security::Tls),
-            note: Some("Google アカウントで 2 段階認証を有効にし、アプリ パスワードを使ってください（OAuth は M4）。"),
+            note: Some("Google でログインするか、2 段階認証を有効にしてアプリ パスワードを使ってください。"),
+            oauth: Some(crate::oauth::Provider::Google),
+            password_login: true,
         }),
         "outlook.com" | "hotmail.com" | "live.com" | "msn.com" | "outlook.jp" | "hotmail.co.jp" | "live.jp" => {
             Some(Preset {
                 provider: "Outlook.com",
                 imap: server("outlook.office365.com", 993, Security::Tls),
                 smtp: server("smtp-mail.outlook.com", 587, Security::StartTls),
-                note: Some("Outlook.com はパスワードでのログインを受け付けません。OAuth 対応（M4）までお待ちください。"),
+                note: Some("Outlook.com は Microsoft アカウントでのログインのみ受け付けます。"),
+                oauth: Some(crate::oauth::Provider::Microsoft),
+                password_login: false,
             })
         }
         "icloud.com" | "me.com" | "mac.com" => Some(Preset {
@@ -114,12 +125,16 @@ pub fn preset_for(email: &str) -> Option<Preset> {
             imap: server("imap.mail.me.com", 993, Security::Tls),
             smtp: server("smtp.mail.me.com", 587, Security::StartTls),
             note: Some("Apple アカウントでアプリ用パスワードを作成して使ってください。"),
+            oauth: None,
+            password_login: true,
         }),
         "yahoo.co.jp" => Some(Preset {
             provider: "Yahoo!メール",
             imap: server("imap.mail.yahoo.co.jp", 993, Security::Tls),
             smtp: server("smtp.mail.yahoo.co.jp", 465, Security::Tls),
             note: Some("Yahoo!メールの設定で IMAP / SMTP のアクセスを有効にしてください。"),
+            oauth: None,
+            password_login: true,
         }),
         _ => None,
     }

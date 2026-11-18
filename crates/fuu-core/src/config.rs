@@ -70,6 +70,7 @@ mod tests {
             imap: ServerConfig { host: "imap.example.jp".into(), port: 993, security: Security::Tls },
             smtp: ServerConfig { host: "smtp.example.jp".into(), port: 587, security: Security::StartTls },
             auth: AuthKind::Password,
+            oauth: None,
         }
     }
 

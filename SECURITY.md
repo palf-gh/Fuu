@@ -43,3 +43,12 @@ every external link still requires explicit user confirmation.
 
 Transport: TLS required for IMAP/SMTP (implicit TLS or enforced STARTTLS);
 certificate verification cannot be disabled. Secrets live only in the OS keychain.
+
+OAuth 2.0: authorisation code flow with PKCE (S256) and a random `state`, in the
+system browser. The redirect listener binds loopback only (127.0.0.1, and ::1 for
+Microsoft's `localhost`), accepts only `GET /` carrying the expected `state`,
+never echoes the code, and closes after the first valid redirect or five minutes.
+Refresh tokens live only in the OS keychain (chunked across entries to fit the
+Windows size limit); access tokens only in memory. Refreshes are serialised per
+account and rotated refresh tokens are persisted. The app opens only Google or
+Microsoft sign-in URLs from the engine's browser event. No client IDs ship with Fuu.
