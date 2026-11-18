@@ -1,0 +1,11 @@
+[package]
+name = "fuu-sanitiser"
+description = "Allow-list HTML/CSS sanitiser turning a ParsedMessage into a SafeDocument."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+fuu-model.workspace = true

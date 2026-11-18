@@ -1,0 +1,28 @@
+[package]
+name = "fuu-app"
+description = "Fuu desktop mailer: Slint UI and engine wiring."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "fuu"
+path = "src/main.rs"
+
+[features]
+default = []
+# Opt-in Skia renderer for the M0 CJK comparison (pulls prebuilt skia binaries).
+skia = ["slint/renderer-skia"]
+
+[dependencies]
+fuu-model.workspace = true
+fuu-render.workspace = true
+fuu-sanitiser.workspace = true
+slint = { version = "1.19", features = ["raw-window-handle-06"] }
+tokio = { version = "1", features = ["rt-multi-thread", "time", "macros"] }
+open = "5"
+
+[build-dependencies]
+slint-build = "1.19"

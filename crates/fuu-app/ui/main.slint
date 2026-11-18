@@ -1,0 +1,254 @@
+// Fuu — M0 spike window. Three panes: sidebar / message list / reader.
+// The reader body is a placeholder rectangle that the native child webview is laid
+// over; its absolute geometry is exported so Rust can keep the webview aligned.
+
+import { ListView, TextEdit, LineEdit, Button, Palette, ScrollView } from "std-widgets.slint";
+
+export struct MessageRow {
+    sender: string,
+    subject: string,
+    preview: string,
+    date: string,
+    unread: bool,
+}
+
+component Divider inherits Rectangle {
+    background: Palette.border;
+    opacity: 0.6;
+}
+
+component SideItem inherits Rectangle {
+    in property <string> label;
+    in property <string> badge;
+    in property <bool> selected;
+    callback clicked;
+    height: 30px;
+    border-radius: 6px;
+    background: selected ? Palette.selection-background.with-alpha(0.18) : area.has-hover ? Palette.border.with-alpha(0.25) : transparent;
+    area := TouchArea { clicked => { root.clicked(); } }
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        Text { text: root.label; vertical-alignment: center; color: Palette.foreground; font-weight: root.selected ? 600 : 400; }
+        Text { text: root.badge; vertical-alignment: center; horizontal-alignment: right; color: Palette.foreground.with-alpha(0.55); font-size: 11px; }
+    }
+}
+
+component Overlay inherits Rectangle {
+    in property <string> title;
+    in property <string> body;
+    in property <string> confirm-label: "OK";
+    in property <bool> show-cancel: true;
+    callback confirmed;
+    callback cancelled;
+    background: #00000066;
+    TouchArea { }  // swallow clicks behind the card
+    card := Rectangle {
+        width: min(parent.width - 48px, 460px);
+        height: layout.preferred-height;
+        border-radius: 10px;
+        background: Palette.background;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: #00000055;
+        layout := VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+            Text { text: root.title; font-size: 15px; font-weight: 600; color: Palette.foreground; }
+            Text { text: root.body; wrap: word-wrap; color: Palette.foreground.with-alpha(0.8); }
+            HorizontalLayout {
+                alignment: end;
+                spacing: 8px;
+                if root.show-cancel: Button { text: "キャンセル"; clicked => { root.cancelled(); } }
+                Button { text: root.confirm-label; primary: true; clicked => { root.confirmed(); } }
+            }
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "Fuu";
+    preferred-width: 1180px;
+    preferred-height: 760px;
+    min-width: 760px;
+    min-height: 480px;
+    background: Palette.background;
+    default-font-size: 13px;
+
+    in property <[MessageRow]> messages;
+    in-out property <int> current-row: -1;
+    in property <string> reader-subject: "メールを選択してください";
+    in property <string> reader-from;
+    in property <string> reader-date;
+    in property <string> status-text;
+    in-out property <string> feed-summary;
+    in property <bool> use-fallback;
+    in property <string> fallback-text;
+    in property <string> link-url;
+    in-out property <bool> link-dialog-open;
+    in-out property <bool> info-dialog-open;
+    in-out property <bool> composing;
+    in-out property <string> compose-to;
+    in-out property <string> compose-subject;
+    in-out property <string> compose-body;
+
+    // Geometry of the webview host, in logical pixels relative to the window.
+    out property <length> reader-x: reader-host.absolute-position.x;
+    out property <length> reader-y: reader-host.absolute-position.y;
+    out property <length> reader-w: reader-host.width;
+    out property <length> reader-h: reader-host.height;
+    // True whenever something drawn by Slint overlaps the reader body.
+    out property <bool> reader-covered: link-dialog-open || info-dialog-open || composing;
+
+    callback row-selected(int);
+    callback load-security-sample();
+    callback load-cjk-sample();
+    callback link-confirmed();
+    callback start-compose();
+    callback send-compose();
+
+    HorizontalLayout {
+        // Sidebar
+        Rectangle {
+            width: 210px;
+            background: Palette.alternate-background;
+            VerticalLayout {
+                padding: 12px;
+                spacing: 2px;
+                Text { text: "Fuu"; font-size: 18px; font-weight: 700; color: Palette.foreground; height: 40px; vertical-alignment: center; }
+                Button { text: "新規作成"; primary: true; clicked => { root.start-compose(); } }
+                Rectangle { height: 12px; }
+                Text { text: "SPIKE ACCOUNT"; font-size: 10px; letter-spacing: 1px; color: Palette.foreground.with-alpha(0.5); height: 22px; vertical-alignment: center; }
+                SideItem { label: "受信トレイ"; badge: "5000"; selected: true; }
+                SideItem { label: "送信済み"; }
+                SideItem { label: "下書き"; }
+                SideItem { label: "ゴミ箱"; }
+                Rectangle { height: 16px; }
+                Text { text: "M0 CHECKS"; font-size: 10px; letter-spacing: 1px; color: Palette.foreground.with-alpha(0.5); height: 22px; vertical-alignment: center; }
+                SideItem { label: "セキュリティ検査文書"; clicked => { root.load-security-sample(); } }
+                SideItem { label: "CJK 表示サンプル"; clicked => { root.load-cjk-sample(); } }
+                SideItem { label: "重なり検査（ダイアログ）"; clicked => { root.info-dialog-open = true; } }
+                Rectangle { }  // spacer
+                Text { text: root.status-text; wrap: word-wrap; font-size: 11px; color: Palette.foreground.with-alpha(0.55); }
+            }
+        }
+        Divider { width: 1px; }
+
+        // Message list
+        Rectangle {
+            width: 340px;
+            VerticalLayout {
+                Rectangle {
+                    height: 48px;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        Text { text: "受信トレイ"; font-size: 15px; font-weight: 600; vertical-alignment: center; color: Palette.foreground; }
+                    }
+                }
+                Divider { height: 1px; }
+                ListView {
+                    for row[i] in root.messages: Rectangle {
+                        height: 68px;
+                        background: i == root.current-row ? Palette.selection-background.with-alpha(0.16) : row-area.has-hover ? Palette.border.with-alpha(0.18) : transparent;
+                        row-area := TouchArea {
+                            clicked => {
+                                root.current-row = i;
+                                root.row-selected(i);
+                            }
+                        }
+                        VerticalLayout {
+                            padding-left: 16px;
+                            padding-right: 14px;
+                            padding-top: 9px;
+                            padding-bottom: 9px;
+                            spacing: 2px;
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Rectangle {
+                                    width: 7px;
+                                    Rectangle { y: (parent.height - 7px) / 2; width: 7px; height: 7px; border-radius: 3.5px; background: row.unread ? Palette.accent-background : transparent; }
+                                }
+                                Text { text: row.sender; overflow: elide; font-weight: row.unread ? 700 : 400; color: Palette.foreground; }
+                                Text { text: row.date; horizontal-alignment: right; font-size: 11px; color: Palette.foreground.with-alpha(0.5); }
+                            }
+                            Text { text: row.subject; overflow: elide; font-weight: row.unread ? 600 : 400; color: Palette.foreground; }
+                            Text { text: row.preview; overflow: elide; font-size: 12px; color: Palette.foreground.with-alpha(0.55); }
+                        }
+                        Divider { y: parent.height - 1px; height: 1px; x: 16px; width: parent.width - 16px; opacity: 0.35; }
+                    }
+                }
+            }
+        }
+        Divider { width: 1px; }
+
+        // Reader
+        VerticalLayout {
+            Rectangle {
+                height: header.preferred-height;
+                header := VerticalLayout {
+                    padding: 18px;
+                    padding-bottom: 12px;
+                    spacing: 4px;
+                    Text { text: root.reader-subject; font-size: 18px; font-weight: 600; wrap: word-wrap; color: Palette.foreground; }
+                    HorizontalLayout {
+                        Text { text: root.reader-from; color: Palette.foreground.with-alpha(0.75); overflow: elide; }
+                        Text { text: root.reader-date; horizontal-alignment: right; color: Palette.foreground.with-alpha(0.5); font-size: 12px; }
+                    }
+                }
+            }
+            Divider { height: 1px; }
+            reader-host := Rectangle {
+                background: Palette.background;
+                if root.use-fallback: ScrollView {
+                    VerticalLayout {
+                        padding: 18px;
+                        Text { text: root.fallback-text; wrap: word-wrap; color: Palette.foreground; }
+                    }
+                }
+            }
+        }
+    }
+
+    // Composer (spike: IME check). Drawn by Slint over the reader, so the
+    // webview is hidden while it is open.
+    if root.composing: Rectangle {
+        background: #00000044;
+        TouchArea { }
+        Rectangle {
+            width: min(parent.width - 64px, 720px);
+            height: min(parent.height - 64px, 560px);
+            border-radius: 10px;
+            background: Palette.background;
+            drop-shadow-blur: 24px;
+            drop-shadow-color: #00000055;
+            VerticalLayout {
+                padding: 18px;
+                spacing: 10px;
+                Text { text: "新規メッセージ"; font-size: 15px; font-weight: 600; color: Palette.foreground; }
+                HorizontalLayout { spacing: 8px; Text { text: "宛先"; width: 48px; vertical-alignment: center; color: Palette.foreground.with-alpha(0.7); } LineEdit { text <=> root.compose-to; placeholder-text: "name@example.com"; } }
+                HorizontalLayout { spacing: 8px; Text { text: "件名"; width: 48px; vertical-alignment: center; color: Palette.foreground.with-alpha(0.7); } LineEdit { text <=> root.compose-subject; placeholder-text: "件名"; } }
+                TextEdit { text <=> root.compose-body; wrap: word-wrap; vertical-stretch: 1; }
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 8px;
+                    Button { text: "破棄"; clicked => { root.composing = false; } }
+                    Button { text: "送信（M3）"; primary: true; clicked => { root.send-compose(); } }
+                }
+            }
+        }
+    }
+
+    if root.link-dialog-open: Overlay {
+        title: "外部リンクを開きますか？";
+        body: "既定のブラウザで次の URL を開きます。\n\n" + root.link-url;
+        confirm-label: "ブラウザで開く";
+        confirmed => { root.link-dialog-open = false; root.link-confirmed(); }
+        cancelled => { root.link-dialog-open = false; }
+    }
+
+    if root.info-dialog-open: Overlay {
+        title: "重なり検査";
+        body: "このダイアログは Slint が描画しています。表示中はネイティブ WebView を隠すので、ダイアログが WebView の下に隠れていなければ成功です。";
+        show-cancel: false;
+        confirmed => { root.info-dialog-open = false; }
+    }
+}

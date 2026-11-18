@@ -1,0 +1,24 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/fuu-model",
+    "crates/fuu-parser",
+    "crates/fuu-sanitiser",
+    "crates/fuu-core",
+    "crates/fuu-render",
+    "crates/fuu-app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-only"
+rust-version = "1.85"
+publish = false
+
+[workspace.dependencies]
+fuu-model = { path = "crates/fuu-model" }
+fuu-parser = { path = "crates/fuu-parser" }
+fuu-sanitiser = { path = "crates/fuu-sanitiser" }
+fuu-core = { path = "crates/fuu-core" }
+fuu-render = { path = "crates/fuu-render" }
