@@ -11,3 +11,4 @@ publish.workspace = true
 fuu-model.workspace = true
 encoding_rs = "0.8"
 base64 = "0.22"
+mail-parser = { version = "0.11", default-features = false, features = ["full_encoding"] }

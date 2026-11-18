@@ -1,8 +1,9 @@
 //! Parsing engine boundary. Implementations turn raw RFC 5322 bytes into the
-//! engine-neutral [`ParsedMessage`]. The default `mail-parser` implementation
-//! lands in M2; M0 only fixes the contract.
+//! engine-neutral [`ParsedMessage`]. The default engine is
+//! [`mailparser::MailParserEngine`].
 
 pub mod headers;
+pub mod mailparser;
 
 pub use fuu_model::ParsedMessage;
 
