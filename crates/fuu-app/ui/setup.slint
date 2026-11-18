@@ -1,0 +1,166 @@
+// Account setup, shown as a tab in the right pane.
+
+import { Theme } from "theme.slint";
+import { Divider, Icon, PrimaryButton, ComposeField } from "components.slint";
+import { Segmented } from "settings.slint";
+
+/// Labelled single-line input with an optional password mask.
+component SetupField inherits Rectangle {
+    in property <string> label;
+    in property <string> placeholder;
+    in property <bool> password;
+    in-out property <string> text;
+    callback edited(string);
+    height: 46px;
+    HorizontalLayout {
+        spacing: 12px;
+        Text { text: root.label; width: 96px; color: Theme.text-faint; font-size: Theme.font-m; vertical-alignment: center; }
+        Rectangle {
+            input := TextInput {
+                text <=> root.text;
+                input-type: root.password ? InputType.password : InputType.text;
+                color: Theme.text;
+                font-size: Theme.font-m;
+                vertical-alignment: center;
+                single-line: true;
+                edited => { root.edited(self.text); }
+            }
+            Text {
+                visible: root.text == "" && !input.has-focus;
+                text: root.placeholder;
+                color: Theme.text-faint;
+                font-size: Theme.font-m;
+                vertical-alignment: center;
+                x: 0;
+            }
+        }
+    }
+    Divider { y: parent.height - 1px; height: 1px; }
+}
+
+export component AccountSetupView inherits Rectangle {
+    in-out property <string> name;
+    in-out property <string> email;
+    in-out property <string> password;
+    in-out property <string> username;
+    in-out property <string> imap-host;
+    in-out property <string> imap-port;
+    in-out property <int> imap-security;   // 0 TLS, 1 STARTTLS
+    in-out property <string> smtp-host;
+    in-out property <string> smtp-port;
+    in-out property <int> smtp-security;
+    in-out property <bool> advanced;
+    in property <string> provider;
+    in property <string> note;
+    in property <string> error;
+    in property <bool> busy;
+    callback email-edited(string);
+    callback submit();
+
+    VerticalLayout {
+        padding-left: 40px;
+        padding-right: 40px;
+        padding-top: 28px;
+        padding-bottom: 24px;
+        spacing: 0px;
+        alignment: start;
+
+        Text { text: "アカウントを追加"; font-size: Theme.font-xl; font-weight: 600; color: Theme.text; }
+        Rectangle { height: 6px; }
+        Text {
+            text: "IMAP / SMTP でメールサーバーに直接接続します。パスワードは OS のキーチェーンにだけ保存されます。";
+            font-size: Theme.font-s;
+            color: Theme.text-faint;
+            wrap: word-wrap;
+        }
+        Rectangle { height: 16px; }
+
+        SetupField { label: "名前"; placeholder: "差出人に表示される名前"; text <=> root.name; }
+        SetupField { label: "メールアドレス"; placeholder: "name@example.com"; text <=> root.email; edited(t) => { root.email-edited(t); } }
+        SetupField { label: "パスワード"; placeholder: "パスワードまたはアプリ パスワード"; password: true; text <=> root.password; }
+
+        if root.note != "": Rectangle {
+            height: note-text.preferred-height + 20px;
+            Rectangle {
+                y: 10px;
+                height: parent.height - 10px;
+                border-radius: Theme.radius-m;
+                background: Theme.field;
+                note-text := Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    text: (root.provider != "" ? root.provider + "：" : "") + root.note;
+                    font-size: Theme.font-s;
+                    color: Theme.text-muted;
+                    wrap: word-wrap;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        Rectangle { height: 10px; }
+        Rectangle {
+            height: 30px;
+            adv-area := TouchArea { clicked => { root.advanced = !root.advanced; } }
+            HorizontalLayout {
+                spacing: 6px;
+                Icon {
+                    source: @image-url("icons/chevron-down.svg");
+                    width: 13px;
+                    height: 13px;
+                    y: (parent.height - self.height) / 2;
+                    transform-rotation: root.advanced ? 0deg : -90deg;
+                    animate transform-rotation { duration: 160ms; easing: ease-out; }
+                    tint: Theme.text-faint;
+                }
+                Text {
+                    text: "サーバーの詳細設定";
+                    font-size: Theme.font-s;
+                    color: adv-area.has-hover ? Theme.text : Theme.text-muted;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        Rectangle {
+            height: root.advanced ? adv.preferred-height : 0px;
+            clip: true;
+            animate height { duration: 200ms; easing: ease-out; }
+            adv := VerticalLayout {
+                y: 0px;
+                height: self.preferred-height;
+                SetupField { label: "ユーザー名"; placeholder: "通常はメールアドレス"; text <=> root.username; }
+                SetupField { label: "IMAP サーバー"; text <=> root.imap-host; }
+                HorizontalLayout {
+                    spacing: 16px;
+                    SetupField { label: "IMAP ポート"; text <=> root.imap-port; horizontal-stretch: 1; }
+                    VerticalLayout { alignment: center; Segmented { options: ["TLS", "STARTTLS"]; selected <=> root.imap-security; } }
+                }
+                SetupField { label: "SMTP サーバー"; text <=> root.smtp-host; }
+                HorizontalLayout {
+                    spacing: 16px;
+                    SetupField { label: "SMTP ポート"; text <=> root.smtp-port; horizontal-stretch: 1; }
+                    VerticalLayout { alignment: center; Segmented { options: ["TLS", "STARTTLS"]; selected <=> root.smtp-security; } }
+                }
+            }
+        }
+
+        Rectangle { height: 22px; }
+        HorizontalLayout {
+            spacing: 14px;
+            alignment: start;
+            PrimaryButton {
+                text: root.busy ? "接続を確認しています…" : "接続して追加";
+                clicked => { if (!root.busy) { root.submit(); } }
+            }
+            if root.error != "": Text {
+                text: root.error;
+                font-size: Theme.font-s;
+                color: Theme.close-hover;
+                wrap: word-wrap;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+        }
+    }
+}

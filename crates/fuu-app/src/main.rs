@@ -1,8 +1,8 @@
-// Fuu — minimal desktop mailer. M0 spike: Slint shell, swappable body renderers
-// (Blitz composited image, text fallback), tokio → Slint model
-// bridge, IME and CJK checks.
+// Fuu — minimal desktop mailer: Slint UI, Blitz body renderer, IMAP engine
+// (fuu-core) bridged through `mail`.
 #![cfg_attr(all(not(debug_assertions), windows), windows_subsystem = "windows")]
 
+mod mail;
 mod samples;
 mod tabs;
 
@@ -17,7 +17,7 @@ use fuu_render::blitz::{BlitzRenderer, RenderedPage};
 use fuu_render::text::TextRenderer;
 use fuu_render::{BodyRenderer, LinkHandler, LinkRequest, PointerPhase, RenderStats};
 use slint::{ComponentHandle, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
-use tabs::{Draft, Tab, TabContent, Tabs};
+use tabs::{Draft, MessageRef, Tab, TabContent, Tabs};
 
 slint::include_modules!();
 
@@ -241,18 +241,19 @@ fn signature(ui: &AppWindow) -> String {
 
 fn tab_title(ui: &AppWindow, tab: &Tab) -> String {
     match &tab.content {
-        TabContent::Message(i) => ui.get_messages().row_data(*i).map(|r| r.subject.to_string()).unwrap_or_else(|| "メール".into()),
+        TabContent::Message(r) => if r.subject.trim().is_empty() { "（件名なし）".into() } else { r.subject.clone() },
         TabContent::SecuritySample => "セキュリティ検査文書".into(),
         TabContent::CjkSample => "CJK 表示サンプル".into(),
         TabContent::Draft(d) => if d.subject.trim().is_empty() { d.title.clone() } else { d.subject.clone() },
         TabContent::Settings => "設定".into(),
+        TabContent::AccountSetup => "アカウントを追加".into(),
     }
 }
 
 fn tab_kind(tab: &Tab) -> i32 {
     match tab.content {
         TabContent::Draft(_) => 1,
-        TabContent::Settings => 2,
+        TabContent::Settings | TabContent::AccountSetup => 2,
         _ => 0,
     }
 }
@@ -391,20 +392,12 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
     let content = tabs.borrow().active().map(|t| t.content.clone());
     ui.set_composing(false);
     ui.set_settings_open(false);
+    ui.set_setup_open(false);
     ui.set_current_row(-1);
     ui.set_has_message(false);
     let doc = match content {
         None => None,
-        Some(TabContent::Message(i)) => ui.get_messages().row_data(i).map(|row| {
-            if row.unread {
-                if let Some(vec) = ui.get_messages().as_any().downcast_ref::<VecModel<MessageRow>>() {
-                    vec.set_row_data(i, MessageRow { unread: false, ..row.clone() });
-                }
-            }
-            ui.set_current_row(i as i32);
-            set_reader_header(ui, &row.subject, &row.sender, &format!("sender{i}@example.com"), &format!("2026/{} 10:{:02}", row.date, i % 60));
-            samples::message_document(i, &row.subject)
-        }),
+        Some(TabContent::Message(r)) => Some(show_message(ui, &r)),
         Some(TabContent::SecuritySample) => {
             set_reader_header(ui, "セキュリティ検査文書", "M0 spike", "spike@fuu.invalid", "");
             Some(samples::security_document())
@@ -429,6 +422,10 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
             ui.set_settings_open(true);
             None
         }
+        Some(TabContent::AccountSetup) => {
+            ui.set_setup_open(true);
+            None
+        }
     };
     if let Some(doc) = doc {
         ui.set_fallback_text(doc.text.clone().into());
@@ -437,6 +434,28 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
     // Lets the pane play its reveal animation.
     ui.set_pane_version(ui.get_pane_version() + 1);
     render_tabs(ui, &tabs.borrow());
+}
+
+/// Header, list selection and body document for a message tab.
+fn show_message(ui: &AppWindow, r: &MessageRef) -> SafeDocument {
+    if let Some(row) = mail::row_of(r) {
+        ui.set_current_row(row as i32);
+        if let Some(data) = ui.get_messages().row_data(row) {
+            if data.unread {
+                if let Some(vec) = ui.get_messages().as_any().downcast_ref::<VecModel<MessageRow>>() {
+                    vec.set_row_data(row, MessageRow { unread: false, ..data });
+                }
+            }
+        }
+    }
+    let name = if r.from_name.is_empty() { r.from_email.as_str() } else { r.from_name.as_str() };
+    let subject = if r.subject.trim().is_empty() { "（件名なし）" } else { r.subject.as_str() };
+    set_reader_header(ui, subject, name, &r.from_email, &r.date_text);
+    if mail::is_spike() {
+        samples::message_document(r.row, &r.subject)
+    } else {
+        mail::placeholder_document(r)
+    }
 }
 
 /// Show a viewer (message or sample) in the active viewer tab, or a new tab.
@@ -452,7 +471,11 @@ fn show_viewer(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, content: 
 /// Open a draft in a new tab.
 fn open_draft(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, mut draft: Draft) {
     save_draft(ui, tabs);
-    draft.from = format!("{} <{}>", ui.get_account_name(), ui.get_account_email());
+    draft.from = match mail::active_account() {
+        Some(a) if a.display_name.is_empty() => a.email,
+        Some(a) => format!("{} <{}>", a.display_name, a.email),
+        None => "（アカウント未設定）".into(),
+    };
     draft.show_cc_bcc = draft.show_cc_bcc || !draft.cc.is_empty() || !draft.bcc.is_empty();
     if tabs.borrow_mut().open(TabContent::Draft(draft), true).is_err() {
         ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
@@ -565,8 +588,9 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_row_selected(move |i| {
-            if let Some(ui) = weak.upgrade() {
-                show_viewer(&ui, &state, &tabs, TabContent::Message(i as usize));
+            let Some(ui) = weak.upgrade() else { return };
+            if let Some(r) = mail::message_ref(&ui, i as usize) {
+                show_viewer(&ui, &state, &tabs, TabContent::Message(r));
             }
         });
     }
@@ -575,7 +599,8 @@ fn main() -> Result<(), slint::PlatformError> {
         ui.on_row_open_in_tab(move |i| {
             let Some(ui) = weak.upgrade() else { return };
             save_draft(&ui, &tabs);
-            if tabs.borrow_mut().open(TabContent::Message(i as usize), false).is_err() {
+            let Some(r) = mail::message_ref(&ui, i as usize) else { return };
+            if tabs.borrow_mut().open(TabContent::Message(r), false).is_err() {
                 ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
             }
             render_tabs(&ui, &tabs.borrow());
@@ -602,13 +627,71 @@ fn main() -> Result<(), slint::PlatformError> {
         ui.on_open_settings(move || {
             let Some(ui) = weak.upgrade() else { return };
             save_draft(&ui, &tabs);
-            if tabs.borrow_mut().show_settings().is_err() {
+            if tabs.borrow_mut().show_single(TabContent::Settings).is_err() {
                 ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
                 return;
             }
             apply_active(&ui, &state, &tabs);
         });
     }
+    // Accounts and folders
+    {
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_open_account_setup(move || {
+            let Some(ui) = weak.upgrade() else { return };
+            save_draft(&ui, &tabs);
+            let already_open = tabs.borrow().items().iter().any(|t| t.content == TabContent::AccountSetup);
+            if !already_open {
+                mail::reset_setup(&ui);
+            }
+            if tabs.borrow_mut().show_single(TabContent::AccountSetup).is_err() {
+                ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
+                return;
+            }
+            apply_active(&ui, &state, &tabs);
+        });
+    }
+    {
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_setup_finished(move || {
+            let Some(ui) = weak.upgrade() else { return };
+            tabs.borrow_mut().close_content(&TabContent::AccountSetup);
+            apply_active(&ui, &state, &tabs);
+        });
+    }
+    {
+        let weak = ui.as_weak();
+        ui.on_setup_email_edited(move |email| {
+            if let Some(ui) = weak.upgrade() {
+                mail::setup_email_edited(&ui, &email);
+            }
+        });
+    }
+    {
+        let weak = ui.as_weak();
+        ui.on_setup_submit(move || {
+            if let Some(ui) = weak.upgrade() {
+                mail::setup_submit(&ui);
+            }
+        });
+    }
+    {
+        let weak = ui.as_weak();
+        ui.on_select_account(move |i| {
+            if let Some(ui) = weak.upgrade() {
+                mail::select_account(&ui, i as usize);
+            }
+        });
+    }
+    {
+        let weak = ui.as_weak();
+        ui.on_select_folder(move |path| {
+            if let Some(ui) = weak.upgrade() {
+                mail::select_folder(&ui, &path);
+            }
+        });
+    }
+    ui.on_remove_account(move |id| mail::remove_account(&id));
     // Tabs
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
@@ -974,6 +1057,12 @@ fn main() -> Result<(), slint::PlatformError> {
                         ui.invoke_row_open_in_tab(3);
                         ui.invoke_reply(true);
                     }
+                    "setup" => {
+                        ui.invoke_open_account_setup();
+                        ui.set_setup_email("someone@gmail.com".into());
+                        ui.invoke_setup_email_edited("someone@gmail.com".into());
+                        ui.set_setup_advanced(true);
+                    }
                     "account-menu" => {
                         ui.invoke_row_selected(0);
                         ui.invoke_show_account_menu();
@@ -1014,6 +1103,13 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
-    spawn_mail_feed(ui.as_weak());
+    // Dummy data for UI development; the real engine otherwise.
+    // Snapshot runs use the dummy data unless FUU_SNAPSHOT_REAL is set.
+    let spike = std::env::var_os("FUU_SPIKE_FEED").is_some()
+        || (std::env::var_os("FUU_SNAPSHOT").is_some() && std::env::var_os("FUU_SNAPSHOT_REAL").is_none());
+    mail::start(&ui, spike);
+    if spike {
+        spawn_mail_feed(ui.as_weak());
+    }
     slint::run_event_loop()
 }

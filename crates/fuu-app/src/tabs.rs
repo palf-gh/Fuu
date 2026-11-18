@@ -30,14 +30,29 @@ pub struct Draft {
     pub show_cc_bcc: bool,
 }
 
+/// A message as shown in a tab: identity plus the header snapshot, so the tab
+/// stays meaningful after the list switches folder or account.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct MessageRef {
+    pub account_id: String,
+    pub folder: String,
+    pub uid: u32,
+    /// Row in the list when the tab was opened (to keep the selection in sync).
+    pub row: usize,
+    pub subject: String,
+    pub from_name: String,
+    pub from_email: String,
+    pub date_text: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TabContent {
-    /// A row in the current mailbox's message list.
-    Message(usize),
+    Message(MessageRef),
     SecuritySample,
     CjkSample,
     Draft(Draft),
     Settings,
+    AccountSetup,
 }
 
 impl TabContent {
@@ -106,13 +121,20 @@ impl Tabs {
         }
     }
 
-    /// Activate the settings tab, opening it if needed.
-    pub fn show_settings(&mut self) -> Result<usize, TooManyTabs> {
-        if let Some(i) = self.items.iter().position(|t| t.content == TabContent::Settings) {
+    /// Activate a single-instance tab (settings, account setup), opening it if needed.
+    pub fn show_single(&mut self, content: TabContent) -> Result<usize, TooManyTabs> {
+        if let Some(i) = self.items.iter().position(|t| t.content == content) {
             self.activate(i);
             return Ok(i);
         }
-        self.open(TabContent::Settings, true)
+        self.open(content, true)
+    }
+
+    /// Close the first tab with this content, if any.
+    pub fn close_content(&mut self, content: &TabContent) {
+        if let Some(i) = self.items.iter().position(|t| &t.content == content) {
+            self.close(i);
+        }
     }
 
     pub fn activate(&mut self, index: usize) {
@@ -202,6 +224,11 @@ mod tests {
         TabContent::Draft(Draft::default())
     }
 
+    #[allow(non_snake_case)]
+    fn Message(i: usize) -> TabContent {
+        TabContent::Message(MessageRef { uid: i as u32, row: i, subject: format!("m{i}"), ..MessageRef::default() })
+    }
+
     #[test]
     fn starts_empty() {
         let t = Tabs::default();
@@ -212,12 +239,12 @@ mod tests {
     #[test]
     fn show_replaces_viewer_and_opens_after_drafts() {
         let mut t = Tabs::default();
-        t.show(TabContent::Message(1)).unwrap();
-        t.show(TabContent::Message(2)).unwrap();
+        t.show(Message(1)).unwrap();
+        t.show(Message(2)).unwrap();
         assert_eq!(t.items().len(), 1, "viewer replaced");
-        assert_eq!(t.active().unwrap().content, TabContent::Message(2));
+        assert_eq!(t.active().unwrap().content, Message(2));
         t.open(draft(), true).unwrap();
-        t.show(TabContent::Message(3)).unwrap();
+        t.show(Message(3)).unwrap();
         assert_eq!(t.items().len(), 3, "a draft is never replaced");
         assert_eq!(t.active_index(), Some(2));
     }
@@ -225,8 +252,8 @@ mod tests {
     #[test]
     fn background_tabs_are_unseen_and_keep_active() {
         let mut t = Tabs::default();
-        t.show(TabContent::Message(1)).unwrap();
-        t.open(TabContent::Message(2), false).unwrap();
+        t.show(Message(1)).unwrap();
+        t.open(Message(2), false).unwrap();
         assert_eq!(t.active_index(), Some(0));
         assert!(t.items()[1].unseen);
         t.activate(1);
@@ -236,7 +263,7 @@ mod tests {
     #[test]
     fn closing_picks_neighbour_and_last_close_leaves_nothing() {
         let mut t = Tabs::default();
-        t.show(TabContent::Message(1)).unwrap();
+        t.show(Message(1)).unwrap();
         t.open(draft(), true).unwrap();
         t.open(TabContent::Settings, true).unwrap(); // [m1, draft, settings]
         t.activate(1);
@@ -248,15 +275,15 @@ mod tests {
         assert!(t.items().is_empty());
         assert_eq!(t.active(), None);
         assert_eq!(t.reopen(), Some(0));
-        assert_eq!(t.active().unwrap().content, TabContent::Message(1));
+        assert_eq!(t.active().unwrap().content, Message(1));
     }
 
     #[test]
     fn settings_is_a_single_tab() {
         let mut t = Tabs::default();
-        t.show_settings().unwrap();
-        t.show(TabContent::Message(1)).unwrap();
-        t.show_settings().unwrap();
+        t.show_single(TabContent::Settings).unwrap();
+        t.show(Message(1)).unwrap();
+        t.show_single(TabContent::Settings).unwrap();
         assert_eq!(t.items().iter().filter(|x| x.content == TabContent::Settings).count(), 1);
         assert_eq!(t.active().unwrap().content, TabContent::Settings);
     }
@@ -264,15 +291,15 @@ mod tests {
     #[test]
     fn move_tab_keeps_the_active_tab() {
         let mut t = Tabs::default();
-        t.show(TabContent::Message(0)).unwrap();
-        t.open(TabContent::Message(1), true).unwrap();
-        t.open(TabContent::Message(2), true).unwrap(); // active 2
+        t.show(Message(0)).unwrap();
+        t.open(Message(1), true).unwrap();
+        t.open(Message(2), true).unwrap(); // active 2
         t.move_tab(2, 0);
         assert_eq!(t.active_index(), Some(0));
-        assert_eq!(t.active().unwrap().content, TabContent::Message(2));
+        assert_eq!(t.active().unwrap().content, Message(2));
         t.activate(2);
         t.move_tab(0, 2);
-        assert_eq!(t.active().unwrap().content, TabContent::Message(1));
+        assert_eq!(t.active().unwrap().content, Message(1));
         t.move_tab(0, 9);
         assert_eq!(t.items().len(), 3);
     }
@@ -283,9 +310,9 @@ mod tests {
         t.cycle(1);
         t.select(0);
         for i in 0..MAX_TABS {
-            t.open(TabContent::Message(i), true).unwrap();
+            t.open(Message(i), true).unwrap();
         }
-        assert_eq!(t.open(TabContent::Message(99), true), Err(TooManyTabs));
+        assert_eq!(t.open(Message(99), true), Err(TooManyTabs));
         t.select(0);
         t.cycle(-1);
         assert_eq!(t.active_index(), Some(MAX_TABS - 1));

@@ -3,6 +3,7 @@
 import { TextEdit } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Divider, Icon, Avatar, MenuRow } from "components.slint";
+import { AccountItem } from "models.slint";
 
 /// iOS-style switch with an animated knob.
 export component Toggle inherits Rectangle {
@@ -126,9 +127,9 @@ export component SettingsView inherits Rectangle {
     in-out property <int> theme-mode;   // 0 system, 1 light, 2 dark
     in-out property <string> signature-text;
     in-out property <bool> signature-enabled;
-    in property <string> account-name;
-    in property <string> account-email;
-    in property <int> account-hue;
+    in property <[AccountItem]> accounts;
+    callback add-account();
+    callback remove-account(string);
     in property <string> status-text;
     callback load-security-sample();
     callback load-cjk-sample();
@@ -170,29 +171,38 @@ export component SettingsView inherits Rectangle {
             }
 
             if root.page == 1: VerticalLayout {
-                spacing: 4px;
+                spacing: 6px;
                 PageTitle { text: "アカウント"; }
-                Rectangle { height: 14px; }
-                Rectangle {
-                    height: 64px;
+                Rectangle { height: 10px; }
+                if root.accounts.length == 0: Text { text: "アカウントはまだありません。"; font-size: Theme.font-m; color: Theme.text-faint; }
+                for account in root.accounts: Rectangle {
+                    height: 60px;
                     border-radius: Theme.radius-l;
                     background: Theme.field;
                     HorizontalLayout {
                         padding-left: 16px;
-                        padding-right: 16px;
+                        padding-right: 10px;
                         spacing: 12px;
-                        Avatar { initials: "F"; hue: root.account-hue; size: 32px; y: (parent.height - self.height) / 2; }
+                        Avatar { initials: account.initial; hue: account.hue; size: 30px; y: (parent.height - self.height) / 2; }
                         VerticalLayout {
                             alignment: center;
                             horizontal-stretch: 1;
-                            Text { text: root.account-name; font-size: Theme.font-m; font-weight: 600; color: Theme.text; }
-                            Text { text: root.account-email; font-size: Theme.font-s; color: Theme.text-faint; }
+                            Text { text: account.name; font-size: Theme.font-m; font-weight: 600; color: Theme.text; overflow: elide; }
+                            Text { text: account.email; font-size: Theme.font-s; color: Theme.text-faint; overflow: elide; }
                         }
-                        Text { text: "IMAP / SMTP（M1）"; font-size: Theme.font-s; color: Theme.text-faint; vertical-alignment: center; }
+                        Rectangle {
+                            width: remove-label.preferred-width + 20px;
+                            height: 30px;
+                            y: (parent.height - self.height) / 2;
+                            border-radius: Theme.radius-m;
+                            background: remove-area.has-hover ? Theme.hover : transparent;
+                            remove-area := TouchArea { clicked => { root.remove-account(account.id); } }
+                            remove-label := Text { text: "削除"; font-size: Theme.font-s; color: remove-area.has-hover ? Theme.close-hover : Theme.text-muted; horizontal-alignment: center; vertical-alignment: center; }
+                        }
                     }
                 }
-                Rectangle { height: 8px; }
-                MenuRow { icon: @image-url("icons/plus.svg"); label: "アカウントを追加"; trailing: "M1"; }
+                Rectangle { height: 4px; }
+                MenuRow { icon: @image-url("icons/plus.svg"); label: "アカウントを追加"; clicked => { root.add-account(); } }
             }
 
             if root.page == 2: VerticalLayout {

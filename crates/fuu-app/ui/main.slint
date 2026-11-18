@@ -4,6 +4,9 @@
 
 import { ListView, TextEdit, ScrollView, Palette } from "std-widgets.slint";
 import { SettingsView } from "settings.slint";
+import { AccountSetupView } from "setup.slint";
+import { AccountItem, FolderItem } from "models.slint";
+export { AccountItem, FolderItem }
 import { Theme } from "theme.slint";
 import {
     Divider, Icon, IconButton, PrimaryButton, SecondaryButton, Avatar, NavItem,
@@ -25,6 +28,42 @@ export struct TabItem {
     kind: int,   // 0 mail, 1 compose, 2 settings
     unseen: bool,
     closing: bool,
+}
+
+component FolderRow inherits Rectangle {
+    in property <FolderItem> folder;
+    in property <bool> current;
+    callback clicked;
+    height: 32px;
+    border-radius: Theme.radius-s;
+    background: root.current ? Theme.selected : area.has-hover && root.folder.selectable ? Theme.hover : transparent;
+    area := TouchArea { enabled: root.folder.selectable; clicked => { root.clicked(); } }
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 10px;
+        Icon {
+            source: root.folder.role == 0 ? @image-url("icons/inbox.svg")
+            : root.folder.role == 1 ? @image-url("icons/draft.svg")
+            : root.folder.role == 2 ? @image-url("icons/send.svg")
+            : root.folder.role == 3 ? @image-url("icons/archive.svg")
+            : root.folder.role == 4 ? @image-url("icons/shield.svg")
+            : root.folder.role == 5 ? @image-url("icons/trash.svg")
+            : @image-url("icons/draft.svg");
+            width: 15px;
+            height: 15px;
+            y: (parent.height - self.height) / 2;
+            tint: root.current ? Theme.text : Theme.text-faint;
+        }
+        Text {
+            text: root.folder.display;
+            color: root.folder.selectable ? Theme.text : Theme.text-faint;
+            font-size: Theme.font-m;
+            font-weight: root.current ? 600 : 400;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
 }
 
 component MessageItem inherits Rectangle {
@@ -168,8 +207,33 @@ export component AppWindow inherits Window {
         Palette.color-scheme = self.theme-mode == 1 ? ColorScheme.light : self.theme-mode == 2 ? ColorScheme.dark : self.system-scheme;
     }
     in property <string> mailbox: "受信トレイ";
-    in property <string> account-name: "Fuu spike";
-    in property <string> account-email: "spike@fuu.invalid";
+    in property <string> account-name: "アカウントなし";
+    in property <string> account-email;
+    in property <string> account-initial: "+";
+    in property <[AccountItem]> accounts;
+    in property <int> active-account: -1;
+    in property <[FolderItem]> folders;
+    in property <string> current-folder;
+    // Shown in the list when there are no rows (loading, error, empty folder).
+    in property <string> list-message;
+    in property <bool> list-busy;
+    // Account setup tab
+    in property <bool> setup-open;
+    in-out property <string> setup-name;
+    in-out property <string> setup-email;
+    in-out property <string> setup-password;
+    in-out property <string> setup-username;
+    in-out property <string> setup-imap-host;
+    in-out property <string> setup-imap-port: "993";
+    in-out property <int> setup-imap-security;
+    in-out property <string> setup-smtp-host;
+    in-out property <string> setup-smtp-port: "465";
+    in-out property <int> setup-smtp-security;
+    in-out property <bool> setup-advanced;
+    in property <string> setup-provider;
+    in property <string> setup-note;
+    in property <string> setup-error;
+    in property <bool> setup-busy;
     in property <int> account-hue: 0;
     in property <[TabItem]> tabs;
     in property <int> active-tab: -1;
@@ -180,7 +244,7 @@ export component AppWindow inherits Window {
     out property <length> reader-w: reader-host.width;
     out property <length> reader-h: reader-host.height;
     // True whenever something drawn by Slint overlaps the reader body.
-    out property <bool> reader-covered: link-dialog-open || info-dialog-open || composing || settings-open || !has-message;
+    out property <bool> reader-covered: link-dialog-open || info-dialog-open || composing || settings-open || setup-open || !has-message;
 
     callback row-selected(int);
     callback page-clicked(length, length);
@@ -221,6 +285,14 @@ export component AppWindow inherits Window {
     callback compose-to-address(string);
     callback open-settings();
     // Opens the menus programmatically (snapshot checks).
+    callback open-account-setup();
+    // Rust closes the setup tab once the account has been added.
+    callback setup-finished();
+    callback setup-email-edited(string);
+    callback setup-submit();
+    callback select-account(int);
+    callback select-folder(string);
+    callback remove-account(string);
     callback show-account-menu();
     show-account-menu => { account-popup.show(); }
     callback show-mailbox-menu();
@@ -284,7 +356,7 @@ export component AppWindow inherits Window {
                             padding-left: 6px;
                             padding-right: 8px;
                             spacing: 8px;
-                            Avatar { initials: "F"; hue: root.account-hue; size: 22px; y: (parent.height - self.height) / 2; }
+                            Avatar { initials: root.account-initial; hue: root.account-hue; size: 22px; y: (parent.height - self.height) / 2; }
                             VerticalLayout {
                                 alignment: center;
                                 Text { text: root.account-name; font-size: Theme.font-s; font-weight: 600; color: Theme.text; }
@@ -399,7 +471,23 @@ export component AppWindow inherits Window {
                 }
                 Rectangle { horizontal-stretch: 1; }
               }
-              ListView {
+              if root.messages.length == 0: VerticalLayout {
+                alignment: center;
+                spacing: 14px;
+                padding-bottom: 80px;
+                Text {
+                    text: root.list-message;
+                    font-size: Theme.font-m;
+                    color: Theme.text-faint;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+                if root.accounts.length == 0: HorizontalLayout {
+                    alignment: center;
+                    PrimaryButton { text: "アカウントを追加"; clicked => { root.open-account-setup(); } }
+                }
+              }
+              if root.messages.length > 0: ListView {
                 for row[i] in root.messages: MessageItem {
                     message: row;
                     selected: i == root.current-row;
@@ -678,6 +766,35 @@ export component AppWindow inherits Window {
               }
               Rectangle { horizontal-stretch: 1; min-width: 0px; }
             }
+            if root.setup-open: Rectangle {
+                background: Theme.bg;
+                HorizontalLayout {
+                    Rectangle { horizontal-stretch: 1; min-width: 0px; }
+                    AccountSetupView {
+                        horizontal-stretch: 0;
+                        preferred-width: 680px;
+                        min-width: 320px;
+                        name <=> root.setup-name;
+                        email <=> root.setup-email;
+                        password <=> root.setup-password;
+                        username <=> root.setup-username;
+                        imap-host <=> root.setup-imap-host;
+                        imap-port <=> root.setup-imap-port;
+                        imap-security <=> root.setup-imap-security;
+                        smtp-host <=> root.setup-smtp-host;
+                        smtp-port <=> root.setup-smtp-port;
+                        smtp-security <=> root.setup-smtp-security;
+                        advanced <=> root.setup-advanced;
+                        provider: root.setup-provider;
+                        note: root.setup-note;
+                        error: root.setup-error;
+                        busy: root.setup-busy;
+                        email-edited(t) => { root.setup-email-edited(t); }
+                        submit => { root.setup-submit(); }
+                    }
+                    Rectangle { horizontal-stretch: 1; min-width: 0px; }
+                }
+            }
             if root.settings-open: Rectangle {
                 background: Theme.bg;
                 SettingsView {
@@ -685,9 +802,9 @@ export component AppWindow inherits Window {
                     theme-mode <=> root.theme-mode;
                     signature-text <=> root.signature-text;
                     signature-enabled <=> root.signature-enabled;
-                    account-name: root.account-name;
-                    account-email: root.account-email;
-                    account-hue: root.account-hue;
+                    accounts: root.accounts;
+                    add-account => { root.open-account-setup(); }
+                    remove-account(id) => { root.remove-account(id); }
                     status-text: root.status-text;
                     load-security-sample => { root.load-security-sample(); }
                     load-cjk-sample => { root.load-cjk-sample(); }
@@ -728,26 +845,27 @@ export component AppWindow inherits Window {
             VerticalLayout {
                 padding: 6px;
                 spacing: 1px;
-                Rectangle {
+                for account[i] in root.accounts: Rectangle {
                     height: 44px;
                     border-radius: Theme.radius-s;
-                    background: Theme.selected;
+                    background: i == root.active-account ? Theme.selected : row-area.has-hover ? Theme.hover : transparent;
+                    row-area := TouchArea { clicked => { root.select-account(i); } }
                     HorizontalLayout {
                         padding-left: 10px;
                         padding-right: 10px;
                         spacing: 10px;
-                        Avatar { initials: "F"; hue: root.account-hue; size: 24px; y: (parent.height - self.height) / 2; }
+                        Avatar { initials: account.initial; hue: account.hue; size: 24px; y: (parent.height - self.height) / 2; }
                         VerticalLayout {
                             alignment: center;
                             horizontal-stretch: 1;
-                            Text { text: root.account-name; font-size: Theme.font-s; font-weight: 600; color: Theme.text; }
-                            Text { text: root.account-email; font-size: Theme.font-xs; color: Theme.text-faint; }
+                            Text { text: account.name; font-size: Theme.font-s; font-weight: 600; color: Theme.text; overflow: elide; }
+                            Text { text: account.email; font-size: Theme.font-xs; color: Theme.text-faint; overflow: elide; }
                         }
-                        Text { text: "使用中"; font-size: Theme.font-xs; color: Theme.text-faint; vertical-alignment: center; }
+                        if i == root.active-account: Text { text: "使用中"; font-size: Theme.font-xs; color: Theme.text-faint; vertical-alignment: center; }
                     }
                 }
-                Rectangle { height: 4px; }
-                MenuRow { icon: @image-url("icons/plus.svg"); label: "アカウントを追加"; trailing: "M1"; }
+                if root.accounts.length > 0: Rectangle { height: 4px; }
+                MenuRow { icon: @image-url("icons/plus.svg"); label: "アカウントを追加"; clicked => { root.open-account-setup(); } }
             }
         }
     }
@@ -755,7 +873,7 @@ export component AppWindow inherits Window {
     mailbox-popup := PopupWindow {
         x: mailbox-button.absolute-position.x;
         y: mailbox-button.absolute-position.y + mailbox-button.height + 4px;
-        width: 220px;
+        width: 260px;
         Rectangle {
             property <bool> shown;
             init => { self.shown = true; }
@@ -773,11 +891,12 @@ export component AppWindow inherits Window {
             VerticalLayout {
                 padding: 6px;
                 spacing: 1px;
-                MenuRow { icon: @image-url("icons/inbox.svg"); label: "受信トレイ"; trailing: "714"; }
-                MenuRow { icon: @image-url("icons/send.svg"); label: "送信済み"; }
-                MenuRow { icon: @image-url("icons/draft.svg"); label: "下書き"; trailing: "2"; }
-                MenuRow { icon: @image-url("icons/archive.svg"); label: "アーカイブ"; }
-                MenuRow { icon: @image-url("icons/trash.svg"); label: "ゴミ箱"; }
+                if root.folders.length == 0: Text { text: "フォルダーはまだありません"; font-size: Theme.font-s; color: Theme.text-faint; height: 32px; vertical-alignment: center; }
+                for folder in root.folders: FolderRow {
+                    folder: folder;
+                    current: folder.path == root.current-folder;
+                    clicked => { root.select-folder(folder.path); }
+                }
             }
         }
     }

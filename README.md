@@ -4,8 +4,12 @@ A minimal desktop mail client for Windows and macOS: read, send and reply, with
 multiple accounts and per-account signatures. Fuu talks to your IMAP/SMTP servers
 directly; there is no relay service.
 
-Status: **M0 spike** (Slint shell, hardened HTML viewer, model bridge). Mail access
-arrives in M1 onwards — see `docs/plan.md`.
+Status: **M1** — accounts (password / app password, kept in the OS keychain),
+folder list and message headers over IMAP. Bodies arrive in M2, sending in M3 and
+OAuth in M4 — see `docs/plan.md`.
+
+Accounts are stored in `<config dir>/Fuu/accounts.toml` (no secrets). Run with
+`FUU_SPIKE_FEED=1` to use dummy data instead of real accounts.
 
 ## Build
 
@@ -13,6 +17,16 @@ arrives in M1 onwards — see `docs/plan.md`.
 cargo run -p fuu-app            # debug
 cargo build -p fuu-app --release
 cargo test --workspace
+```
+
+IMAP integration tests run against a local GreenMail server (never a real account):
+
+```sh
+docker run -d --name fuu-greenmail -p 127.0.0.1:3025:3025 -p 127.0.0.1:3143:3143 \
+  -e GREENMAIL_OPTS="-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=test:secret@localhost" \
+  greenmail/standalone:2.1.3
+FUU_GREENMAIL=1 cargo test -p fuu-core --features insecure-test-transport --test greenmail
+cargo test -p fuu-core -- --ignored keychain   # real OS keychain round trip
 ```
 
 Optional Skia renderer (for comparing CJK rendering against the default femtovg):

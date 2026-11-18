@@ -1967,6 +1967,8 @@ name = "fuu-app"
 version = "0.1.0"
 dependencies = [
  "arboard",
+ "chrono",
+ "fuu-core",
  "fuu-model",
  "fuu-render",
  "fuu-sanitiser",
