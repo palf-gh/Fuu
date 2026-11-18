@@ -18,7 +18,7 @@ use fuu_render::text::TextRenderer;
 use fuu_render::webview::WebViewRenderer;
 use fuu_render::{BodyRenderer, LinkHandler, LinkRequest, PointerPhase, RenderStats};
 use slint::{ComponentHandle, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
-use tabs::{Content, Draft, Place, Tabs};
+use tabs::{Draft, Tab, TabContent, Tabs};
 
 slint::include_modules!();
 
@@ -271,19 +271,35 @@ fn create_reader(ui: &AppWindow, engine: Engine, pending_link: Rc<RefCell<Option
     }
 }
 
-const SIGNATURE: &str = "\n\n-- \n署名（M3 でアカウントごとに設定）";
-
 type SharedTabs = Rc<RefCell<Tabs>>;
 
-fn tab_title(ui: &AppWindow, place: &Place) -> String {
-    if let Some(d) = &place.draft {
-        return if d.subject.trim().is_empty() { d.title.clone() } else { d.subject.clone() };
+const TAB_LIMIT_MESSAGE: &str = "タブは最大 32 個までです";
+
+/// The signature block appended to new drafts, from the settings.
+fn signature(ui: &AppWindow) -> String {
+    let text = ui.get_signature_text();
+    if ui.get_signature_enabled() && !text.trim().is_empty() {
+        format!("\n\n-- \n{text}")
+    } else {
+        String::new()
     }
-    match place.content {
-        Content::Nothing => place.mailbox.clone(),
-        Content::Message(i) => ui.get_messages().row_data(i).map(|r| r.subject.to_string()).unwrap_or_else(|| "メール".into()),
-        Content::SecuritySample => "セキュリティ検査文書".into(),
-        Content::CjkSample => "CJK 表示サンプル".into(),
+}
+
+fn tab_title(ui: &AppWindow, tab: &Tab) -> String {
+    match &tab.content {
+        TabContent::Message(i) => ui.get_messages().row_data(*i).map(|r| r.subject.to_string()).unwrap_or_else(|| "メール".into()),
+        TabContent::SecuritySample => "セキュリティ検査文書".into(),
+        TabContent::CjkSample => "CJK 表示サンプル".into(),
+        TabContent::Draft(d) => if d.subject.trim().is_empty() { d.title.clone() } else { d.subject.clone() },
+        TabContent::Settings => "設定".into(),
+    }
+}
+
+fn tab_kind(tab: &Tab) -> i32 {
+    match tab.content {
+        TabContent::Draft(_) => 1,
+        TabContent::Settings => 2,
+        _ => 0,
     }
 }
 
@@ -291,99 +307,106 @@ fn render_tabs(ui: &AppWindow, tabs: &Tabs) {
     let items: Vec<TabItem> = tabs
         .items()
         .iter()
-        .map(|p| TabItem { title: tab_title(ui, p).into(), compose: p.draft.is_some(), unseen: p.unseen })
+        .map(|t| TabItem { title: tab_title(ui, t).into(), kind: tab_kind(t), unseen: t.unseen })
         .collect();
     ui.set_tabs(ModelRc::new(VecModel::from(items)));
-    ui.set_active_tab(tabs.active_index() as i32);
+    ui.set_active_tab(tabs.active_index().map_or(-1, |i| i as i32));
 }
 
-/// Copy the composer fields back into the active tab's draft.
+/// Copy the composer fields back into the active draft tab.
 fn save_draft(ui: &AppWindow, tabs: &SharedTabs) {
-    if let Some(d) = tabs.borrow_mut().active_mut().draft.as_mut() {
+    if let Some(Tab { content: TabContent::Draft(d), .. }) = tabs.borrow_mut().active_mut() {
+        d.from = ui.get_compose_from().into();
         d.to = ui.get_compose_to().into();
+        d.cc = ui.get_compose_cc().into();
+        d.bcc = ui.get_compose_bcc().into();
         d.subject = ui.get_compose_subject().into();
         d.body = ui.get_compose_body().into();
+        d.show_cc_bcc = ui.get_compose_show_cc_bcc();
     }
 }
 
-/// Show the active tab's place: list selection, reader content and composer.
+/// Show the active tab in the right pane (or the empty state when there is none).
 fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
-    let place = tabs.borrow().active().clone();
-    ui.set_mailbox(place.mailbox.clone().into());
-    let doc = match place.content {
-        Content::Nothing => {
-            ui.set_current_row(-1);
-            ui.set_has_message(false);
-            None
-        }
-        Content::Message(i) => match ui.get_messages().row_data(i) {
-            Some(row) => {
-                if row.unread {
-                    if let Some(vec) = ui.get_messages().as_any().downcast_ref::<VecModel<MessageRow>>() {
-                        vec.set_row_data(i, MessageRow { unread: false, ..row.clone() });
-                    }
+    let content = tabs.borrow().active().map(|t| t.content.clone());
+    ui.set_composing(false);
+    ui.set_settings_open(false);
+    ui.set_current_row(-1);
+    ui.set_has_message(false);
+    let doc = match content {
+        None => None,
+        Some(TabContent::Message(i)) => ui.get_messages().row_data(i).map(|row| {
+            if row.unread {
+                if let Some(vec) = ui.get_messages().as_any().downcast_ref::<VecModel<MessageRow>>() {
+                    vec.set_row_data(i, MessageRow { unread: false, ..row.clone() });
                 }
-                ui.set_current_row(i as i32);
-                set_reader_header(ui, &row.subject, &row.sender, &format!("sender{i}@example.com"), &format!("2026/{} 10:{:02}", row.date, i % 60));
-                Some(samples::message_document(i, &row.subject))
             }
-            None => {
-                ui.set_has_message(false);
-                None
-            }
-        },
-        Content::SecuritySample => {
-            ui.set_current_row(-1);
+            ui.set_current_row(i as i32);
+            set_reader_header(ui, &row.subject, &row.sender, &format!("sender{i}@example.com"), &format!("2026/{} 10:{:02}", row.date, i % 60));
+            samples::message_document(i, &row.subject)
+        }),
+        Some(TabContent::SecuritySample) => {
             set_reader_header(ui, "セキュリティ検査文書", "M0 spike", "spike@fuu.invalid", "");
             Some(samples::security_document())
         }
-        Content::CjkSample => {
-            ui.set_current_row(-1);
+        Some(TabContent::CjkSample) => {
             set_reader_header(ui, "CJK：日本語・简体・繁體・한국어 ✉️", "髙﨑 𠮷子", "takasaki@example.jp", "");
             Some(samples::cjk_document())
+        }
+        Some(TabContent::Draft(d)) => {
+            ui.set_compose_title(d.title.into());
+            ui.set_compose_from(d.from.into());
+            ui.set_compose_to(d.to.into());
+            ui.set_compose_cc(d.cc.into());
+            ui.set_compose_bcc(d.bcc.into());
+            ui.set_compose_subject(d.subject.into());
+            ui.set_compose_body(d.body.into());
+            ui.set_compose_show_cc_bcc(d.show_cc_bcc);
+            ui.set_composing(true);
+            None
+        }
+        Some(TabContent::Settings) => {
+            ui.set_settings_open(true);
+            None
         }
     };
     if let Some(doc) = doc {
         ui.set_fallback_text(doc.text.clone().into());
         show_document(state, doc);
     }
-    match &place.draft {
-        Some(d) => {
-            ui.set_compose_title(d.title.clone().into());
-            ui.set_compose_to(d.to.clone().into());
-            ui.set_compose_subject(d.subject.clone().into());
-            ui.set_compose_body(d.body.clone().into());
-            ui.set_composing(true);
-        }
-        None => ui.set_composing(false),
-    }
+    // Lets the pane play its reveal animation.
+    ui.set_pane_version(ui.get_pane_version() + 1);
     render_tabs(ui, &tabs.borrow());
 }
 
-/// Show `content` in the active tab, or in a new tab if the active one holds a draft.
-fn navigate(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, content: Content) {
+/// Show a viewer (message or sample) in the active viewer tab, or a new tab.
+fn show_viewer(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, content: TabContent) {
     save_draft(ui, tabs);
-    let has_draft = tabs.borrow().active().draft.is_some();
-    if has_draft {
-        let mailbox = tabs.borrow().active().mailbox.clone();
-        if tabs.borrow_mut().open(Place { mailbox, content, draft: None, unseen: false }, true).is_err() {
-            ui.set_feed_summary("タブは最大 32 個までです".into());
-            return;
-        }
-    } else {
-        tabs.borrow_mut().active_mut().content = content;
+    if tabs.borrow_mut().show(content).is_err() {
+        ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
+        return;
     }
     apply_active(ui, state, tabs);
 }
 
-/// Open a draft in a new tab that returns to the current place when finished.
-fn open_draft(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, draft: Draft) {
+/// Open a draft in a new tab.
+fn open_draft(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, mut draft: Draft) {
     save_draft(ui, tabs);
-    let base = tabs.borrow().active().clone();
-    let place = Place { draft: Some(draft), unseen: false, ..base };
-    if tabs.borrow_mut().open(place, true).is_err() {
-        ui.set_feed_summary("タブは最大 32 個までです".into());
+    draft.from = format!("{} <{}>", ui.get_account_name(), ui.get_account_email());
+    draft.show_cc_bcc = draft.show_cc_bcc || !draft.cc.is_empty() || !draft.bcc.is_empty();
+    if tabs.borrow_mut().open(TabContent::Draft(draft), true).is_err() {
+        ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
         return;
+    }
+    apply_active(ui, state, tabs);
+}
+
+/// Close the active tab (used by send, discard and Ctrl/Cmd+W).
+fn close_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
+    save_draft(ui, tabs);
+    let active = tabs.borrow().active_index();
+    if let Some(i) = active {
+        tabs.borrow_mut().close(i);
     }
     apply_active(ui, state, tabs);
 }
@@ -484,7 +507,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_row_selected(move |i| {
             if let Some(ui) = weak.upgrade() {
-                navigate(&ui, &state, &tabs, Content::Message(i as usize));
+                show_viewer(&ui, &state, &tabs, TabContent::Message(i as usize));
             }
         });
     }
@@ -493,10 +516,8 @@ fn main() -> Result<(), slint::PlatformError> {
         ui.on_row_open_in_tab(move |i| {
             let Some(ui) = weak.upgrade() else { return };
             save_draft(&ui, &tabs);
-            let mailbox = tabs.borrow().active().mailbox.clone();
-            let place = Place { mailbox, content: Content::Message(i as usize), draft: None, unseen: true };
-            if tabs.borrow_mut().open(place, false).is_err() {
-                ui.set_feed_summary("タブは最大 32 個までです".into());
+            if tabs.borrow_mut().open(TabContent::Message(i as usize), false).is_err() {
+                ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
             }
             render_tabs(&ui, &tabs.borrow());
         });
@@ -505,7 +526,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_load_security_sample(move || {
             if let Some(ui) = weak.upgrade() {
-                navigate(&ui, &state, &tabs, Content::SecuritySample);
+                show_viewer(&ui, &state, &tabs, TabContent::SecuritySample);
             }
         });
     }
@@ -513,8 +534,20 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_load_cjk_sample(move || {
             if let Some(ui) = weak.upgrade() {
-                navigate(&ui, &state, &tabs, Content::CjkSample);
+                show_viewer(&ui, &state, &tabs, TabContent::CjkSample);
             }
+        });
+    }
+    {
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_open_settings(move || {
+            let Some(ui) = weak.upgrade() else { return };
+            save_draft(&ui, &tabs);
+            if tabs.borrow_mut().show_settings().is_err() {
+                ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
+                return;
+            }
+            apply_active(&ui, &state, &tabs);
         });
     }
     // Tabs
@@ -525,6 +558,14 @@ fn main() -> Result<(), slint::PlatformError> {
             save_draft(&ui, &tabs);
             tabs.borrow_mut().activate(i as usize);
             apply_active(&ui, &state, &tabs);
+        });
+    }
+    {
+        let (tabs, weak) = (tabs.clone(), ui.as_weak());
+        ui.on_tab_moved(move |from, to| {
+            let Some(ui) = weak.upgrade() else { return };
+            tabs.borrow_mut().move_tab(from as usize, to as usize);
+            render_tabs(&ui, &tabs.borrow());
         });
     }
     {
@@ -539,23 +580,18 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_close_active_tab(move || {
-            let Some(ui) = weak.upgrade() else { return };
-            save_draft(&ui, &tabs);
-            let active = tabs.borrow().active_index();
-            tabs.borrow_mut().close(active);
-            apply_active(&ui, &state, &tabs);
+            if let Some(ui) = weak.upgrade() {
+                close_active(&ui, &state, &tabs);
+            }
         });
     }
     {
-        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        // Ctrl/Cmd+T and Ctrl/Cmd+N both start a new message.
+        let weak = ui.as_weak();
         ui.on_new_tab(move || {
-            let Some(ui) = weak.upgrade() else { return };
-            save_draft(&ui, &tabs);
-            if tabs.borrow_mut().open(Place::home(), true).is_err() {
-                ui.set_feed_summary("タブは最大 32 個までです".into());
-                return;
+            if let Some(ui) = weak.upgrade() {
+                ui.invoke_start_compose();
             }
-            apply_active(&ui, &state, &tabs);
         });
     }
     {
@@ -682,7 +718,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_start_compose(move || {
             if let Some(ui) = weak.upgrade() {
-                let draft = Draft { title: "新規メッセージ".into(), body: SIGNATURE.into(), ..Draft::default() };
+                let draft = Draft { title: "新規メッセージ".into(), body: signature(&ui), ..Draft::default() };
                 open_draft(&ui, &state, &tabs, draft);
             }
         });
@@ -691,13 +727,13 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_compose_to_address(move |address| {
             if let Some(ui) = weak.upgrade() {
-                let draft = Draft { title: "新規メッセージ".into(), to: address.into(), body: SIGNATURE.into(), ..Draft::default() };
+                let draft = Draft { title: "新規メッセージ".into(), to: address.into(), body: signature(&ui), ..Draft::default() };
                 open_draft(&ui, &state, &tabs, draft);
             }
         });
     }
     {
-        // Spike replies: real quoting, threading headers and signatures land in M3.
+        // Spike replies: real quoting, recipients and threading headers land in M3.
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_reply(move |all| {
             let Some(ui) = weak.upgrade() else { return };
@@ -706,8 +742,10 @@ fn main() -> Result<(), slint::PlatformError> {
             let draft = Draft {
                 title: if all { "全員に返信" } else { "返信" }.into(),
                 to: ui.get_reader_address().into(),
+                cc: if all { "team@example.com".into() } else { String::new() },
                 subject,
-                body: format!("{SIGNATURE}\n\n> （引用は M3 で実装）"),
+                body: format!("{}\n\n> （引用は M3 で実装）", signature(&ui)),
+                ..Draft::default()
             };
             open_draft(&ui, &state, &tabs, draft);
         });
@@ -719,7 +757,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let draft = Draft {
                 title: "転送".into(),
                 subject: format!("Fwd: {}", ui.get_reader_subject()),
-                body: SIGNATURE.into(),
+                body: signature(&ui),
                 ..Draft::default()
             };
             open_draft(&ui, &state, &tabs, draft);
@@ -745,17 +783,20 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_send_compose(move || {
             let Some(ui) = weak.upgrade() else { return };
-            ui.set_feed_summary(format!("送信は M3 で実装（本文 {} 文字）", ui.get_compose_body().chars().count()).into());
-            tabs.borrow_mut().active_mut().draft = None;
-            apply_active(&ui, &state, &tabs);
+            let recipients = [ui.get_compose_to(), ui.get_compose_cc(), ui.get_compose_bcc()]
+                .iter()
+                .flat_map(|f| f.split(',').map(str::trim).filter(|a| !a.is_empty()).map(str::to_owned).collect::<Vec<_>>())
+                .count();
+            ui.set_feed_summary(format!("送信は M3 で実装（宛先 {recipients} 件・本文 {} 文字）", ui.get_compose_body().chars().count()).into());
+            close_active(&ui, &state, &tabs);
         });
     }
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_discard_compose(move || {
-            let Some(ui) = weak.upgrade() else { return };
-            tabs.borrow_mut().active_mut().draft = None;
-            apply_active(&ui, &state, &tabs);
+            if let Some(ui) = weak.upgrade() {
+                close_active(&ui, &state, &tabs);
+            }
         });
     }
     {
@@ -904,18 +945,18 @@ fn main() -> Result<(), slint::PlatformError> {
                         ui.invoke_row_selected(1);
                         ui.invoke_row_open_in_tab(2);
                         ui.invoke_row_open_in_tab(3);
-                        ui.invoke_reply(false);
+                        ui.invoke_reply(true);
+                    }
+                    "settings" => {
+                        ui.invoke_row_selected(1);
+                        ui.invoke_open_settings();
                     }
                     "dialog" => {
-                        ui.set_current_row(1);
                         ui.invoke_row_selected(1);
                         ui.set_info_dialog_open(true);
                     }
                     "empty" => {}
-                    _ => {
-                        ui.set_current_row(1);
-                        ui.invoke_row_selected(1);
-                    }
+                    _ => ui.invoke_row_selected(1),
                 },
                 6 => {
                     {

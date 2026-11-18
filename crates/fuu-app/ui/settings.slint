@@ -1,0 +1,275 @@
+// Settings, shown as a tab in the right pane.
+
+import { TextEdit } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { Divider, Icon, Avatar, MenuRow } from "components.slint";
+
+/// iOS-style switch with an animated knob.
+export component Toggle inherits Rectangle {
+    in-out property <bool> checked;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
+    background: root.checked ? Theme.accent : Theme.border;
+    opacity: root.enabled ? 1 : 0.5;
+    animate background { duration: 160ms; easing: ease-out; }
+    TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+    Rectangle {
+        x: root.checked ? parent.width - self.width - 2px : 2px;
+        y: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        background: #ffffff;
+        drop-shadow-blur: 3px;
+        drop-shadow-color: #00000033;
+        animate x { duration: 160ms; easing: ease-out; }
+    }
+}
+
+/// Segmented control with a sliding indicator.
+export component Segmented inherits Rectangle {
+    in property <[string]> options;
+    in-out property <int> selected;
+    callback changed-to(int);
+    property <length> segment: (root.width - 4px) / max(1, root.options.length);
+    height: 30px;
+    width: 92px * root.options.length;
+    border-radius: Theme.radius-m;
+    background: Theme.field;
+    Rectangle {
+        x: 2px + root.selected * root.segment;
+        y: 2px;
+        width: root.segment;
+        height: parent.height - 4px;
+        border-radius: Theme.radius-s;
+        background: Theme.raised;
+        drop-shadow-blur: 4px;
+        drop-shadow-color: #0000001f;
+        animate x { duration: 180ms; easing: ease-out; }
+    }
+    for option[i] in root.options: Rectangle {
+        x: 2px + i * root.segment;
+        width: root.segment;
+        TouchArea {
+            clicked => {
+                root.selected = i;
+                root.changed-to(i);
+            }
+        }
+        Text {
+            text: option;
+            font-size: Theme.font-s;
+            color: i == root.selected ? Theme.text : Theme.text-muted;
+            font-weight: i == root.selected ? 600 : 400;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+component SettingRow inherits Rectangle {
+    in property <string> title;
+    in property <string> description;
+    min-height: 56px;
+    HorizontalLayout {
+        spacing: 24px;
+        VerticalLayout {
+            alignment: center;
+            spacing: 3px;
+            horizontal-stretch: 1;
+            Text { text: root.title; font-size: Theme.font-m; color: Theme.text; }
+            if root.description != "": Text { text: root.description; font-size: Theme.font-s; color: Theme.text-faint; wrap: word-wrap; }
+        }
+        VerticalLayout {
+            alignment: center;
+            @children
+        }
+    }
+}
+
+component PageTitle inherits Text {
+    font-size: Theme.font-xl;
+    font-weight: 600;
+    color: Theme.text;
+}
+
+component NavLink inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected;
+    callback clicked;
+    height: 32px;
+    border-radius: Theme.radius-m;
+    background: root.selected ? Theme.selected : area.has-hover ? Theme.hover : transparent;
+    animate background { duration: 80ms; }
+    area := TouchArea { clicked => { root.clicked(); } }
+    Text {
+        x: 12px;
+        text: root.label;
+        font-size: Theme.font-m;
+        color: root.selected ? Theme.text : Theme.text-muted;
+        font-weight: root.selected ? 600 : 400;
+        vertical-alignment: center;
+    }
+}
+
+export component SettingsView inherits Rectangle {
+    in-out property <int> page;
+    in-out property <int> theme-mode;   // 0 system, 1 light, 2 dark
+    in-out property <string> signature-text;
+    in-out property <bool> signature-enabled;
+    in property <string> account-name;
+    in property <string> account-email;
+    in property <int> account-hue;
+    in property <string> renderer-label;
+    in property <string> status-text;
+    callback toggle-renderer();
+    callback load-security-sample();
+    callback load-cjk-sample();
+    callback overlap-test();
+
+    HorizontalLayout {
+        padding-left: 32px;
+        padding-right: 40px;
+        padding-top: 26px;
+        spacing: 36px;
+
+        VerticalLayout {
+            width: 176px;
+            spacing: 2px;
+            alignment: start;
+            NavLink { label: "一般"; selected: root.page == 0; clicked => { root.page = 0; } }
+            NavLink { label: "アカウント"; selected: root.page == 1; clicked => { root.page = 1; } }
+            NavLink { label: "署名"; selected: root.page == 2; clicked => { root.page = 2; } }
+            NavLink { label: "プライバシー"; selected: root.page == 3; clicked => { root.page = 3; } }
+            NavLink { label: "開発"; selected: root.page == 4; clicked => { root.page = 4; } }
+            NavLink { label: "このアプリについて"; selected: root.page == 5; clicked => { root.page = 5; } }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            max-width: 560px;
+            alignment: start;
+            spacing: 4px;
+
+            if root.page == 0: VerticalLayout {
+                spacing: 4px;
+                PageTitle { text: "一般"; }
+                Rectangle { height: 14px; }
+                SettingRow {
+                    title: "テーマ";
+                    description: "システムに合わせるか、明るい／暗い表示に固定します。";
+                    Segmented { options: ["システム", "ライト", "ダーク"]; selected <=> root.theme-mode; }
+                }
+                Divider { height: 1px; }
+                SettingRow {
+                    title: "本文の描画エンジン";
+                    description: "Blitz は JavaScript を持たない軽量エンジンです。WebView は OS の標準エンジンです。";
+                    Segmented {
+                        options: ["Blitz", "WebView"];
+                        selected: root.renderer-label == "Blitz" ? 0 : 1;
+                        changed-to(i) => {
+                            if ((i == 0) != (root.renderer-label == "Blitz")) { root.toggle-renderer(); }
+                        }
+                    }
+                }
+            }
+
+            if root.page == 1: VerticalLayout {
+                spacing: 4px;
+                PageTitle { text: "アカウント"; }
+                Rectangle { height: 14px; }
+                Rectangle {
+                    height: 64px;
+                    border-radius: Theme.radius-l;
+                    background: Theme.field;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 12px;
+                        Avatar { initials: "F"; hue: root.account-hue; size: 32px; y: (parent.height - self.height) / 2; }
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            Text { text: root.account-name; font-size: Theme.font-m; font-weight: 600; color: Theme.text; }
+                            Text { text: root.account-email; font-size: Theme.font-s; color: Theme.text-faint; }
+                        }
+                        Text { text: "IMAP / SMTP（M1）"; font-size: Theme.font-s; color: Theme.text-faint; vertical-alignment: center; }
+                    }
+                }
+                Rectangle { height: 8px; }
+                MenuRow { icon: @image-url("icons/plus.svg"); label: "アカウントを追加"; trailing: "M1"; }
+            }
+
+            if root.page == 2: VerticalLayout {
+                spacing: 4px;
+                PageTitle { text: "署名"; }
+                Rectangle { height: 14px; }
+                SettingRow {
+                    title: "新規メッセージに署名を入れる";
+                    description: "作成・返信・転送のたびに、本文の下へ「-- 」区切り付きで挿入します。";
+                    Toggle { checked <=> root.signature-enabled; }
+                }
+                Rectangle { height: 8px; }
+                Rectangle {
+                    height: 160px;
+                    opacity: root.signature-enabled ? 1 : 0.45;
+                    animate opacity { duration: 160ms; }
+                    TextEdit { text <=> root.signature-text; wrap: word-wrap; enabled: root.signature-enabled; }
+                }
+            }
+
+            if root.page == 3: VerticalLayout {
+                spacing: 4px;
+                PageTitle { text: "プライバシー"; }
+                Rectangle { height: 14px; }
+                SettingRow {
+                    title: "外部画像を読み込まない";
+                    description: "既定でブロックし、メールごとに許可したときだけ Fuu が取得します。追跡ピクセルは許可しても取得しません。";
+                    Toggle { checked: true; enabled: false; }
+                }
+                Divider { height: 1px; }
+                SettingRow {
+                    title: "外部 CSS とスクリプトを使わない";
+                    description: "HTML メールの CSS は安全と確認した範囲だけ適用します。JavaScript は実行しません。";
+                    Toggle { checked: true; enabled: false; }
+                }
+                Divider { height: 1px; }
+                SettingRow {
+                    title: "リンクを開く前に確認する";
+                    description: "実際の URL を表示してから、OS の標準ブラウザで開きます。";
+                    Toggle { checked: true; enabled: false; }
+                }
+            }
+
+            if root.page == 4: VerticalLayout {
+                spacing: 2px;
+                PageTitle { text: "開発"; }
+                Rectangle { height: 14px; }
+                MenuRow { icon: @image-url("icons/shield.svg"); label: "セキュリティ検査文書を開く"; clicked => { root.load-security-sample(); } }
+                MenuRow { icon: @image-url("icons/type.svg"); label: "CJK 表示サンプルを開く"; clicked => { root.load-cjk-sample(); } }
+                MenuRow { icon: @image-url("icons/overlap.svg"); label: "重なり検査"; clicked => { root.overlap-test(); } }
+                Rectangle { height: 12px; }
+                Text { text: root.status-text; font-size: Theme.font-s; color: Theme.text-faint; wrap: word-wrap; }
+            }
+
+            if root.page == 5: VerticalLayout {
+                spacing: 8px;
+                PageTitle { text: "Fuu"; }
+                Text { text: "バージョン 0.1.0（M0 スパイク）"; font-size: Theme.font-m; color: Theme.text-muted; }
+                Rectangle { height: 8px; }
+                Text { text: "最小限の機能に絞った、ミニマルなメールクライアント。"; font-size: Theme.font-m; color: Theme.text; wrap: word-wrap; }
+                Text { text: "GNU General Public License v3.0 で配布しています。"; font-size: Theme.font-s; color: Theme.text-faint; wrap: word-wrap; }
+                Text { text: "Slint（GPLv3）、Blitz（MIT / Apache-2.0）ほかのオープンソースソフトウェアを使用しています。"; font-size: Theme.font-s; color: Theme.text-faint; wrap: word-wrap; }
+            }
+        }
+    }
+}

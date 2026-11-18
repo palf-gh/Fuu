@@ -136,6 +136,7 @@ export component SearchField inherits Rectangle {
     in-out property <string> text;
     in property <string> placeholder: "検索";
     height: 30px;
+    clip: true;
     border-radius: Theme.radius-m;
     background: input.has-focus ? Theme.raised : Theme.field;
     border-width: input.has-focus ? 1px : 0px;
@@ -176,7 +177,7 @@ export component ComposeField inherits Rectangle {
         padding-left: root.inset;
         padding-right: root.inset;
         spacing: 12px;
-        Text { text: root.label; width: 40px; color: Theme.text-faint; font-size: Theme.font-m; vertical-alignment: center; }
+        Text { text: root.label; width: 48px; color: Theme.text-faint; font-size: Theme.font-m; vertical-alignment: center; }
         Rectangle {
             input := TextInput {
                 text <=> root.text;
@@ -227,9 +228,15 @@ export component Dialog inherits Rectangle {
     in property <bool> show-cancel: true;
     callback confirmed;
     callback cancelled;
-    background: Theme.scrim;
+    property <bool> shown;
+    init => { self.shown = true; }
+    background: root.shown ? Theme.scrim : Theme.scrim.transparentize(1);
+    animate background { duration: 160ms; easing: ease-out; }
     TouchArea { }  // swallow clicks behind the card
     Rectangle {
+        y: (parent.height - self.height) / 2 + (root.shown ? 0px : 10px);
+        opacity: root.shown ? 1 : 0;
+        animate y, opacity { duration: 200ms; easing: ease-out; }
         width: min(parent.width - 48px, 420px);
         height: layout.preferred-height;
         border-radius: Theme.radius-xl;
@@ -283,62 +290,92 @@ export component CaptionButton inherits Rectangle {
     }
 }
 
-/// One tab in the title-bar tab strip (an open message or a compose draft).
+/// One tab in the title-bar tab strip (a place: mailbox, message, draft or settings).
+/// The outer element keeps its layout slot; the visible chip slides by `shift`
+/// while tabs are being reordered.
 export component Tab inherits Rectangle {
     in property <string> title;
-    in property <bool> is-compose;
+    in property <int> kind;   // 0 mail, 1 compose, 2 settings
     in property <bool> active;
     in property <bool> unseen;
+    in property <length> shift;
+    in property <bool> being-dragged;
     callback activated;
     callback closed;
+    // offset of the pointer since press, and the slot width (tab + spacing)
+    callback drag-moved(length, length);
+    callback drag-ended();
+    property <bool> dragging;
     height: 32px;
     // Shrinks like browser tabs when many are open.
     min-width: 64px;
     preferred-width: 200px;
     max-width: 220px;
     horizontal-stretch: 1;
-    border-radius: Theme.radius-m;
-    background: root.active ? Theme.raised : area.has-hover ? Theme.hover : transparent;
-    drop-shadow-blur: root.active ? 6px : 0px;
-    drop-shadow-offset-y: 1px;
-    drop-shadow-color: Theme.dark ? #00000060 : #0000001a;
-    animate background { duration: 80ms; }
+
     area := TouchArea {
         pointer-event(e) => {
+            if (e.button == PointerEventButton.left && e.kind == PointerEventKind.down) {
+                root.dragging = false;
+                root.activated();
+            }
+            if (e.button == PointerEventButton.left && e.kind == PointerEventKind.up && root.dragging) {
+                root.dragging = false;
+                root.drag-ended();
+            }
             // Middle click closes, like a browser.
             if (e.button == PointerEventButton.middle && e.kind == PointerEventKind.up) { root.closed(); }
         }
-        clicked => { root.activated(); }
+        moved => {
+            if (self.pressed) {
+                if (!root.dragging && abs(self.mouse-x - self.pressed-x) > 4px) { root.dragging = true; }
+                if (root.dragging) { root.drag-moved(self.mouse-x - self.pressed-x, root.width + 4px); }
+            }
+        }
     }
-    row := HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 4px;
-        spacing: 8px;
-        Icon {
-            source: root.is-compose ? @image-url("icons/compose.svg") : @image-url("icons/mail-open.svg");
-            width: 14px;
-            height: 14px;
-            y: (parent.height - self.height) / 2;
-            tint: root.active ? Theme.text-muted : Theme.text-faint;
-        }
-        Text {
-            text: root.title;
-            overflow: elide;
-            horizontal-stretch: 1;
-            font-size: Theme.font-s;
-            font-weight: root.unseen ? 600 : 400;
-            color: root.active || root.unseen ? Theme.text : Theme.text-muted;
-            vertical-alignment: center;
-        }
-        close := Rectangle {
-            width: 22px;
-            height: 22px;
-            y: (parent.height - self.height) / 2;
-            border-radius: Theme.radius-s;
-            opacity: root.active || area.has-hover || close-area.has-hover ? 1 : 0;
-            background: close-area.has-hover ? Theme.pressed : transparent;
-            close-area := TouchArea { clicked => { root.closed(); } }
-            Icon { source: @image-url("icons/close.svg"); width: 12px; height: 12px; tint: Theme.text-faint; }
+
+    chip := Rectangle {
+        x: root.shift;
+        width: root.width;
+        height: root.height;
+        animate x { duration: root.being-dragged ? 0ms : 160ms; easing: ease-out; }
+        border-radius: Theme.radius-m;
+        background: root.active ? Theme.raised : area.has-hover ? Theme.hover : transparent;
+        drop-shadow-blur: root.being-dragged ? 14px : root.active ? 6px : 0px;
+        drop-shadow-offset-y: root.being-dragged ? 4px : 1px;
+        drop-shadow-color: Theme.dark ? #00000060 : #0000001f;
+        animate background, drop-shadow-blur { duration: 120ms; easing: ease-out; }
+        row := HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 4px;
+            spacing: 8px;
+            Icon {
+                source: root.kind == 1 ? @image-url("icons/compose.svg") : root.kind == 2 ? @image-url("icons/settings.svg") : @image-url("icons/mail-open.svg");
+                width: 14px;
+                height: 14px;
+                y: (parent.height - self.height) / 2;
+                tint: root.active ? Theme.text-muted : Theme.text-faint;
+            }
+            Text {
+                text: root.title;
+                overflow: elide;
+                horizontal-stretch: 1;
+                font-size: Theme.font-s;
+                font-weight: root.unseen ? 600 : 400;
+                color: root.active || root.unseen ? Theme.text : Theme.text-muted;
+                vertical-alignment: center;
+            }
+            close := Rectangle {
+                width: 22px;
+                height: 22px;
+                y: (parent.height - self.height) / 2;
+                border-radius: Theme.radius-s;
+                opacity: root.active || area.has-hover || close-area.has-hover ? 1 : 0;
+                animate opacity { duration: 120ms; }
+                background: close-area.has-hover ? Theme.pressed : transparent;
+                close-area := TouchArea { clicked => { root.closed(); } }
+                Icon { source: @image-url("icons/close.svg"); width: 12px; height: 12px; tint: Theme.text-faint; }
+            }
         }
     }
 }

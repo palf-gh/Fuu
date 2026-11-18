@@ -48,3 +48,21 @@ Slint's own drawing.
 
 Select with `FUU_RENDERER=blitz|webview`, or toggle at runtime from the sidebar during
 the spike.
+
+## Right-pane tabs
+
+Tabs belong to the right pane only (`fuu-app/src/tabs.rs`); the message list is
+independent of them and with nothing open there are no tabs.
+
+| Kind | Opened by | Notes |
+|---|---|---|
+| Message / sample | clicking a row (replaces the active viewer tab), middle click (unseen background tab) | |
+| Draft | new, reply, reply all, forward, `mailto:` | from / to / CC / BCC / subject / body; send or discard closes the tab |
+| Settings | title-bar button, Ctrl/Cmd+, | single instance |
+
+Closing the active tab activates the one taking its position; up to 32 tabs and 16
+reopenable closed tabs. Tabs reorder by dragging. Shortcuts: Ctrl/Cmd+T or N (new
+message), W (close), Shift+T (reopen), Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+PgUp/PgDn
+(Cmd+Shift+[ ] on macOS), Ctrl/Cmd+1..8, 9 (last tab).
+
+Settings are held in memory for now; persistence arrives with the M1 config file.
