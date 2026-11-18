@@ -9,8 +9,9 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
 use crate::account::Account;
+use crate::cache::BodyCache;
 use crate::config::{self, AccountsFile};
-use crate::imap::{self, Folder, FolderPage, ImapError, ImapSession};
+use crate::imap::{self, Folder, FolderPage, FolderRole, ImapError, ImapSession};
 use crate::secrets::SecretStore;
 
 /// Number of newest messages loaded per folder (paging arrives with the cache in M2).
@@ -25,6 +26,16 @@ pub enum Command {
     /// Load the folder list and the given folder (INBOX when `None`).
     OpenAccount { account_id: String, folder: Option<String> },
     OpenFolder { account_id: String, path: String },
+    /// Load a message body (cache first), marking it as read on the server.
+    FetchBody { account_id: String, folder: String, uid: u32 },
+    /// Move a message to the account's Trash or Archive folder.
+    Move { account_id: String, folder: String, uid: u32, target: MoveTarget },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MoveTarget {
+    Trash,
+    Archive,
 }
 
 #[derive(Debug, Clone)]
@@ -34,6 +45,9 @@ pub enum Event {
     AccountAddFailed(String),
     Folders { account_id: String, folders: Vec<Folder> },
     Messages { account_id: String, path: String, page: FolderPage },
+    Body { account_id: String, folder: String, uid: u32, raw: Arc<Vec<u8>> },
+    BodyFailed { account_id: String, folder: String, uid: u32, message: String },
+    Moved { account_id: String, folder: String, uid: u32, target: MoveTarget },
     /// Short progress text for the status line.
     Status(String),
     Error(String),
@@ -48,18 +62,31 @@ struct Inner {
     secrets: Arc<dyn SecretStore>,
     accounts: Mutex<AccountsFile>,
     sessions: Mutex<HashMap<String, Arc<Mutex<ImapSession>>>>,
+    /// Last seen UIDVALIDITY per (account, folder), for cache lookups.
+    validity: Mutex<HashMap<(String, String), u32>>,
+    folders: Mutex<HashMap<String, Vec<Folder>>>,
+    cache: Option<BodyCache>,
     emit: Box<dyn Fn(Event) + Send + Sync>,
 }
 
 impl Engine {
     /// Start the engine on its own thread.
-    pub fn start(config_path: PathBuf, secrets: Arc<dyn SecretStore>, on_event: impl Fn(Event) + Send + Sync + 'static) -> Self {
+    /// `cache_path`: SQLite body cache (`None` disables caching).
+    pub fn start(
+        config_path: PathBuf,
+        cache_path: Option<PathBuf>,
+        secrets: Arc<dyn SecretStore>,
+        on_event: impl Fn(Event) + Send + Sync + 'static,
+    ) -> Self {
         let (tx, mut rx) = mpsc::unbounded_channel::<Command>();
         let inner = Arc::new(Inner {
             config_path,
             secrets,
             accounts: Mutex::new(AccountsFile::default()),
             sessions: Mutex::new(HashMap::new()),
+            validity: Mutex::new(HashMap::new()),
+            folders: Mutex::new(HashMap::new()),
+            cache: cache_path.and_then(|p| BodyCache::open(&p).map_err(|e| eprintln!("{e}")).ok()),
             emit: Box::new(on_event),
         });
         std::thread::Builder::new()
@@ -98,6 +125,8 @@ impl Inner {
             Command::RemoveAccount { account_id } => self.remove_account(&account_id).await,
             Command::OpenAccount { account_id, folder } => self.open_account(&account_id, folder).await,
             Command::OpenFolder { account_id, path } => self.open_folder(&account_id, &path).await,
+            Command::FetchBody { account_id, folder, uid } => self.fetch_body(&account_id, &folder, uid).await,
+            Command::Move { account_id, folder, uid, target } => self.move_message(&account_id, &folder, uid, target).await,
         }
     }
 
@@ -152,6 +181,9 @@ impl Inner {
             config::save(&self.config_path, &file).map(|_| file.accounts.clone())
         };
         let _ = self.secrets.delete(account_id);
+        if let Some(cache) = &self.cache {
+            let _ = cache.purge_account(account_id);
+        }
         match saved {
             Ok(list) => self.emit(Event::Accounts(list)),
             Err(e) => self.emit(Event::Error(e.to_string())),
@@ -204,6 +236,7 @@ impl Inner {
                     .filter(|p| folders.iter().any(|f| &f.path == p))
                     .or_else(|| folders.iter().find(|f| f.role == imap::FolderRole::Inbox).map(|f| f.path.clone()))
                     .unwrap_or_else(|| "INBOX".into());
+                self.folders.lock().await.insert(account.id.clone(), folders.clone());
                 self.emit(Event::Folders { account_id: account.id.clone(), folders });
                 self.open_folder(account_id, &path).await;
             }
@@ -223,8 +256,72 @@ impl Inner {
             .await
         {
             Ok(page) => {
+                if let Some(v) = page.uid_validity {
+                    self.validity.lock().await.insert((account.id.clone(), path.to_owned()), v);
+                    if let Some(cache) = &self.cache {
+                        let _ = cache.retain_validity(&account.id, path, v);
+                    }
+                }
                 self.emit(Event::Status(String::new()));
                 self.emit(Event::Messages { account_id: account.id.clone(), path: path.to_owned(), page });
+            }
+            Err(e) => self.emit(Event::Error(e)),
+        }
+    }
+
+    async fn fetch_body(&self, account_id: &str, folder: &str, uid: u32) {
+        let Some(account) = self.account(account_id).await else { return };
+        let known = self.validity.lock().await.get(&(account.id.clone(), folder.to_owned())).copied();
+        if let (Some(cache), Some(v)) = (&self.cache, known) {
+            if let Ok(Some(raw)) = cache.get(&account.id, folder, v, uid) {
+                return self.emit(Event::Body { account_id: account.id, folder: folder.to_owned(), uid, raw: Arc::new(raw) });
+            }
+        }
+        let path = folder.to_owned();
+        let result = self
+            .with_session(&account, move |s| {
+                let path = path.clone();
+                Box::pin(async move { imap::fetch_body(s, &path, uid).await })
+            })
+            .await;
+        match result {
+            Ok((validity, raw)) => {
+                if let Some(cache) = &self.cache {
+                    let _ = cache.put(&account.id, folder, validity, uid, &raw);
+                }
+                self.emit(Event::Body { account_id: account.id, folder: folder.to_owned(), uid, raw: Arc::new(raw) });
+            }
+            Err(message) => self.emit(Event::BodyFailed { account_id: account.id, folder: folder.to_owned(), uid, message }),
+        }
+    }
+
+    async fn move_message(&self, account_id: &str, folder: &str, uid: u32, target: MoveTarget) {
+        let Some(account) = self.account(account_id).await else { return };
+        let role = match target {
+            MoveTarget::Trash => FolderRole::Trash,
+            MoveTarget::Archive => FolderRole::Archive,
+        };
+        let destination = self.folders.lock().await.get(&account.id).and_then(|list| list.iter().find(|f| f.role == role && f.selectable).map(|f| f.path.clone()));
+        let Some(destination) = destination else {
+            let name = if target == MoveTarget::Trash { "ゴミ箱" } else { "アーカイブ" };
+            return self.emit(Event::Error(format!("{name}フォルダーが見つかりません")));
+        };
+        if destination == folder {
+            return self.emit(Event::Error("すでにそのフォルダーにあります".into()));
+        }
+        let (from, to) = (folder.to_owned(), destination.clone());
+        match self
+            .with_session(&account, move |s| {
+                let (from, to) = (from.clone(), to.clone());
+                Box::pin(async move { imap::move_message(s, &from, uid, &to).await })
+            })
+            .await
+        {
+            Ok(()) => {
+                if let Some(cache) = &self.cache {
+                    let _ = cache.remove(&account.id, folder, uid);
+                }
+                self.emit(Event::Moved { account_id: account.id, folder: folder.to_owned(), uid, target });
             }
             Err(e) => self.emit(Event::Error(e)),
         }

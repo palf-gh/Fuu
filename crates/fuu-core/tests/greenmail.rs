@@ -109,7 +109,7 @@ fn engine_adds_account_and_loads_inbox() {
     let config = dir.path().join("accounts.toml");
     let secrets = Arc::new(MemoryStore::default());
     let (tx, rx) = mpsc::channel();
-    let engine = Engine::start(config.clone(), secrets.clone(), move |event| {
+    let engine = Engine::start(config.clone(), Some(dir.path().join("cache.sqlite")), secrets.clone(), move |event| {
         let _ = tx.send(event);
     });
     engine.send(Command::LoadAccounts);
@@ -136,6 +136,19 @@ fn engine_adds_account_and_loads_inbox() {
     let Event::Messages { page, path, .. } = wait_for(&rx, |e| matches!(e, Event::Messages { .. })) else { unreachable!() };
     assert_eq!(path, "INBOX");
     assert!(page.messages.iter().any(|m| m.subject == "Colour proposal"));
+
+    // Body: fetched, parsed, marked as read on the server, then served from the cache.
+    let target = page.messages.iter().find(|m| m.subject == "Colour proposal").unwrap().clone();
+    engine.send(Command::FetchBody { account_id: added.id.clone(), folder: "INBOX".into(), uid: target.uid });
+    let Event::Body { raw, .. } = wait_for(&rx, |e| matches!(e, Event::Body { .. })) else { unreachable!() };
+    let parsed = fuu_parser::MessageParser::parse(&fuu_parser::mailparser::MailParserEngine, &raw, &Default::default()).unwrap();
+    assert_eq!(parsed.headers.subject, "Colour proposal");
+    engine.send(Command::OpenFolder { account_id: added.id.clone(), path: "INBOX".into() });
+    let Event::Messages { page, .. } = wait_for(&rx, |e| matches!(e, Event::Messages { .. })) else { unreachable!() };
+    assert!(page.messages.iter().find(|m| m.uid == target.uid).unwrap().seen, "opening marks as read");
+    engine.send(Command::FetchBody { account_id: added.id.clone(), folder: "INBOX".into(), uid: target.uid });
+    let Event::Body { raw: cached, .. } = wait_for(&rx, |e| matches!(e, Event::Body { .. })) else { unreachable!() };
+    assert_eq!(cached, raw);
 
     engine.send(Command::RemoveAccount { account_id: added.id.clone() });
     wait_for(&rx, |e| matches!(e, Event::Accounts(list) if list.is_empty()));

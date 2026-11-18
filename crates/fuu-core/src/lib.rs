@@ -1,6 +1,7 @@
 //! Mail engine (accounts, IMAP/SMTP, OAuth, cache, compose). UI independent.
 
 pub mod account;
+pub mod cache;
 pub mod config;
 pub mod engine;
 pub mod imap;

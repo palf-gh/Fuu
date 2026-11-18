@@ -305,6 +305,68 @@ pub async fn fetch_summaries(session: &mut ImapSession, path: &str, limit: u32) 
     .await
 }
 
+
+/// Fetch the full raw message (without setting \\Seen), then mark it as read.
+/// Returns the folder's UIDVALIDITY with the bytes.
+pub async fn fetch_body(session: &mut ImapSession, path: &str, uid: u32) -> Result<(u32, Vec<u8>), ImapError> {
+    timed(COMMAND_TIMEOUT, async {
+        let mailbox = session.select(path).await.map_err(protocol)?;
+        let fetches: Vec<Fetch> = session
+            .uid_fetch(uid.to_string(), "(UID BODY.PEEK[])")
+            .await
+            .map_err(protocol)?
+            .try_collect()
+            .await
+            .map_err(protocol)?;
+        let raw = fetches
+            .iter()
+            .find(|f| f.uid == Some(uid))
+            .or(fetches.first())
+            .and_then(|f| f.body())
+            .map(<[u8]>::to_vec)
+            .ok_or_else(|| ImapError::Protocol(format!("UID {uid} のメールが見つかりません")))?;
+        let _: Vec<Fetch> = session
+            .uid_store(uid.to_string(), "+FLAGS.SILENT (\\Seen)")
+            .await
+            .map_err(protocol)?
+            .try_collect()
+            .await
+            .map_err(protocol)?;
+        Ok((mailbox.uid_validity.unwrap_or_default(), raw))
+    })
+    .await
+}
+
+/// Move a message to another folder: UID MOVE when supported, otherwise
+/// COPY + \\Deleted + (UID) EXPUNGE.
+pub async fn move_message(session: &mut ImapSession, from: &str, uid: u32, to: &str) -> Result<(), ImapError> {
+    timed(COMMAND_TIMEOUT, async {
+        let capabilities = session.capabilities().await.map_err(protocol)?;
+        let can_move = capabilities.has_str("MOVE");
+        let uidplus = capabilities.has_str("UIDPLUS");
+        drop(capabilities);
+        session.select(from).await.map_err(protocol)?;
+        if can_move {
+            return session.uid_mv(uid.to_string(), to).await.map_err(protocol);
+        }
+        session.uid_copy(uid.to_string(), to).await.map_err(protocol)?;
+        let _: Vec<Fetch> = session
+            .uid_store(uid.to_string(), "+FLAGS.SILENT (\\Deleted)")
+            .await
+            .map_err(protocol)?
+            .try_collect()
+            .await
+            .map_err(protocol)?;
+        if uidplus {
+            let _: Vec<_> = session.uid_expunge(uid.to_string()).await.map_err(protocol)?.try_collect().await.map_err(protocol)?;
+        } else {
+            let _: Vec<_> = session.expunge().await.map_err(protocol)?.try_collect().await.map_err(protocol)?;
+        }
+        Ok(())
+    })
+    .await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

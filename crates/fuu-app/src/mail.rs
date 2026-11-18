@@ -81,7 +81,7 @@ pub fn start(ui: &AppWindow, spike: bool) {
         }
     };
     let weak = ui.as_weak();
-    let engine = Engine::start(config_path, Arc::new(KeychainStore), move |event| {
+    let engine = Engine::start(config_path, fuu_core::cache::default_path(), Arc::new(KeychainStore), move |event| {
         let weak = weak.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = weak.upgrade() {
