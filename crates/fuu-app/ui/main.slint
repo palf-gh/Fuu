@@ -111,6 +111,7 @@ export component AppWindow inherits Window {
     callback row-selected(int);
     callback page-clicked(length, length);
     callback page-pointer-moved(length, length);
+    callback page-pointer-left();
     callback toggle-renderer();
     callback load-security-sample();
     callback load-cjk-sample();
@@ -227,7 +228,10 @@ export component AppWindow inherits Window {
                         height: root.page-height;
                         mouse-cursor: root.page-link-hover ? pointer : default;
                         clicked => { root.page-clicked(self.pressed-x, self.pressed-y); }
-                        moved => { root.page-pointer-moved(self.mouse-x, self.mouse-y); }
+                        // `moved` only fires while pressed; track hover via the mouse position.
+                        changed mouse-x => { root.page-pointer-moved(self.mouse-x, self.mouse-y); }
+                        changed mouse-y => { root.page-pointer-moved(self.mouse-x, self.mouse-y); }
+                        changed has-hover => { if (!self.has-hover) { root.page-pointer-left(); } }
                     }
                 }
                 if root.use-fallback: ScrollView {

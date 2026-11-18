@@ -175,6 +175,22 @@ impl BlitzRenderer {
         (self.sink)(RenderedPage { width, height, scale: self.scale, rgba_premultiplied: rgba });
     }
 
+    /// Diagnostic: the element chain under a point and the resolved href.
+    pub fn debug_href_at(&self, x: f32, y: f32) -> (Vec<String>, Option<String>) {
+        let mut chain = Vec::new();
+        if let Some(doc) = self.doc.as_ref() {
+            let mut node_id = doc.element_from_point(x / self.scale, y / self.scale);
+            while let Some(id) = node_id {
+                let Some(node) = doc.get_node(id) else { break };
+                if let Some(e) = node.element_data() {
+                    chain.push(e.name.local.to_string());
+                }
+                node_id = node.parent;
+            }
+        }
+        (chain, self.href_at(x, y))
+    }
+
     /// The `href` of the link under physical document coordinates, if any.
     fn href_at(&self, x: f32, y: f32) -> Option<String> {
         let doc = self.doc.as_ref()?;
@@ -241,8 +257,9 @@ impl BodyRenderer for BlitzRenderer {
         }
     }
 
+    /// Only links the host would act on count; `javascript:` and the like are inert.
     fn link_at(&self, x: f32, y: f32) -> bool {
-        self.href_at(x, y).is_some()
+        self.href_at(x, y).is_some_and(|href| classify_link(&href).is_some())
     }
 
     fn set_scale_factor(&mut self, scale: f32) {
@@ -322,5 +339,21 @@ mod tests {
         r.pointer_click(10.0, 10.0);
         assert_eq!(links.borrow().as_slice(), &[crate::LinkRequest::Web("https://example.org/".into())]);
         assert!(!r.link_at(10.0, 220.0));
+    }
+}
+
+#[cfg(test)]
+mod inert_link_tests {
+    use super::*;
+
+    #[test]
+    fn javascript_links_are_not_reported_as_links() {
+        let mut r = BlitzRenderer::new(Box::new(|_| {}), Box::new(|_| {}));
+        r.set_bounds(Rect { x: 0, y: 0, width: 300, height: 100 }).unwrap();
+        let html = r#"<body style="margin:0"><a href="javascript:alert(1)" style="display:block;height:30px">x</a>
+            <a href="mailto:a@example.com" style="display:block;height:30px">m</a></body>"#;
+        r.show(&SafeDocument { html: html.into(), ..SafeDocument::default() }, RemoteContentPolicy::Block).unwrap();
+        assert!(!r.link_at(5.0, 10.0));
+        assert!(r.link_at(5.0, 40.0));
     }
 }

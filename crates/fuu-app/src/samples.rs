@@ -117,3 +117,21 @@ mod tests {
         assert_eq!(&bytes[..8], b"\x89PNG\r\n\x1a\n");
     }
 }
+
+#[cfg(test)]
+mod hit_probe {
+    use fuu_render::blitz::BlitzRenderer;
+    use fuu_render::{BodyRenderer, Rect, RemoteContentPolicy};
+
+    #[test]
+    #[ignore]
+    fn probe_links_in_security_document() {
+        let mut r = BlitzRenderer::new(Box::new(|_| {}), Box::new(|_| {}));
+        r.set_bounds(Rect { x: 0, y: 0, width: 800, height: 600 }).unwrap();
+        r.show(&super::security_document(), RemoteContentPolicy::Block).unwrap();
+        for y in (0..900).step_by(30) {
+            let row: String = (0..800).step_by(40).map(|x| if r.link_at(x as f32, y as f32) { '#' } else { '.' }).collect();
+            println!("{y:4} {row} {:?}", r.debug_href_at(400.0, y as f32));
+        }
+    }
+}

@@ -300,6 +300,14 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     {
+        let weak = ui.as_weak();
+        ui.on_page_pointer_left(move || {
+            if let Some(ui) = weak.upgrade() {
+                ui.set_page_link_hover(false);
+            }
+        });
+    }
+    {
         let wanted = wanted_engine.clone();
         ui.on_toggle_renderer(move || {
             let next = wanted.borrow().other();
