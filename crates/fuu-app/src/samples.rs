@@ -130,7 +130,7 @@ mod hit_probe {
         r.set_bounds(Rect { x: 0, y: 0, width: 800, height: 600 }).unwrap();
         r.show(&super::security_document(), RemoteContentPolicy::Block).unwrap();
         for y in (0..900).step_by(30) {
-            let row: String = (0..800).step_by(40).map(|x| if r.link_at(x as f32, y as f32) { '#' } else { '.' }).collect();
+            let row: String = (0..800).step_by(40).map(|x| if r.hover(x as f32, y as f32) == fuu_render::Cursor::Pointer { '#' } else { '.' }).collect();
             println!("{y:4} {row} {:?}", r.debug_href_at(400.0, y as f32));
         }
     }
