@@ -170,10 +170,11 @@ export component ComposeField inherits Rectangle {
     in property <string> label;
     in property <string> placeholder;
     in-out property <string> text;
+    in property <length> inset: 24px;
     height: 44px;
     HorizontalLayout {
-        padding-left: 24px;
-        padding-right: 24px;
+        padding-left: root.inset;
+        padding-right: root.inset;
         spacing: 12px;
         Text { text: root.label; width: 40px; color: Theme.text-faint; font-size: Theme.font-m; vertical-alignment: center; }
         Rectangle {
@@ -194,7 +195,7 @@ export component ComposeField inherits Rectangle {
             }
         }
     }
-    Divider { y: parent.height - 1px; height: 1px; x: 24px; width: parent.width - 48px; }
+    Divider { y: parent.height - 1px; height: 1px; x: root.inset; width: parent.width - 2 * root.inset; }
 }
 
 /// A plain menu row for popups.
@@ -279,5 +280,65 @@ export component CaptionButton inherits Rectangle {
         width: 14px;
         height: 14px;
         tint: area.has-hover && root.is-close ? #ffffff : Theme.text-muted;
+    }
+}
+
+/// One tab in the title-bar tab strip (an open message or a compose draft).
+export component Tab inherits Rectangle {
+    in property <string> title;
+    in property <bool> is-compose;
+    in property <bool> active;
+    in property <bool> unseen;
+    callback activated;
+    callback closed;
+    height: 32px;
+    // Shrinks like browser tabs when many are open.
+    min-width: 64px;
+    preferred-width: 200px;
+    max-width: 220px;
+    horizontal-stretch: 1;
+    border-radius: Theme.radius-m;
+    background: root.active ? Theme.raised : area.has-hover ? Theme.hover : transparent;
+    drop-shadow-blur: root.active ? 6px : 0px;
+    drop-shadow-offset-y: 1px;
+    drop-shadow-color: Theme.dark ? #00000060 : #0000001a;
+    animate background { duration: 80ms; }
+    area := TouchArea {
+        pointer-event(e) => {
+            // Middle click closes, like a browser.
+            if (e.button == PointerEventButton.middle && e.kind == PointerEventKind.up) { root.closed(); }
+        }
+        clicked => { root.activated(); }
+    }
+    row := HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 4px;
+        spacing: 8px;
+        Icon {
+            source: root.is-compose ? @image-url("icons/compose.svg") : @image-url("icons/mail-open.svg");
+            width: 14px;
+            height: 14px;
+            y: (parent.height - self.height) / 2;
+            tint: root.active ? Theme.text-muted : Theme.text-faint;
+        }
+        Text {
+            text: root.title;
+            overflow: elide;
+            horizontal-stretch: 1;
+            font-size: Theme.font-s;
+            font-weight: root.unseen ? 600 : 400;
+            color: root.active || root.unseen ? Theme.text : Theme.text-muted;
+            vertical-alignment: center;
+        }
+        close := Rectangle {
+            width: 22px;
+            height: 22px;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.radius-s;
+            opacity: root.active || area.has-hover || close-area.has-hover ? 1 : 0;
+            background: close-area.has-hover ? Theme.pressed : transparent;
+            close-area := TouchArea { clicked => { root.closed(); } }
+            Icon { source: @image-url("icons/close.svg"); width: 12px; height: 12px; tint: Theme.text-faint; }
+        }
     }
 }

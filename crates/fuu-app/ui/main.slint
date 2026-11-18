@@ -6,7 +6,7 @@ import { ListView, TextEdit, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import {
     Divider, Icon, IconButton, PrimaryButton, SecondaryButton, Avatar, NavItem,
-    SearchField, ComposeField, Dialog, MenuRow, CaptionButton,
+    SearchField, ComposeField, Dialog, MenuRow, CaptionButton, Tab,
 } from "components.slint";
 
 export struct MessageRow {
@@ -19,10 +19,17 @@ export struct MessageRow {
     avatar: int,
 }
 
+export struct TabItem {
+    title: string,
+    compose: bool,
+    unseen: bool,
+}
+
 component MessageItem inherits Rectangle {
     in property <MessageRow> message;
     in property <bool> selected;
     callback clicked;
+    callback open-in-background;
     height: 80px;
     Rectangle {
         x: 10px;
@@ -32,7 +39,12 @@ component MessageItem inherits Rectangle {
         border-radius: Theme.radius-l;
         background: root.selected ? Theme.selected : area.has-hover ? Theme.hover : transparent;
         animate background { duration: 80ms; }
-        area := TouchArea { clicked => { root.clicked(); } }
+        area := TouchArea {
+            clicked => { root.clicked(); }
+            pointer-event(e) => {
+                if (e.button == PointerEventButton.middle && e.kind == PointerEventKind.up) { root.open-in-background(); }
+            }
+        }
         // Unread marker in the left gutter
         if root.message.unread: Rectangle {
             x: 7px;
@@ -135,6 +147,11 @@ export component AppWindow inherits Window {
     in-out property <string> search-text;
     in-out property <bool> searching;
     in property <string> mailbox: "受信トレイ";
+    in property <string> account-name: "Fuu spike";
+    in property <string> account-email: "spike@fuu.invalid";
+    in property <int> account-hue: 0;
+    in property <[TabItem]> tabs;
+    in property <int> active-tab: -1;
 
     // Geometry of the reader body, in logical pixels relative to the window.
     out property <length> reader-x: reader-host.absolute-position.x;
@@ -170,7 +187,41 @@ export component AppWindow inherits Window {
     callback close-window();
     // Edge resize; direction: 0 N, 1 S, 2 E, 3 W, 4 NE, 5 NW, 6 SE, 7 SW
     callback resize-window(int);
+    callback tab-activated(int);
+    callback row-open-in-tab(int);
+    // Tab shortcuts
+    callback new-tab();
+    callback close-active-tab();
+    callback reopen-closed-tab();
+    callback cycle-tab(int);
+    callback select-tab(int);
+    callback tab-closed(int);
+    callback discard-compose();
+    callback compose-to-address(string);
 
+    shortcuts := FocusScope {
+      init => { self.focus(); }
+      // Keys bubble up here when the focused element does not use them.
+      key-pressed(e) => {
+        if (root.is-mac ? e.modifiers.meta : e.modifiers.control) {
+            if (e.text == "t" || e.text == "T") {
+                if (e.modifiers.shift) { root.reopen-closed-tab(); } else { root.new-tab(); }
+                return accept;
+            }
+            if (e.text == "w" || e.text == "W") { root.close-active-tab(); return accept; }
+            if (e.text == "9") { root.select-tab(-1); return accept; }
+            if (e.text >= "1" && e.text <= "8" && e.text.character-count == 1) { root.select-tab(e.text.to-float() - 1); return accept; }
+            if (root.is-mac && e.modifiers.shift && (e.text == "]" || e.text == "}")) { root.cycle-tab(1); return accept; }
+            if (root.is-mac && e.modifiers.shift && (e.text == "[" || e.text == "{")) { root.cycle-tab(-1); return accept; }
+        }
+        if (e.modifiers.control) {
+            if (e.text == Key.Tab) { root.cycle-tab(e.modifiers.shift ? -1 : 1); return accept; }
+            if (e.text == Key.Backtab) { root.cycle-tab(-1); return accept; }
+            if (e.text == Key.PageDown) { root.cycle-tab(1); return accept; }
+            if (e.text == Key.PageUp) { root.cycle-tab(-1); return accept; }
+        }
+        return reject;
+      }
     VerticalLayout {
         // ───────────── Title bar
         Rectangle {
@@ -184,28 +235,52 @@ export component AppWindow inherits Window {
                 }
             }
             HorizontalLayout {
-                padding-left: root.is-mac ? 84px : 14px;
                 padding-right: root.is-mac ? 14px : 0px;
                 spacing: 6px;
 
-                // Mailbox and account switcher
-                mailbox-button := Rectangle {
-                    width: mailbox-row.preferred-width;
-                    height: 32px;
-                    y: (parent.height - self.height) / 2;
-                    border-radius: Theme.radius-m;
-                    background: mailbox-area.has-hover ? Theme.hover : transparent;
-                    mailbox-area := TouchArea { clicked => { mailbox-popup.show(); } }
-                    mailbox-row := HorizontalLayout {
-                        padding-left: 8px;
-                        padding-right: 8px;
-                        spacing: 6px;
-                        Text { text: root.mailbox; font-size: Theme.font-l; font-weight: 600; color: Theme.text; vertical-alignment: center; }
-                        Icon { source: @image-url("icons/chevron-down.svg"); width: 13px; height: 13px; y: (parent.height - self.height) / 2; tint: Theme.text-faint; }
+                // Left block, as wide as the message list: the current account.
+                HorizontalLayout {
+                    padding-left: root.is-mac ? 84px : 12px;
+                    account-button := Rectangle {
+                        width: account-row.preferred-width;
+                        height: 32px;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: Theme.radius-m;
+                        background: account-area.has-hover ? Theme.hover : transparent;
+                        account-area := TouchArea { clicked => { account-popup.show(); } }
+                        account-row := HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 8px;
+                            spacing: 8px;
+                            Avatar { initials: "F"; hue: root.account-hue; size: 22px; y: (parent.height - self.height) / 2; }
+                            VerticalLayout {
+                                alignment: center;
+                                Text { text: root.account-name; font-size: Theme.font-s; font-weight: 600; color: Theme.text; }
+                                Text { text: root.account-email; font-size: Theme.font-xs; color: Theme.text-faint; }
+                            }
+                            Icon { source: @image-url("icons/chevron-down.svg"); width: 13px; height: 13px; y: (parent.height - self.height) / 2; tint: Theme.text-faint; }
+                        }
                     }
                 }
 
-                Rectangle { horizontal-stretch: 1; }
+                // Tab strip: each tab is a place (mailbox, open message, draft).
+                HorizontalLayout {
+                    spacing: 4px;
+                    padding-left: 8px;
+                    horizontal-stretch: 1;
+                    min-width: 0px;
+                    for tab[i] in root.tabs: Tab {
+                        y: (parent.height - self.height) / 2;
+                        title: tab.title;
+                        is-compose: tab.compose;
+                        active: i == root.active-tab;
+                        unseen: tab.unseen;
+                        activated => { root.tab-activated(i); }
+                        closed => { root.tab-closed(i); }
+                    }
+                    // Free space after the tabs stays draggable.
+                    Rectangle { horizontal-stretch: 100; min-width: 24px; }
+                }
                 if root.searching: SearchField {
                     width: 280px;
                     y: (parent.height - self.height) / 2;
@@ -240,8 +315,31 @@ export component AppWindow inherits Window {
 
         HorizontalLayout {
             // ───────────── Message list
-            ListView {
-                width: 380px;
+            VerticalLayout {
+              width: 380px;
+              HorizontalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                padding-top: 2px;
+                padding-bottom: 8px;
+                mailbox-button := Rectangle {
+                    width: mailbox-row.preferred-width;
+                    height: 30px;
+                    border-radius: Theme.radius-m;
+                    background: mailbox-area.has-hover ? Theme.hover : transparent;
+                    mailbox-area := TouchArea { clicked => { mailbox-popup.show(); } }
+                    mailbox-row := HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 6px;
+                        Text { text: root.mailbox; font-size: Theme.font-l; font-weight: 600; color: Theme.text; vertical-alignment: center; }
+                        Text { text: root.messages.length; font-size: Theme.font-s; color: Theme.text-faint; vertical-alignment: center; }
+                        Icon { source: @image-url("icons/chevron-down.svg"); width: 13px; height: 13px; y: (parent.height - self.height) / 2; tint: Theme.text-faint; }
+                    }
+                }
+                Rectangle { horizontal-stretch: 1; }
+              }
+              ListView {
                 for row[i] in root.messages: MessageItem {
                     message: row;
                     selected: i == root.current-row;
@@ -249,7 +347,9 @@ export component AppWindow inherits Window {
                         root.current-row = i;
                         root.row-selected(i);
                     }
+                    open-in-background => { root.row-open-in-tab(i); }
                 }
+              }
             }
             Divider { width: 1px; }
 
@@ -260,7 +360,7 @@ export component AppWindow inherits Window {
                 horizontal-stretch: 0;
                 preferred-width: 760px;
                 min-width: 320px;
-                if root.has-message: VerticalLayout {
+                if root.has-message && !root.composing: VerticalLayout {
                     padding-left: 40px;
                     padding-right: 40px;
                     padding-top: 28px;
@@ -330,7 +430,7 @@ export component AppWindow inherits Window {
 
                 reader-host := Rectangle {
                     vertical-stretch: 1;
-                    if root.use-page-image && root.has-message: page-focus := FocusScope {
+                    if root.use-page-image && root.has-message && !root.composing: page-focus := FocusScope {
                         // Visible-area y of the pointer while dragging (for auto-scroll).
                         property <length> drag-visible-y;
                         key-pressed(event) => {
@@ -413,7 +513,7 @@ export component AppWindow inherits Window {
                             }
                         }
                     }
-                    if root.use-fallback && root.has-message: ScrollView {
+                    if root.use-fallback && root.has-message && !root.composing: ScrollView {
                         VerticalLayout {
                             padding-left: 40px;
                             padding-right: 40px;
@@ -421,8 +521,40 @@ export component AppWindow inherits Window {
                             Text { text: root.fallback-text; wrap: word-wrap; color: Theme.text; }
                         }
                     }
+                    // Inline composer (a compose tab is active)
+                    if root.composing: VerticalLayout {
+                        padding-left: 40px;
+                        padding-right: 40px;
+                        padding-top: 26px;
+                        padding-bottom: 18px;
+                        Text { text: root.compose-title; font-size: Theme.font-xl; font-weight: 600; color: Theme.text; }
+                        Rectangle { height: 12px; }
+                        ComposeField { inset: 0px; label: "宛先"; placeholder: "name@example.com"; text <=> root.compose-to; }
+                        ComposeField { inset: 0px; label: "件名"; placeholder: "件名"; text <=> root.compose-subject; }
+                        Rectangle { height: 12px; }
+                        TextEdit {
+                            vertical-stretch: 1;
+                            text <=> root.compose-body;
+                            wrap: word-wrap;
+                            font-size: 14px;
+                        }
+                        Rectangle { height: 14px; }
+                        HorizontalLayout {
+                            spacing: 4px;
+                            PrimaryButton {
+                                text: "送信";
+                                icon: @image-url("icons/send.svg");
+                                has-icon: true;
+                                clicked => { root.send-compose(); }
+                            }
+                            Rectangle { width: 6px; }
+                            IconButton { icon: @image-url("icons/paperclip.svg"); y: 2px; }
+                            Rectangle { horizontal-stretch: 1; }
+                            IconButton { icon: @image-url("icons/trash.svg"); y: 2px; clicked => { root.discard-compose(); } }
+                        }
+                    }
                     // Empty state
-                    if !root.has-message: VerticalLayout {
+                    if !root.has-message && !root.composing: VerticalLayout {
                         alignment: center;
                         spacing: 10px;
                         HorizontalLayout {
@@ -438,11 +570,52 @@ export component AppWindow inherits Window {
         }
     }
 
+    }
+
     // ───────────── Popups
+    account-popup := PopupWindow {
+        x: account-button.absolute-position.x;
+        y: 44px;
+        width: 260px;
+        Rectangle {
+            border-radius: Theme.radius-l;
+            background: Theme.raised;
+            drop-shadow-blur: 24px;
+            drop-shadow-offset-y: 6px;
+            drop-shadow-color: #00000026;
+            border-width: 1px;
+            border-color: Theme.hairline;
+            VerticalLayout {
+                padding: 6px;
+                spacing: 1px;
+                Rectangle {
+                    height: 44px;
+                    border-radius: Theme.radius-s;
+                    background: Theme.selected;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 10px;
+                        Avatar { initials: "F"; hue: root.account-hue; size: 24px; y: (parent.height - self.height) / 2; }
+                        VerticalLayout {
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            Text { text: root.account-name; font-size: Theme.font-s; font-weight: 600; color: Theme.text; }
+                            Text { text: root.account-email; font-size: Theme.font-xs; color: Theme.text-faint; }
+                        }
+                        Text { text: "使用中"; font-size: Theme.font-xs; color: Theme.text-faint; vertical-alignment: center; }
+                    }
+                }
+                Rectangle { height: 4px; }
+                MenuRow { icon: @image-url("icons/plus.svg"); label: "アカウントを追加"; trailing: "M1"; }
+            }
+        }
+    }
+
     mailbox-popup := PopupWindow {
         x: mailbox-button.absolute-position.x;
-        y: 44px;
-        width: 248px;
+        y: mailbox-button.absolute-position.y + mailbox-button.height + 4px;
+        width: 220px;
         Rectangle {
             border-radius: Theme.radius-l;
             background: Theme.raised;
@@ -459,23 +632,6 @@ export component AppWindow inherits Window {
                 MenuRow { icon: @image-url("icons/draft.svg"); label: "下書き"; trailing: "2"; }
                 MenuRow { icon: @image-url("icons/archive.svg"); label: "アーカイブ"; }
                 MenuRow { icon: @image-url("icons/trash.svg"); label: "ゴミ箱"; }
-                Rectangle { height: 5px; }
-                Divider { height: 1px; }
-                Rectangle { height: 5px; }
-                Rectangle {
-                    height: 40px;
-                    HorizontalLayout {
-                        padding-left: 10px;
-                        spacing: 10px;
-                        Avatar { initials: "F"; hue: 0; size: 22px; y: (parent.height - self.height) / 2; }
-                        VerticalLayout {
-                            alignment: center;
-                            Text { text: "Fuu spike"; font-size: Theme.font-s; font-weight: 600; color: Theme.text; }
-                            Text { text: "spike@fuu.invalid"; font-size: Theme.font-xs; color: Theme.text-faint; }
-                        }
-                    }
-                }
-                MenuRow { icon: @image-url("icons/plus.svg"); label: "アカウントを追加"; trailing: "M1"; }
             }
         }
     }
@@ -511,66 +667,6 @@ export component AppWindow inherits Window {
                     Text { text: root.status-text; wrap: word-wrap; font-size: Theme.font-xs; color: Theme.text-faint; }
                 }
                 Rectangle { height: 4px; }
-            }
-        }
-    }
-
-    // ───────────── Composer sheet
-    if root.composing: Rectangle {
-        background: Theme.scrim;
-        TouchArea { }
-        Rectangle {
-            width: min(parent.width - 96px, 720px);
-            height: min(parent.height - 96px, 600px);
-            border-radius: Theme.radius-xl;
-            background: Theme.raised;
-            drop-shadow-blur: 40px;
-            drop-shadow-offset-y: 14px;
-            drop-shadow-color: #00000033;
-            clip: true;
-            VerticalLayout {
-                Rectangle {
-                    height: 52px;
-                    HorizontalLayout {
-                        padding-left: 24px;
-                        padding-right: 12px;
-                        Text { text: root.compose-title; font-size: Theme.font-l; font-weight: 600; color: Theme.text; vertical-alignment: center; horizontal-stretch: 1; }
-                        IconButton { icon: @image-url("icons/close.svg"); y: (parent.height - self.height) / 2; clicked => { root.composing = false; } }
-                    }
-                }
-                ComposeField { label: "宛先"; placeholder: "name@example.com"; text <=> root.compose-to; }
-                ComposeField { label: "件名"; placeholder: "件名"; text <=> root.compose-subject; }
-                Rectangle {
-                    vertical-stretch: 1;
-                    TextEdit {
-                        x: 16px;
-                        y: 10px;
-                        width: parent.width - 32px;
-                        height: parent.height - 16px;
-                        text <=> root.compose-body;
-                        wrap: word-wrap;
-                        font-size: 14px;
-                    }
-                }
-                Rectangle {
-                    height: 60px;
-                    HorizontalLayout {
-                        padding-left: 20px;
-                        padding-right: 16px;
-                        spacing: 4px;
-                        PrimaryButton {
-                            text: "送信";
-                            icon: @image-url("icons/send.svg");
-                            has-icon: true;
-                            y: (parent.height - self.height) / 2;
-                            clicked => { root.send-compose(); }
-                        }
-                        Rectangle { width: 6px; }
-                        IconButton { icon: @image-url("icons/paperclip.svg"); y: (parent.height - self.height) / 2; }
-                        Rectangle { horizontal-stretch: 1; }
-                        IconButton { icon: @image-url("icons/trash.svg"); y: (parent.height - self.height) / 2; clicked => { root.composing = false; } }
-                    }
-                }
             }
         }
     }
