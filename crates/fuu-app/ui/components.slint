@@ -300,20 +300,30 @@ export component Tab inherits Rectangle {
     in property <bool> unseen;
     in property <length> shift;
     in property <bool> being-dragged;
+    // Plays the shrink-out before Rust removes the tab.
+    in property <bool> closing;
     callback activated;
     callback closed;
     // offset of the pointer since press, and the slot width (tab + spacing)
     callback drag-moved(length, length);
     callback drag-ended();
     property <bool> dragging;
+    // 0 → 1 when the tab appears, back to 0 while it closes.
+    property <bool> appeared;
+    property <float> presence: root.closing ? 0 : root.appeared ? 1 : 0;
+    animate presence { duration: 170ms; easing: ease-out; }
+    init => { self.appeared = true; }
     height: 32px;
     // Shrinks like browser tabs when many are open.
-    min-width: 64px;
-    preferred-width: 200px;
-    max-width: 220px;
+    min-width: 64px * root.presence;
+    preferred-width: 200px * root.presence;
+    max-width: 220px * root.presence;
     horizontal-stretch: 1;
+    opacity: root.presence;
+    clip: true;
 
     area := TouchArea {
+        enabled: !root.closing;
         pointer-event(e) => {
             if (e.button == PointerEventButton.left && e.kind == PointerEventKind.down) {
                 root.dragging = false;
@@ -373,7 +383,7 @@ export component Tab inherits Rectangle {
                 opacity: root.active || area.has-hover || close-area.has-hover ? 1 : 0;
                 animate opacity { duration: 120ms; }
                 background: close-area.has-hover ? Theme.pressed : transparent;
-                close-area := TouchArea { clicked => { root.closed(); } }
+                close-area := TouchArea { enabled: !root.closing; clicked => { root.closed(); } }
                 Icon { source: @image-url("icons/close.svg"); width: 12px; height: 12px; tint: Theme.text-faint; }
             }
         }

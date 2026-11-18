@@ -22,7 +22,6 @@ cargo run -p fuu-app --features skia
 SLINT_BACKEND=winit-skia cargo run -p fuu-app --features skia
 ```
 
-Windows needs the WebView2 runtime (bundled with Windows 11). macOS uses WKWebView.
 
 ## Layout
 
@@ -32,7 +31,7 @@ Windows needs the WebView2 runtime (bundled with Windows 11). macOS uses WKWebVi
 | `fuu-parser` | `MessageParser` trait + default implementation |
 | `fuu-sanitiser` | Allow-list HTML/CSS sanitiser |
 | `fuu-core` | Accounts, IMAP/SMTP, OAuth, cache, compose |
-| `fuu-render` | `BodyRenderer` trait, hardened webview and text renderers |
+| `fuu-render` | `BodyRenderer` trait, Blitz and text renderers |
 | `fuu-app` | Slint UI and wiring |
 
 See `ARCHITECTURE.md` and `SECURITY.md`.

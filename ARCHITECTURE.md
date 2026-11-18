@@ -25,29 +25,24 @@ Rules:
 
 ## Threads
 
-- Main thread: Slint event loop. The wry webview is created here (WebView2 STA and
-  macOS main-thread requirements).
+- Main thread: Slint event loop and the Blitz renderer.
 - Background: a tokio runtime (one IMAP session per account in M1+).
 - UI -> core: command channel. Core -> UI: `slint::invoke_from_event_loop`.
 
-## Webview placement
+## Reader geometry
 
-The webview is a native child window laid over the reader pane's placeholder
-rectangle. Its geometry is exported from Slint (`reader-x/y/w/h`) and synchronised
-from Rust. Anything Slint draws over the reader (dialogs, the composer) sets
-`reader-covered`, which hides the webview, because a native child always sits above
-Slint's own drawing.
+The reader body's geometry is exported from Slint (`reader-x/y/w/h`) and synchronised
+from Rust, so the renderer lays the document out at the pane width.
 
 ## Renderers
 
-| Engine | Module | Composition | Notes |
-|---|---|---|---|
-| Blitz (default) | `fuu-render::blitz` | Host-composited image | HTML/CSS only, no JavaScript engine. Painted on the CPU (vello_cpu) into a premultiplied RGBA buffer shown as a Slint `Image`, so Slint overlays draw above the document. Re-laid out when the pane width settles (debounced). Links are hit-tested by the renderer from host clicks. |
-| WebView | `fuu-render::webview` | Native child window | Hardened wry. Hidden while Slint overlays cover the reader. |
-| Text | `fuu-render::text` | Slint `Text` | Fallback when nothing else is available. |
+| Engine | Module | Notes |
+|---|---|---|
+| Blitz (only engine) | `fuu-render::blitz` | HTML/CSS only, no JavaScript engine. Painted on the CPU (vello_cpu) into a premultiplied RGBA buffer shown as a Slint `Image`, so Slint overlays draw above the document. Re-laid out when the pane width settles (debounced). Links are hit-tested by the renderer from host clicks. |
+| Text | `fuu-render::text` | Plain-text fallback. |
 
-Select with `FUU_RENDERER=blitz|webview`, or toggle at runtime from the sidebar during
-the spike.
+The wry webview engine from the M0 spike was removed; the `BodyRenderer` boundary
+still allows another engine to be added later.
 
 ## Right-pane tabs
 

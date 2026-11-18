@@ -129,9 +129,7 @@ export component SettingsView inherits Rectangle {
     in property <string> account-name;
     in property <string> account-email;
     in property <int> account-hue;
-    in property <string> renderer-label;
     in property <string> status-text;
-    callback toggle-renderer();
     callback load-security-sample();
     callback load-cjk-sample();
     callback overlap-test();
@@ -168,18 +166,6 @@ export component SettingsView inherits Rectangle {
                     title: "テーマ";
                     description: "システムに合わせるか、明るい／暗い表示に固定します。";
                     Segmented { options: ["システム", "ライト", "ダーク"]; selected <=> root.theme-mode; }
-                }
-                Divider { height: 1px; }
-                SettingRow {
-                    title: "本文の描画エンジン";
-                    description: "Blitz は JavaScript を持たない軽量エンジンです。WebView は OS の標準エンジンです。";
-                    Segmented {
-                        options: ["Blitz", "WebView"];
-                        selected: root.renderer-label == "Blitz" ? 0 : 1;
-                        changed-to(i) => {
-                            if ((i == 0) != (root.renderer-label == "Blitz")) { root.toggle-renderer(); }
-                        }
-                    }
                 }
             }
 

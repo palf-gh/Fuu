@@ -24,6 +24,7 @@ export struct TabItem {
     title: string,
     kind: int,   // 0 mail, 1 compose, 2 settings
     unseen: bool,
+    closing: bool,
 }
 
 component MessageItem inherits Rectangle {
@@ -136,7 +137,6 @@ export component AppWindow inherits Window {
     // Cursor index from fuu_render::Cursor (0 default, 1 text, 2 pointer, ...).
     in property <int> page-cursor;
     in property <bool> has-selection;
-    in property <string> renderer-label: "Blitz";
     out property <bool> dark-mode: Theme.dark;
     in property <string> fallback-text;
     in property <string> link-url;
@@ -191,7 +191,6 @@ export component AppWindow inherits Window {
     callback select-all();
     callback clear-selection();
     callback page-pointer-left();
-    callback toggle-renderer();
     callback load-security-sample();
     callback load-cjk-sample();
     callback link-confirmed();
@@ -309,6 +308,7 @@ export component AppWindow inherits Window {
                         kind: tab.kind;
                         active: i == root.active-tab;
                         unseen: tab.unseen;
+                        closing: tab.closing;
                         being-dragged: i == tab-strip.drag-index;
                         shift: i == tab-strip.drag-index ? tab-strip.drag-offset
                             : tab-strip.drag-index < 0 ? 0px
@@ -683,9 +683,7 @@ export component AppWindow inherits Window {
                     account-name: root.account-name;
                     account-email: root.account-email;
                     account-hue: root.account-hue;
-                    renderer-label: root.renderer-label;
                     status-text: root.status-text;
-                    toggle-renderer => { root.toggle-renderer(); }
                     load-security-sample => { root.load-security-sample(); }
                     load-cjk-sample => { root.load-cjk-sample(); }
                     overlap-test => { root.info-dialog-open = true; }

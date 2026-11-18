@@ -3,15 +3,14 @@
 //! A [`BodyRenderer`] receives only a [`SafeDocument`] (already sanitised by
 //! `fuu-sanitiser`). It never sees raw MIME, a `ParsedMessage`, or the network.
 //! Implementations:
-//! - [`webview::WebViewRenderer`]: hardened wry child webview (default).
-//! - [`text::TextRenderer`]: plain-text fallback for hosts without a webview.
+//! - [`blitz::BlitzRenderer`]: Blitz HTML/CSS engine, no JavaScript (default).
+//! - [`text::TextRenderer`]: plain-text fallback.
 
 pub use fuu_model::{Rect, RemoteContentPolicy, SafeDocument};
 
 #[cfg(feature = "blitz")]
 pub mod blitz;
 pub mod text;
-pub mod webview;
 
 use std::sync::atomic::AtomicUsize;
 

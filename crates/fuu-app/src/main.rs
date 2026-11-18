@@ -1,5 +1,5 @@
 // Fuu — minimal desktop mailer. M0 spike: Slint shell, swappable body renderers
-// (Blitz composited image / hardened child webview / text), tokio → Slint model
+// (Blitz composited image, text fallback), tokio → Slint model
 // bridge, IME and CJK checks.
 #![cfg_attr(all(not(debug_assertions), windows), windows_subsystem = "windows")]
 
@@ -15,7 +15,6 @@ use std::time::{Duration, Instant};
 use fuu_model::{Rect, RemoteContentPolicy, SafeDocument};
 use fuu_render::blitz::{BlitzRenderer, RenderedPage};
 use fuu_render::text::TextRenderer;
-use fuu_render::webview::WebViewRenderer;
 use fuu_render::{BodyRenderer, LinkHandler, LinkRequest, PointerPhase, RenderStats};
 use slint::{ComponentHandle, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
 use tabs::{Draft, Tab, TabContent, Tabs};
@@ -36,6 +35,22 @@ mod tests {
     use super::{avatar_index, initials};
 
     #[test]
+    fn sync_rows_edits_in_place() {
+        use slint::{Model, VecModel};
+        let model = VecModel::from(vec![1, 2, 3, 4]);
+        let check = |want: &[i32]| {
+            super::sync_rows(&model, want);
+            assert_eq!(model.iter().collect::<Vec<_>>(), want);
+        };
+        check(&[1, 2, 9, 3, 4]); // insert in the middle
+        check(&[1, 9, 3, 4]); // remove
+        check(&[4, 1, 9, 3]); // move
+        check(&[4, 1, 7, 3]); // replace
+        check(&[]);
+        check(&[5]);
+    }
+
+    #[test]
     fn initials_for_latin_and_cjk_names() {
         assert_eq!(initials("Oliver Smith"), "OS");
         assert_eq!(initials("newsletter"), "N");
@@ -47,35 +62,6 @@ mod tests {
     fn avatar_index_is_stable_and_in_range() {
         assert_eq!(avatar_index("a@example.com"), avatar_index("a@example.com"));
         assert!((0..super::AVATAR_COLOURS).contains(&avatar_index("x")));
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Engine {
-    Blitz,
-    WebView,
-}
-
-impl Engine {
-    fn from_env() -> Self {
-        match std::env::var("FUU_RENDERER").as_deref() {
-            Ok("webview") => Engine::WebView,
-            _ => Engine::Blitz,
-        }
-    }
-
-    fn label(self) -> &'static str {
-        match self {
-            Engine::Blitz => "Blitz",
-            Engine::WebView => "WebView",
-        }
-    }
-
-    fn other(self) -> Self {
-        match self {
-            Engine::Blitz => Engine::WebView,
-            Engine::WebView => Engine::Blitz,
-        }
     }
 }
 
@@ -92,8 +78,7 @@ struct Reader {
 #[derive(Default)]
 struct ReaderState {
     reader: Option<Reader>,
-    engine: Option<Engine>,
-    /// The document on screen, re-shown when the engine is switched.
+    /// The document on screen.
     current: Option<SafeDocument>,
 }
 
@@ -211,20 +196,6 @@ fn link_handler(ui: &AppWindow, pending_link: Rc<RefCell<Option<String>>>) -> Li
     })
 }
 
-fn text_reader(ui: &AppWindow, why: String) -> Reader {
-    eprintln!("{why}");
-    ui.set_renderer_error(why.into());
-    ui.set_use_page_image(false);
-    ui.set_use_fallback(true);
-    let sink_ui = ui.as_weak();
-    let sink = Box::new(move |text: &str| {
-        if let Some(ui) = sink_ui.upgrade() {
-            ui.set_fallback_text(text.into());
-        }
-    });
-    new_reader(Box::new(TextRenderer::new(sink)), None)
-}
-
 fn new_reader(renderer: Box<dyn BodyRenderer>, stats: Option<Arc<RenderStats>>) -> Reader {
     Reader {
         renderer,
@@ -237,38 +208,21 @@ fn new_reader(renderer: Box<dyn BodyRenderer>, stats: Option<Arc<RenderStats>>) 
     }
 }
 
-fn create_reader(ui: &AppWindow, engine: Engine, pending_link: Rc<RefCell<Option<String>>>) -> Reader {
-    ui.set_renderer_label(engine.label().into());
-    ui.set_renderer_error(SharedString::default());
+fn create_reader(ui: &AppWindow, pending_link: Rc<RefCell<Option<String>>>) -> Reader {
     ui.set_use_fallback(false);
+    ui.set_use_page_image(true);
     let on_link = link_handler(ui, pending_link);
-    match engine {
-        Engine::Blitz => {
-            ui.set_use_page_image(true);
-            let sink_ui = ui.as_weak();
-            let sink = Box::new(move |page: RenderedPage| {
-                let Some(ui) = sink_ui.upgrade() else { return };
-                let buffer = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&page.rgba_premultiplied, page.width, page.height);
-                ui.set_page_image(slint::Image::from_rgba8_premultiplied(buffer));
-                ui.set_page_width(page.width as f32 / page.scale);
-                ui.set_page_height(page.height as f32 / page.scale);
-            });
-            let renderer = BlitzRenderer::new(sink, on_link);
-            let stats = renderer.stats();
-            new_reader(Box::new(renderer), Some(stats))
-        }
-        Engine::WebView => {
-            ui.set_use_page_image(false);
-            let handle = ui.window().window_handle();
-            match WebViewRenderer::new(&handle, Rect::default(), on_link) {
-                Ok(webview) => {
-                    let stats = webview.stats();
-                    new_reader(Box::new(webview), Some(stats))
-                }
-                Err(e) => text_reader(ui, format!("webview unavailable, using text renderer: {e}")),
-            }
-        }
-    }
+    let sink_ui = ui.as_weak();
+    let sink = Box::new(move |page: RenderedPage| {
+        let Some(ui) = sink_ui.upgrade() else { return };
+        let buffer = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&page.rgba_premultiplied, page.width, page.height);
+        ui.set_page_image(slint::Image::from_rgba8_premultiplied(buffer));
+        ui.set_page_width(page.width as f32 / page.scale);
+        ui.set_page_height(page.height as f32 / page.scale);
+    });
+    let renderer = BlitzRenderer::new(sink, on_link);
+    let stats = renderer.stats();
+    new_reader(Box::new(renderer), Some(stats))
 }
 
 type SharedTabs = Rc<RefCell<Tabs>>;
@@ -303,14 +257,74 @@ fn tab_kind(tab: &Tab) -> i32 {
     }
 }
 
+/// Delay between a close request and the actual removal (the shrink animation).
+const TAB_CLOSE_ANIMATION: Duration = Duration::from_millis(170);
+
+/// Bring the tab model in line with `tabs` *in place*: only the rows that differ are
+/// replaced, inserted or removed. Recreating the model would rebuild every tab
+/// component, cancelling a drag in progress and the appear animation.
 fn render_tabs(ui: &AppWindow, tabs: &Tabs) {
-    let items: Vec<TabItem> = tabs
+    let want: Vec<TabItem> = tabs
         .items()
         .iter()
-        .map(|t| TabItem { title: tab_title(ui, t).into(), kind: tab_kind(t), unseen: t.unseen })
+        .map(|t| TabItem { title: tab_title(ui, t).into(), kind: tab_kind(t), unseen: t.unseen, closing: false })
         .collect();
-    ui.set_tabs(ModelRc::new(VecModel::from(items)));
+    let model = ui.get_tabs();
+    match model.as_any().downcast_ref::<VecModel<TabItem>>() {
+        Some(vec) => sync_rows(vec, &want),
+        None => ui.set_tabs(ModelRc::new(VecModel::from(want))),
+    }
     ui.set_active_tab(tabs.active_index().map_or(-1, |i| i as i32));
+}
+
+/// Minimal edit from the current rows to `want`: keep the common prefix and suffix,
+/// overwrite the overlapping middle, then insert or remove the remainder.
+fn sync_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, want: &[T]) {
+    let old_len = model.row_count();
+    let mut start = 0;
+    while start < old_len && start < want.len() && model.row_data(start).as_ref() == Some(&want[start]) {
+        start += 1;
+    }
+    let (mut end_old, mut end_new) = (old_len, want.len());
+    while end_old > start && end_new > start && model.row_data(end_old - 1).as_ref() == Some(&want[end_new - 1]) {
+        end_old -= 1;
+        end_new -= 1;
+    }
+    let (old_mid, new_mid) = (end_old - start, end_new - start);
+    let common = old_mid.min(new_mid);
+    for k in 0..common {
+        model.set_row_data(start + k, want[start + k].clone());
+    }
+    if old_mid > common {
+        for _ in common..old_mid {
+            model.remove(start + common);
+        }
+    } else {
+        for k in common..new_mid {
+            model.insert(start + k, want[start + k].clone());
+        }
+    }
+}
+
+/// Animate a tab out, then close it. Ignores requests while one is in flight.
+fn request_close(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, closing: &Rc<std::cell::Cell<bool>>, index: usize) {
+    if closing.get() || index >= tabs.borrow().items().len() {
+        return;
+    }
+    save_draft(ui, tabs);
+    if let Some(vec) = ui.get_tabs().as_any().downcast_ref::<VecModel<TabItem>>() {
+        if let Some(row) = vec.row_data(index) {
+            vec.set_row_data(index, TabItem { closing: true, ..row });
+        }
+    }
+    closing.set(true);
+    let (weak, state, tabs, closing) = (ui.as_weak(), state.clone(), tabs.clone(), closing.clone());
+    slint::Timer::single_shot(TAB_CLOSE_ANIMATION, move || {
+        closing.set(false);
+        let Some(ui) = weak.upgrade() else { return };
+        tabs.borrow_mut().close(index);
+        apply_active(&ui, &state, &tabs);
+    });
 }
 
 /// Copy the composer fields back into the active draft tab.
@@ -401,14 +415,12 @@ fn open_draft(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, mut draft:
     apply_active(ui, state, tabs);
 }
 
-/// Close the active tab (used by send, discard and Ctrl/Cmd+W).
-fn close_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
-    save_draft(ui, tabs);
+/// Close the active tab with its animation (send, discard, Ctrl/Cmd+W).
+fn close_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, closing: &Rc<std::cell::Cell<bool>>) {
     let active = tabs.borrow().active_index();
     if let Some(i) = active {
-        tabs.borrow_mut().close(i);
+        request_close(ui, state, tabs, closing, i);
     }
-    apply_active(ui, state, tabs);
 }
 
 /// Frameless chrome: macOS keeps its traffic lights over a transparent title bar;
@@ -498,9 +510,11 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.set_feed_summary("読み込み中…".into());
 
     let state: SharedState = Rc::new(RefCell::new(ReaderState::default()));
-    let wanted_engine = Rc::new(RefCell::new(Engine::from_env()));
     let pending_link: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
+    state.borrow_mut().reader = Some(create_reader(&ui, pending_link.clone()));
     let tabs: SharedTabs = Rc::new(RefCell::new(Tabs::default()));
+    let tab_closing = Rc::new(std::cell::Cell::new(false));
+    ui.set_tabs(ModelRc::new(VecModel::<TabItem>::default()));
     render_tabs(&ui, &tabs.borrow());
 
     {
@@ -570,18 +584,19 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        let closing = tab_closing.clone();
         ui.on_tab_closed(move |i| {
-            let Some(ui) = weak.upgrade() else { return };
-            save_draft(&ui, &tabs);
-            tabs.borrow_mut().close(i as usize);
-            apply_active(&ui, &state, &tabs);
+            if let Some(ui) = weak.upgrade() {
+                request_close(&ui, &state, &tabs, &closing, i as usize);
+            }
         });
     }
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        let closing = tab_closing.clone();
         ui.on_close_active_tab(move || {
             if let Some(ui) = weak.upgrade() {
-                close_active(&ui, &state, &tabs);
+                close_active(&ui, &state, &tabs, &closing);
             }
         });
     }
@@ -708,13 +723,6 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     {
-        let wanted = wanted_engine.clone();
-        ui.on_toggle_renderer(move || {
-            let next = wanted.borrow().other();
-            *wanted.borrow_mut() = next;
-        });
-    }
-    {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_start_compose(move || {
             if let Some(ui) = weak.upgrade() {
@@ -781,6 +789,7 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        let closing = tab_closing.clone();
         ui.on_send_compose(move || {
             let Some(ui) = weak.upgrade() else { return };
             let recipients = [ui.get_compose_to(), ui.get_compose_cc(), ui.get_compose_bcc()]
@@ -788,14 +797,15 @@ fn main() -> Result<(), slint::PlatformError> {
                 .flat_map(|f| f.split(',').map(str::trim).filter(|a| !a.is_empty()).map(str::to_owned).collect::<Vec<_>>())
                 .count();
             ui.set_feed_summary(format!("送信は M3 で実装（宛先 {recipients} 件・本文 {} 文字）", ui.get_compose_body().chars().count()).into());
-            close_active(&ui, &state, &tabs);
+            close_active(&ui, &state, &tabs, &closing);
         });
     }
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        let closing = tab_closing.clone();
         ui.on_discard_compose(move || {
             if let Some(ui) = weak.upgrade() {
-                close_active(&ui, &state, &tabs);
+                close_active(&ui, &state, &tabs, &closing);
             }
         });
     }
@@ -812,41 +822,13 @@ fn main() -> Result<(), slint::PlatformError> {
 
     ui.show()?;
 
-    // Engine lifecycle and geometry sync. The webview needs the native winit
-    // window, which is realised asynchronously after the event loop starts, so
-    // engines are (re)created on a tick once the handle exists. Polling is a spike
-    // simplification.
+    // Renderer geometry sync (polling is a spike simplification).
     let sync_timer = slint::Timer::default();
     {
         let weak = ui.as_weak();
         let state = state.clone();
-        let wanted = wanted_engine.clone();
-        let pending = pending_link.clone();
-        let started = Instant::now();
         sync_timer.start(slint::TimerMode::Repeated, Duration::from_millis(16), move || {
-            use raw_window_handle::HasWindowHandle;
             let Some(ui) = weak.upgrade() else { return };
-            let wanted = *wanted.borrow();
-
-            if state.borrow().engine != Some(wanted) {
-                let realised = ui.window().window_handle().window_handle().is_ok();
-                if !realised && started.elapsed() < Duration::from_secs(3) {
-                    return;
-                }
-                // Drop the old engine first (removes a native child webview).
-                let current = {
-                    let mut st = state.borrow_mut();
-                    st.reader = None;
-                    st.current.clone()
-                };
-                let mut reader = create_reader(&ui, wanted, pending.clone());
-                if let Some(doc) = &current {
-                    let _ = reader.renderer.show(doc, RemoteContentPolicy::Block);
-                }
-                let mut st = state.borrow_mut();
-                st.reader = Some(reader);
-                st.engine = Some(wanted);
-            }
 
             let maximised = ui.window().is_maximized();
             if maximised != ui.get_maximised() {
