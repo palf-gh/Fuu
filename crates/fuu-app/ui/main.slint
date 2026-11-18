@@ -303,7 +303,7 @@ export component AppWindow inherits Window {
                     property <length> drag-slot: 1px;
                     property <int> drag-target: self.drag-index < 0 ? -1
                         : max(0, min(root.tabs.length - 1, self.drag-index + round(self.drag-offset / self.drag-slot)));
-                    spacing: 4px;
+                    spacing: 0px;
                     padding-left: 8px;
                     horizontal-stretch: 1;
                     min-width: 0px;

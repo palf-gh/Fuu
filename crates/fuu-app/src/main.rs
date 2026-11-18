@@ -260,6 +260,28 @@ fn tab_kind(tab: &Tab) -> i32 {
 /// Delay between a close request and the actual removal (the shrink animation).
 const TAB_CLOSE_ANIMATION: Duration = Duration::from_millis(170);
 
+thread_local! {
+    /// A tab that has already been closed but is still shrinking out in the tab
+    /// strip: (model index, row, generation). The model then has one extra row, so
+    /// indices coming from the UI are mapped with [`to_logical`].
+    static GHOST: RefCell<Option<(usize, TabItem, u64)>> = const { RefCell::new(None) };
+    static GHOST_GENERATION: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+fn ghost_index() -> Option<usize> {
+    GHOST.with(|g| g.borrow().as_ref().map(|(i, _, _)| *i))
+}
+
+/// Map a tab-strip (model) index to a logical tab index; `None` for the ghost.
+fn to_logical(model_index: i32) -> Option<usize> {
+    let m = usize::try_from(model_index).ok()?;
+    match ghost_index() {
+        Some(g) if m == g => None,
+        Some(g) if m > g => Some(m - 1),
+        _ => Some(m),
+    }
+}
+
 /// Bring the tab model in line with `tabs` *in place*: only the rows that differ are
 /// replaced, inserted or removed. Recreating the model would rebuild every tab
 /// component, cancelling a drag in progress and the appear animation.
@@ -269,12 +291,21 @@ fn render_tabs(ui: &AppWindow, tabs: &Tabs) {
         .iter()
         .map(|t| TabItem { title: tab_title(ui, t).into(), kind: tab_kind(t), unseen: t.unseen, closing: false })
         .collect();
+    let mut want = want;
+    let ghost = GHOST.with(|g| g.borrow().clone());
+    if let Some((g, row, _)) = &ghost {
+        want.insert((*g).min(want.len()), row.clone());
+    }
     let model = ui.get_tabs();
     match model.as_any().downcast_ref::<VecModel<TabItem>>() {
         Some(vec) => sync_rows(vec, &want),
         None => ui.set_tabs(ModelRc::new(VecModel::from(want))),
     }
-    ui.set_active_tab(tabs.active_index().map_or(-1, |i| i as i32));
+    let to_model = |l: usize| match &ghost {
+        Some((g, _, _)) if l >= *g => l + 1,
+        _ => l,
+    };
+    ui.set_active_tab(tabs.active_index().map_or(-1, |i| to_model(i) as i32));
 }
 
 /// Minimal edit from the current rows to `want`: keep the common prefix and suffix,
@@ -306,24 +337,39 @@ fn sync_rows<T: Clone + PartialEq + 'static>(model: &VecModel<T>, want: &[T]) {
     }
 }
 
-/// Animate a tab out, then close it. Ignores requests while one is in flight.
-fn request_close(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, closing: &Rc<std::cell::Cell<bool>>, index: usize) {
-    if closing.get() || index >= tabs.borrow().items().len() {
+/// Close a tab now (the neighbour activates and the pane switches immediately) and
+/// let its row shrink out of the tab strip as a ghost.
+fn request_close(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, index: usize) {
+    if index >= tabs.borrow().items().len() {
         return;
     }
     save_draft(ui, tabs);
-    if let Some(vec) = ui.get_tabs().as_any().downcast_ref::<VecModel<TabItem>>() {
-        if let Some(row) = vec.row_data(index) {
-            vec.set_row_data(index, TabItem { closing: true, ..row });
-        }
+    // Settle a previous ghost first so indices line up.
+    GHOST.with(|g| *g.borrow_mut() = None);
+    render_tabs(ui, &tabs.borrow());
+    let row = ui
+        .get_tabs()
+        .row_data(index)
+        .map(|r| TabItem { closing: true, ..r });
+    tabs.borrow_mut().close(index);
+    let generation = GHOST_GENERATION.with(|c| {
+        c.set(c.get() + 1);
+        c.get()
+    });
+    if let Some(row) = row {
+        GHOST.with(|g| *g.borrow_mut() = Some((index, row, generation)));
     }
-    closing.set(true);
-    let (weak, state, tabs, closing) = (ui.as_weak(), state.clone(), tabs.clone(), closing.clone());
+    apply_active(ui, state, tabs);
+    let (weak, tabs) = (ui.as_weak(), tabs.clone());
     slint::Timer::single_shot(TAB_CLOSE_ANIMATION, move || {
-        closing.set(false);
-        let Some(ui) = weak.upgrade() else { return };
-        tabs.borrow_mut().close(index);
-        apply_active(&ui, &state, &tabs);
+        let current = GHOST.with(|g| g.borrow().as_ref().map(|(_, _, gen)| *gen));
+        if current != Some(generation) {
+            return;
+        }
+        GHOST.with(|g| *g.borrow_mut() = None);
+        if let Some(ui) = weak.upgrade() {
+            render_tabs(&ui, &tabs.borrow());
+        }
     });
 }
 
@@ -416,10 +462,10 @@ fn open_draft(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, mut draft:
 }
 
 /// Close the active tab with its animation (send, discard, Ctrl/Cmd+W).
-fn close_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, closing: &Rc<std::cell::Cell<bool>>) {
+fn close_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
     let active = tabs.borrow().active_index();
     if let Some(i) = active {
-        request_close(ui, state, tabs, closing, i);
+        request_close(ui, state, tabs, i);
     }
 }
 
@@ -513,7 +559,6 @@ fn main() -> Result<(), slint::PlatformError> {
     let pending_link: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
     state.borrow_mut().reader = Some(create_reader(&ui, pending_link.clone()));
     let tabs: SharedTabs = Rc::new(RefCell::new(Tabs::default()));
-    let tab_closing = Rc::new(std::cell::Cell::new(false));
     ui.set_tabs(ModelRc::new(VecModel::<TabItem>::default()));
     render_tabs(&ui, &tabs.borrow());
 
@@ -569,8 +614,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_tab_activated(move |i| {
             let Some(ui) = weak.upgrade() else { return };
+            let Some(i) = to_logical(i) else { return };
             save_draft(&ui, &tabs);
-            tabs.borrow_mut().activate(i as usize);
+            tabs.borrow_mut().activate(i);
             apply_active(&ui, &state, &tabs);
         });
     }
@@ -578,25 +624,26 @@ fn main() -> Result<(), slint::PlatformError> {
         let (tabs, weak) = (tabs.clone(), ui.as_weak());
         ui.on_tab_moved(move |from, to| {
             let Some(ui) = weak.upgrade() else { return };
-            tabs.borrow_mut().move_tab(from as usize, to as usize);
+            let (Some(from), Some(to)) = (to_logical(from), to_logical(to)) else { return };
+            tabs.borrow_mut().move_tab(from, to);
             render_tabs(&ui, &tabs.borrow());
         });
     }
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
-        let closing = tab_closing.clone();
         ui.on_tab_closed(move |i| {
             if let Some(ui) = weak.upgrade() {
-                request_close(&ui, &state, &tabs, &closing, i as usize);
+                if let Some(i) = to_logical(i) {
+                    request_close(&ui, &state, &tabs, i);
+                }
             }
         });
     }
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
-        let closing = tab_closing.clone();
         ui.on_close_active_tab(move || {
             if let Some(ui) = weak.upgrade() {
-                close_active(&ui, &state, &tabs, &closing);
+                close_active(&ui, &state, &tabs);
             }
         });
     }
@@ -789,7 +836,6 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
-        let closing = tab_closing.clone();
         ui.on_send_compose(move || {
             let Some(ui) = weak.upgrade() else { return };
             let recipients = [ui.get_compose_to(), ui.get_compose_cc(), ui.get_compose_bcc()]
@@ -797,15 +843,14 @@ fn main() -> Result<(), slint::PlatformError> {
                 .flat_map(|f| f.split(',').map(str::trim).filter(|a| !a.is_empty()).map(str::to_owned).collect::<Vec<_>>())
                 .count();
             ui.set_feed_summary(format!("送信は M3 で実装（宛先 {recipients} 件・本文 {} 文字）", ui.get_compose_body().chars().count()).into());
-            close_active(&ui, &state, &tabs, &closing);
+            close_active(&ui, &state, &tabs);
         });
     }
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
-        let closing = tab_closing.clone();
         ui.on_discard_compose(move || {
             if let Some(ui) = weak.upgrade() {
-                close_active(&ui, &state, &tabs, &closing);
+                close_active(&ui, &state, &tabs);
             }
         });
     }

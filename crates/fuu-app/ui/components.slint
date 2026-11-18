@@ -315,9 +315,10 @@ export component Tab inherits Rectangle {
     init => { self.appeared = true; }
     height: 32px;
     // Shrinks like browser tabs when many are open.
-    min-width: 64px * root.presence;
-    preferred-width: 200px * root.presence;
-    max-width: 220px * root.presence;
+    // Includes the 4px gap to the next tab.
+    min-width: 68px * root.presence;
+    preferred-width: 204px * root.presence;
+    max-width: 224px * root.presence;
     horizontal-stretch: 1;
     opacity: root.presence;
     // The dragged tab draws above its neighbours. No clip here: the chip slides
@@ -341,14 +342,14 @@ export component Tab inherits Rectangle {
         moved => {
             if (self.pressed) {
                 if (!root.dragging && abs(self.mouse-x - self.pressed-x) > 4px) { root.dragging = true; }
-                if (root.dragging) { root.drag-moved(self.mouse-x - self.pressed-x, root.width + 4px); }
+                if (root.dragging) { root.drag-moved(self.mouse-x - self.pressed-x, root.width); }
             }
         }
     }
 
     chip := Rectangle {
         x: root.shift;
-        width: root.width;
+        width: max(0px, root.width - 4px);
         height: root.height;
         // Clip the content while the tab grows in or shrinks out.
         clip: true;
