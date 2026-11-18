@@ -250,12 +250,9 @@ pub struct FolderPage {
     pub messages: Vec<MessageSummary>,
 }
 
-/// Decode a header value: RFC 2047 encoded words (any charset, including
-/// ISO-2022-JP), falling back to lossy UTF-8 for raw 8-bit bytes.
+/// Decode a header value (lenient RFC 2047, see `fuu_parser::headers`).
 pub fn decode_header(raw: &[u8]) -> String {
-    let text = rfc2047_decoder::decode(raw).unwrap_or_else(|_| String::from_utf8_lossy(raw).into_owned());
-    // Unfold and drop control characters (bidi overrides are stripped in the UI layer).
-    text.split(['\r', '\n']).map(str::trim).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ")
+    fuu_parser::headers::decode_header(raw)
 }
 
 fn summary_from_fetch(fetch: &Fetch) -> Option<MessageSummary> {

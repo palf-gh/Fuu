@@ -2,6 +2,8 @@
 //! engine-neutral [`ParsedMessage`]. The default `mail-parser` implementation
 //! lands in M2; M0 only fixes the contract.
 
+pub mod headers;
+
 pub use fuu_model::ParsedMessage;
 
 /// Hard limits applied before anything is rendered.

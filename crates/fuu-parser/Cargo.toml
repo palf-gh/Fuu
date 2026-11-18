@@ -9,3 +9,5 @@ publish.workspace = true
 
 [dependencies]
 fuu-model.workspace = true
+encoding_rs = "0.8"
+base64 = "0.22"

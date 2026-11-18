@@ -28,7 +28,6 @@ tokio-rustls = { version = "0.26", default-features = false, features = ["ring",
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 rustls-platform-verifier = "0.7"
 webpki-roots = "1"
-rfc2047-decoder = "1"
 utf7-imap = "0.3"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 
