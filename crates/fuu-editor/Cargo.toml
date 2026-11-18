@@ -1,0 +1,15 @@
+[package]
+name = "fuu-editor"
+description = "Rich-text compose editor: document model, history, layout and painting."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+parley = "=0.12.0"
+anyrender = "0.14"
+anyrender_vello_cpu = "0.18"
+kurbo = "0.13"
+peniko = "0.6"

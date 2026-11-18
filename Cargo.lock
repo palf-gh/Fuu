@@ -2016,6 +2016,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "fuu-editor"
+version = "0.1.0"
+dependencies = [
+ "anyrender",
+ "anyrender_vello_cpu",
+ "kurbo",
+ "parley",
+ "peniko",
+]
+
+[[package]]
 name = "fuu-model"
 version = "0.1.0"
 

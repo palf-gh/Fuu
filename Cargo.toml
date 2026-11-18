@@ -6,6 +6,7 @@ members = [
     "crates/fuu-sanitiser",
     "crates/fuu-core",
     "crates/fuu-render",
+    "crates/fuu-editor",
     "crates/fuu-app",
 ]
 
@@ -22,3 +23,4 @@ fuu-parser = { path = "crates/fuu-parser" }
 fuu-sanitiser = { path = "crates/fuu-sanitiser" }
 fuu-core = { path = "crates/fuu-core" }
 fuu-render = { path = "crates/fuu-render" }
+fuu-editor = { path = "crates/fuu-editor" }
