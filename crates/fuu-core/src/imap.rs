@@ -433,6 +433,46 @@ pub async fn mark_answered(session: &mut ImapSession, path: &str, uid: u32) -> R
     .await
 }
 
+/// Whether the server supports IDLE (RFC 2177).
+pub async fn supports_idle(session: &mut ImapSession) -> Result<bool, ImapError> {
+    timed(COMMAND_TIMEOUT, async { session.capabilities().await.map(|c| c.has_str("IDLE")).map_err(protocol) }).await
+}
+
+/// Open a folder read-only and return its (EXISTS, UIDNEXT): enough to notice
+/// new or removed mail when polling a server without IDLE.
+pub async fn examine_state(session: &mut ImapSession, path: &str) -> Result<(u32, Option<u32>), ImapError> {
+    timed(COMMAND_TIMEOUT, async { session.examine(path).await.map(|m| (m.exists, m.uid_next)).map_err(protocol) }).await
+}
+
+/// How an IDLE round ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IdleOutcome {
+    /// The server reported a change (new, removed or re-flagged mail).
+    Changed,
+    /// Nothing happened within the round; IDLE is re-issued.
+    Quiet,
+}
+
+/// One IDLE round on the selected folder: wait up to `limit` for the server to
+/// report a change, then end IDLE. Returns the session for the next round.
+pub async fn idle_round(session: ImapSession, limit: Duration) -> Result<(ImapSession, IdleOutcome), ImapError> {
+    use async_imap::extensions::idle::IdleResponse;
+    let mut handle = session.idle();
+    timed(COMMAND_TIMEOUT, async { handle.init().await.map_err(protocol) }).await?;
+    let outcome = {
+        // Keep the stop source alive: dropping it ends the wait at once.
+        let (wait, _interrupt) = handle.wait_with_timeout(limit);
+        match wait.await.map_err(protocol)? {
+            IdleResponse::NewData(_) => IdleOutcome::Changed,
+            IdleResponse::Timeout | IdleResponse::ManualInterrupt => IdleOutcome::Quiet,
+        }
+    };
+    let session = timed(COMMAND_TIMEOUT, async { handle.done().await.map_err(protocol) }).await?;
+    // Nothing reads the unsolicited responses; empty the queue so it never fills.
+    while session.unsolicited_responses.try_recv().is_ok() {}
+    Ok((session, outcome))
+}
+
 /// Gmail stores sent mail itself; appending would create duplicates.
 pub fn saves_sent_automatically(imap_host: &str) -> bool {
     let host = imap_host.to_ascii_lowercase();

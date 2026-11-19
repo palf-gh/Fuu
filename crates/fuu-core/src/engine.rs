@@ -18,6 +18,15 @@ use crate::secrets::{self, SecretStore};
 /// How long the browser sign-in may take.
 const OAUTH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 
+/// Longest IDLE round before it is re-issued (servers may drop IDLE after 30
+/// minutes, and silently dead connections are noticed this way).
+const IDLE_ROUND: std::time::Duration = std::time::Duration::from_secs(20 * 60);
+/// Polling interval for servers without IDLE.
+const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(5 * 60);
+/// Reconnect back-off of the INBOX watcher.
+const RETRY_FIRST: std::time::Duration = std::time::Duration::from_secs(15);
+const RETRY_MAX: std::time::Duration = std::time::Duration::from_secs(5 * 60);
+
 /// Number of newest messages loaded per folder (paging arrives with the cache in M2).
 pub const PAGE_SIZE: u32 = 200;
 
@@ -35,6 +44,8 @@ pub enum Command {
     /// Load the folder list and the given folder (INBOX when `None`).
     OpenAccount { account_id: String, folder: Option<String> },
     OpenFolder { account_id: String, path: String },
+    /// Reload a folder in the background after the server reported a change.
+    RefreshFolder { account_id: String, path: String },
     /// Load a message body (cache first), marking it as read on the server.
     FetchBody { account_id: String, folder: String, uid: u32 },
     /// Fetch remote images the user allowed for one message.
@@ -57,7 +68,11 @@ pub enum Event {
     AccountAdded(Account),
     AccountAddFailed(String),
     Folders { account_id: String, folders: Vec<Folder> },
-    Messages { account_id: String, path: String, page: FolderPage },
+    /// A folder's messages; `refresh` marks a background reload of a folder the
+    /// user may have left since (apply it only if it is still shown).
+    Messages { account_id: String, path: String, page: FolderPage, refresh: bool },
+    /// The server reported a change in a watched folder (INBOX, via IDLE or polling).
+    FolderChanged { account_id: String, path: String },
     Body { account_id: String, folder: String, uid: u32, raw: Arc<Vec<u8>> },
     BodyFailed { account_id: String, folder: String, uid: u32, message: String },
     Moved { account_id: String, folder: String, uid: u32, target: MoveTarget },
@@ -92,6 +107,10 @@ struct Inner {
     /// Last seen UIDVALIDITY per (account, folder), for cache lookups.
     validity: Mutex<HashMap<(String, String), u32>>,
     folders: Mutex<HashMap<String, Vec<Folder>>>,
+    /// INBOX watcher task per account.
+    watchers: std::sync::Mutex<HashMap<String, tokio::task::AbortHandle>>,
+    /// Accounts whose OAuth sign-in must be renewed; their watcher stays stopped.
+    reauth_needed: std::sync::Mutex<std::collections::HashSet<String>>,
     cache: Option<BodyCache>,
     emit: Box<dyn Fn(Event) + Send + Sync>,
 }
@@ -118,6 +137,8 @@ impl Engine {
             sessions: Mutex::new(HashMap::new()),
             validity: Mutex::new(HashMap::new()),
             folders: Mutex::new(HashMap::new()),
+            watchers: std::sync::Mutex::new(HashMap::new()),
+            reauth_needed: std::sync::Mutex::new(std::collections::HashSet::new()),
             cache: cache_path.and_then(|p| BodyCache::open(&p).map_err(|e| eprintln!("{e}")).ok()),
             emit: Box::new(on_event),
         });
@@ -152,9 +173,9 @@ impl Inner {
 
     async fn handle(self: Arc<Self>, command: Command) {
         match command {
-            Command::LoadAccounts => self.load_accounts().await,
-            Command::AddAccount { account, password } => self.add_account(account, password).await,
-            Command::AddOAuthAccount { account } => self.add_oauth_account(account).await,
+            Command::LoadAccounts => self.clone().load_accounts().await,
+            Command::AddAccount { account, password } => self.clone().add_account(account, password).await,
+            Command::AddOAuthAccount { account } => self.clone().add_oauth_account(account).await,
             Command::CancelOAuth => {
                 if let Some(cancel) = self.oauth_cancel.lock().unwrap().take() {
                     let _ = cancel.send(());
@@ -163,6 +184,7 @@ impl Inner {
             Command::RemoveAccount { account_id } => self.remove_account(&account_id).await,
             Command::OpenAccount { account_id, folder } => self.open_account(&account_id, folder).await,
             Command::OpenFolder { account_id, path } => self.open_folder(&account_id, &path).await,
+            Command::RefreshFolder { account_id, path } => self.load_folder(&account_id, &path, true).await,
             Command::FetchBody { account_id, folder, uid } => self.fetch_body(&account_id, &folder, uid).await,
             Command::Move { account_id, folder, uid, target } => self.move_message(&account_id, &folder, uid, target).await,
             Command::Send { account_id, outgoing, answered, draft_id } => self.send(&account_id, outgoing, answered, draft_id).await,
@@ -173,18 +195,21 @@ impl Inner {
         }
     }
 
-    async fn load_accounts(&self) {
+    async fn load_accounts(self: Arc<Self>) {
         match config::load(&self.config_path) {
             Ok(file) => {
                 let list = file.accounts.clone();
                 *self.accounts.lock().await = file;
+                for account in &list {
+                    self.watch(account.clone());
+                }
                 self.emit(Event::Accounts(list));
             }
             Err(e) => self.emit(Event::Error(e.to_string())),
         }
     }
 
-    async fn add_account(&self, mut account: Account, password: String) {
+    async fn add_account(self: Arc<Self>, mut account: Account, password: String) {
         if account.id.is_empty() {
             account.id = Account::new_id(&account.email);
         }
@@ -199,7 +224,7 @@ impl Inner {
         self.save_new_account(account, session).await;
     }
 
-    async fn add_oauth_account(&self, mut account: Account) {
+    async fn add_oauth_account(self: Arc<Self>, mut account: Account) {
         if account.id.is_empty() {
             account.id = Account::new_id(&account.email);
         }
@@ -277,6 +302,7 @@ impl Inner {
             Ok(t) => t,
             Err(crate::secrets::SecretError::NotFound) => {
                 let message = "ログイン情報が見つかりません。再ログインしてください".to_owned();
+                self.reauth_needed.lock().unwrap().insert(account.id.clone());
                 self.emit(Event::ReauthRequired { account_id: account.id.clone(), message: message.clone() });
                 return Err(message);
             }
@@ -287,6 +313,7 @@ impl Inner {
             Err(OAuthError::InvalidGrant(detail)) => {
                 self.tokens.lock().await.remove(&account.id);
                 let message = format!("ログインの有効期限が切れたか、取り消されました（{detail}）");
+                self.reauth_needed.lock().unwrap().insert(account.id.clone());
                 self.emit(Event::ReauthRequired { account_id: account.id.clone(), message });
                 return Err(OAuthError::InvalidGrant(detail).to_string());
             }
@@ -299,7 +326,7 @@ impl Inner {
         Ok(Credential::Bearer(response.access_token))
     }
 
-    async fn save_new_account(&self, account: Account, session: ImapSession) {
+    async fn save_new_account(self: Arc<Self>, account: Account, session: ImapSession) {
         let saved = {
             let mut file = self.accounts.lock().await;
             // Signing in again replaces the account in place (keeps its position).
@@ -312,6 +339,8 @@ impl Inner {
         match saved {
             Ok(list) => {
                 self.sessions.lock().await.insert(account.id.clone(), Arc::new(Mutex::new(session)));
+                self.reauth_needed.lock().unwrap().remove(&account.id);
+                self.watch(account.clone());
                 self.emit(Event::Accounts(list));
                 self.emit(Event::AccountAdded(account.clone()));
                 self.open_account(&account.id, None).await;
@@ -324,6 +353,7 @@ impl Inner {
     }
 
     async fn remove_account(&self, account_id: &str) {
+        self.unwatch(account_id);
         self.sessions.lock().await.remove(account_id);
         let saved = {
             let mut file = self.accounts.lock().await;
@@ -350,20 +380,92 @@ impl Inner {
         if let Some(s) = self.sessions.lock().await.get(&account.id) {
             return Ok(s.clone());
         }
-        let credential = self.credential(account, false).await?;
         self.emit(Event::Status(format!("{} に接続しています…", account.imap.host)));
-        let session = match imap::login(&account.imap, &account.username, &credential).await {
-            Ok(s) => s,
-            // A rejected access token may just be revoked early: refresh once.
-            Err(ImapError::Auth(_)) if matches!(credential, Credential::Bearer(_)) => {
-                let fresh = self.credential(account, true).await?;
-                imap::login(&account.imap, &account.username, &fresh).await.map_err(|e| e.to_string())?
-            }
-            Err(e) => return Err(e.to_string()),
-        };
-        let session = Arc::new(Mutex::new(session));
+        let session = Arc::new(Mutex::new(self.login(account).await?));
         self.sessions.lock().await.insert(account.id.clone(), session.clone());
         Ok(session)
+    }
+
+    /// Log in with the account's credential; a rejected access token may just be
+    /// revoked early, so it is refreshed once.
+    async fn login(&self, account: &Account) -> Result<ImapSession, String> {
+        let credential = self.credential(account, false).await?;
+        match imap::login(&account.imap, &account.username, &credential).await {
+            Ok(s) => Ok(s),
+            Err(ImapError::Auth(_)) if matches!(credential, Credential::Bearer(_)) => {
+                let fresh = self.credential(account, true).await?;
+                imap::login(&account.imap, &account.username, &fresh).await.map_err(|e| e.to_string())
+            }
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    /// Start (or restart) the account's INBOX watcher.
+    fn watch(self: &Arc<Self>, account: Account) {
+        let id = account.id.clone();
+        let inner = self.clone();
+        let task = tokio::spawn(async move { inner.watch_inbox(account).await });
+        if let Some(previous) = self.watchers.lock().unwrap().insert(id, task.abort_handle()) {
+            previous.abort();
+        }
+    }
+
+    fn unwatch(&self, account_id: &str) {
+        if let Some(task) = self.watchers.lock().unwrap().remove(account_id) {
+            task.abort();
+        }
+    }
+
+    /// Keep a separate connection on INBOX and report changes: IDLE when the
+    /// server supports it, polling otherwise. Reconnects with back-off; stops
+    /// when the account must sign in again.
+    async fn watch_inbox(&self, account: Account) {
+        let mut delay = RETRY_FIRST;
+        let mut connected_before = false;
+        loop {
+            if self.reauth_needed.lock().unwrap().contains(&account.id) {
+                return;
+            }
+            if let Err(e) = self.watch_session(&account, &mut delay, &mut connected_before).await {
+                eprintln!("fuu: INBOX watcher for {}: {e}", account.email);
+            }
+            tokio::time::sleep(delay).await;
+            delay = (delay * 2).min(RETRY_MAX);
+        }
+    }
+
+    async fn watch_session(&self, account: &Account, delay: &mut std::time::Duration, connected_before: &mut bool) -> Result<(), String> {
+        let mut session = self.login(account).await?;
+        *delay = RETRY_FIRST;
+        let inbox = self
+            .folders
+            .lock()
+            .await
+            .get(&account.id)
+            .and_then(|list| list.iter().find(|f| f.role == FolderRole::Inbox).map(|f| f.path.clone()))
+            .unwrap_or_else(|| "INBOX".into());
+        let changed = || self.emit(Event::FolderChanged { account_id: account.id.clone(), path: inbox.clone() });
+        let idle = imap::supports_idle(&mut session).await.map_err(|e| e.to_string())?;
+        let mut state = imap::examine_state(&mut session, &inbox).await.map_err(|e| e.to_string())?;
+        if std::mem::replace(connected_before, true) {
+            // Mail may have arrived while the connection was down.
+            changed();
+        }
+        loop {
+            if idle {
+                let (next, outcome) = imap::idle_round(session, IDLE_ROUND).await.map_err(|e| e.to_string())?;
+                session = next;
+                if outcome == imap::IdleOutcome::Changed {
+                    changed();
+                }
+            } else {
+                tokio::time::sleep(POLL_INTERVAL).await;
+                let now = imap::examine_state(&mut session, &inbox).await.map_err(|e| e.to_string())?;
+                if std::mem::replace(&mut state, now) != now {
+                    changed();
+                }
+            }
+        }
     }
 
     /// Run an IMAP operation, reconnecting once if the cached session has died.
@@ -404,8 +506,14 @@ impl Inner {
     }
 
     async fn open_folder(&self, account_id: &str, path: &str) {
+        self.load_folder(account_id, path, false).await;
+    }
+
+    async fn load_folder(&self, account_id: &str, path: &str, refresh: bool) {
         let Some(account) = self.account(account_id).await else { return };
-        self.emit(Event::Status("メールを読み込んでいます…".into()));
+        if !refresh {
+            self.emit(Event::Status("メールを読み込んでいます…".into()));
+        }
         let path_owned = path.to_owned();
         match self
             .with_session(&account, move |s| {
@@ -421,9 +529,13 @@ impl Inner {
                         let _ = cache.retain_validity(&account.id, path, v);
                     }
                 }
-                self.emit(Event::Status(String::new()));
-                self.emit(Event::Messages { account_id: account.id.clone(), path: path.to_owned(), page });
+                if !refresh {
+                    self.emit(Event::Status(String::new()));
+                }
+                self.emit(Event::Messages { account_id: account.id.clone(), path: path.to_owned(), page, refresh });
             }
+            // A failed background reload stays quiet; the watcher retries.
+            Err(e) if refresh => eprintln!("fuu: refreshing {path}: {e}"),
             Err(e) => self.emit(Event::Error(e)),
         }
     }

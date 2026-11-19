@@ -339,7 +339,11 @@ fn handle(ui: &AppWindow, event: Event) {
                 ui.set_reauth_error(SharedString::default());
                 ui.set_reauth_busy(false);
             }
-            DATA.with(|d| d.borrow_mut().active = Some(account.id.clone()));
+            let switched = DATA.with(|d| d.borrow_mut().active.replace(account.id.clone())) != Some(account.id.clone());
+            if switched {
+                // The engine opens the new account next; the old list is not its.
+                clear_mailbox(ui);
+            }
             render_accounts(ui);
             ui.set_setup_busy(false);
             ui.set_setup_error(SharedString::default());
@@ -380,8 +384,42 @@ fn handle(ui: &AppWindow, event: Event) {
                 DATA.with(|d| d.borrow_mut().folders = folders);
             }
         }
-        Event::Messages { account_id, path, page } => {
-            if DATA.with(|d| d.borrow().active.as_deref() != Some(account_id.as_str())) {
+        Event::FolderChanged { account_id, path } => {
+            let shown = DATA.with(|d| {
+                let d = d.borrow();
+                d.active.as_deref() == Some(account_id.as_str()) && d.folder == path
+            });
+            if shown && !is_spike() {
+                send(Command::RefreshFolder { account_id, path });
+            }
+        }
+        Event::Messages { account_id, path, page, refresh } => {
+            let (active, same_folder) = DATA.with(|d| {
+                let d = d.borrow();
+                (d.active.as_deref() == Some(account_id.as_str()), d.folder == path)
+            });
+            if !active || (refresh && !same_folder) {
+                return;
+            }
+            if same_folder {
+                // Same folder again (new mail, or reopened): edit the list in place
+                // and keep the selected message selected.
+                let selected = DATA.with(|d| {
+                    let d = d.borrow();
+                    usize::try_from(ui.get_current_row()).ok().and_then(|i| d.summaries.get(i)).map(|m| m.uid)
+                });
+                let rows: Vec<MessageRow> = page.messages.iter().map(row_from_summary).collect();
+                let model = ui.get_messages();
+                match model.as_any().downcast_ref::<VecModel<MessageRow>>() {
+                    Some(vec) => crate::sync_rows(vec, &rows),
+                    None => ui.set_messages(ModelRc::new(VecModel::from(rows))),
+                }
+                let row = selected.and_then(|uid| page.messages.iter().position(|m| m.uid == uid));
+                ui.set_current_row(row.map_or(-1, |i| i as i32));
+                let empty = page.messages.is_empty();
+                DATA.with(|d| d.borrow_mut().summaries = page.messages);
+                ui.set_list_busy(false);
+                ui.set_list_message(if empty { "メールはありません".into() } else { SharedString::default() });
                 return;
             }
             let display = DATA.with(|d| d.borrow().folders.iter().find(|f| f.path == path).map(folder_title)).unwrap_or_else(|| path.clone());
