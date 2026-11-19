@@ -41,6 +41,9 @@ pub enum Command {
     /// Abandon a browser sign-in in progress.
     CancelOAuth,
     RemoveAccount { account_id: String },
+    /// Change an account's signature (saved to accounts.toml; no event unless
+    /// saving fails).
+    SetSignature { account_id: String, signature: String, enabled: bool },
     /// Load the folder list and the given folder (INBOX when `None`).
     OpenAccount { account_id: String, folder: Option<String> },
     OpenFolder { account_id: String, path: String },
@@ -185,6 +188,7 @@ impl Inner {
                 }
             }
             Command::RemoveAccount { account_id } => self.remove_account(&account_id).await,
+            Command::SetSignature { account_id, signature, enabled } => self.set_signature(&account_id, signature, enabled).await,
             Command::OpenAccount { account_id, folder } => self.open_account(&account_id, folder).await,
             Command::OpenFolder { account_id, path } => self.open_folder(&account_id, &path).await,
             Command::RefreshFolder { account_id, path } => self.load_folder(&account_id, &path, true).await,
@@ -329,12 +333,17 @@ impl Inner {
         Ok(Credential::Bearer(response.access_token))
     }
 
-    async fn save_new_account(self: Arc<Self>, account: Account, session: ImapSession) {
+    async fn save_new_account(self: Arc<Self>, mut account: Account, session: ImapSession) {
         let saved = {
             let mut file = self.accounts.lock().await;
-            // Signing in again replaces the account in place (keeps its position).
+            // Signing in again replaces the account in place (keeps its position
+            // and its signature).
             match file.accounts.iter_mut().find(|a| a.id == account.id) {
-                Some(existing) => *existing = account.clone(),
+                Some(existing) => {
+                    account.signature = std::mem::take(&mut existing.signature);
+                    account.signature_enabled = existing.signature_enabled;
+                    *existing = account.clone();
+                }
                 None => file.accounts.push(account.clone()),
             }
             config::save(&self.config_path, &file).map(|_| file.accounts.clone())
@@ -352,6 +361,19 @@ impl Inner {
                 let _ = secrets::delete_long(self.secrets.as_ref(), &account.id);
                 self.emit(Event::AccountAddFailed(e.to_string()));
             }
+        }
+    }
+
+    async fn set_signature(&self, account_id: &str, signature: String, enabled: bool) {
+        let mut file = self.accounts.lock().await;
+        let Some(account) = file.accounts.iter_mut().find(|a| a.id == account_id) else { return };
+        if account.signature == signature && account.signature_enabled == enabled {
+            return;
+        }
+        account.signature = signature;
+        account.signature_enabled = enabled;
+        if let Err(e) = config::save(&self.config_path, &file) {
+            self.emit(Event::Error(format!("署名を保存できませんでした: {e}")));
         }
     }
 

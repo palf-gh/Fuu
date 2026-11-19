@@ -247,13 +247,16 @@ type SharedTabs = Rc<RefCell<Tabs>>;
 
 const TAB_LIMIT_MESSAGE: &str = "タブは最大 32 個までです";
 
-/// The signature block appended to new drafts, from the settings.
-fn signature(ui: &AppWindow) -> String {
-    let text = ui.get_signature_text();
-    if ui.get_signature_enabled() && !text.trim().is_empty() {
-        format!("\n\n-- \n{text}")
-    } else {
-        String::new()
+/// The signature block for a new draft from `account` (the active account
+/// when None): that account's signature after a "-- " line, if it has one.
+fn signature(account: Option<&str>) -> String {
+    let account = match account {
+        Some(id) => mail::account_by_id(id),
+        None => mail::active_account(),
+    };
+    match account {
+        Some(a) if a.signature_enabled && !a.signature.trim().is_empty() => format!("\n\n-- \n{}", a.signature),
+        _ => String::new(),
     }
 }
 
@@ -594,7 +597,7 @@ fn open_mailto(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, url: Stri
         cc: m.cc,
         bcc: m.bcc,
         subject: m.subject,
-        doc: fuu_editor::model::RichDoc::from_plain(&format!("{}{}", m.body, signature(ui))),
+        doc: fuu_editor::model::RichDoc::from_plain(&format!("{}{}", m.body, signature(None))),
         ..Draft::default()
     };
     open_draft(ui, state, tabs, draft);
@@ -806,6 +809,7 @@ fn install_window_chrome(ui: &AppWindow) {
         });
     }
     ui.on_close_window(|| {
+        mail::flush_signatures_on_quit();
         let _ = slint::quit_event_loop();
     });
     {
@@ -1293,7 +1297,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_start_compose(move || {
             if let Some(ui) = weak.upgrade() {
-                let draft = Draft { title: "新規メッセージ".into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(&ui)), ..Draft::default() };
+                let draft = Draft { title: "新規メッセージ".into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(None)), ..Draft::default() };
                 open_draft(&ui, &state, &tabs, draft);
             }
         });
@@ -1332,6 +1336,21 @@ fn main() -> Result<(), slint::PlatformError> {
         ui.on_refresh_default_mail(move || {
             if let Some(ui) = weak.upgrade() {
                 refresh_default_mail_status(&ui);
+                mail::load_signature_editor(&ui, None);
+            }
+        });
+        ui.on_settings_closed(mail::flush_signatures);
+        let weak = ui.as_weak();
+        ui.on_signature_edited(move || {
+            if let Some(ui) = weak.upgrade() {
+                mail::signature_edited(&ui);
+            }
+        });
+        let weak = ui.as_weak();
+        ui.on_signature_account_picked(move || {
+            if let Some(ui) = weak.upgrade() {
+                let index = usize::try_from(ui.get_signature_account()).ok();
+                mail::load_signature_editor(&ui, index);
             }
         });
     }
@@ -1339,7 +1358,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_compose_to_address(move |address| {
             if let Some(ui) = weak.upgrade() {
-                let draft = Draft { title: "新規メッセージ".into(), to: address.into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(&ui)), ..Draft::default() };
+                let draft = Draft { title: "新規メッセージ".into(), to: address.into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(None)), ..Draft::default() };
                 open_draft(&ui, &state, &tabs, draft);
             }
         });
@@ -1369,7 +1388,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             draft.references.push(id.clone());
                         }
                     }
-                    draft.doc = editor::original_doc(&signature(&ui), &fuu_core::compose::original_header(&body.headers), &body.doc.text);
+                    draft.doc = editor::original_doc(&signature(Some(&r.account_id)), &fuu_core::compose::original_header(&body.headers), &body.doc.text);
                 }
                 None => {
                     draft.to = r.from_email.clone();
@@ -1382,7 +1401,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         subject: r.subject.clone(),
                         ..Default::default()
                     };
-                    draft.doc = editor::original_doc(&signature(&ui), &fuu_core::compose::original_header(&headers), "");
+                    draft.doc = editor::original_doc(&signature(Some(&r.account_id)), &fuu_core::compose::original_header(&headers), "");
                 }
             }
             open_draft(&ui, &state, &tabs, draft);
@@ -1397,11 +1416,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 title: "転送".into(),
                 subject: fuu_core::compose::forward_subject(&r.subject),
                 account_id: r.account_id.clone(),
-                doc: fuu_editor::model::RichDoc::from_plain(&format!("\n{}", signature(&ui))),
+                doc: fuu_editor::model::RichDoc::from_plain(&format!("\n{}", signature(Some(&r.account_id)))),
                 ..Draft::default()
             };
             if let Some(body) = mail::body_of(&r) {
-                draft.doc = editor::original_doc(&signature(&ui), &fuu_core::compose::original_header(&body.headers), &body.doc.text);
+                draft.doc = editor::original_doc(&signature(Some(&r.account_id)), &fuu_core::compose::original_header(&body.headers), &body.doc.text);
                 // Forward the original attachments too.
                 draft.attachments = (0..body.attachments.len())
                     .filter_map(|i| mail::attachment_data(&body, i))
@@ -1796,6 +1815,11 @@ fn main() -> Result<(), slint::PlatformError> {
                     "settings" => {
                         ui.invoke_row_selected(1);
                         ui.invoke_open_settings();
+                    }
+                    "signature" => {
+                        ui.invoke_row_selected(1);
+                        ui.invoke_open_settings();
+                        ui.set_settings_page(2);
                     }
                     "about" => {
                         ui.invoke_row_selected(1);

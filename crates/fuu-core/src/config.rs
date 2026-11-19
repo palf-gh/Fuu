@@ -71,6 +71,8 @@ mod tests {
             smtp: ServerConfig { host: "smtp.example.jp".into(), port: 587, security: Security::StartTls },
             auth: AuthKind::Password,
             oauth: None,
+            signature: String::new(),
+            signature_enabled: true,
         }
     }
 
@@ -91,6 +93,25 @@ mod tests {
         assert!(!text.to_lowercase().contains("password ="), "no secrets in the file");
         assert_eq!(load(&path).unwrap(), file);
         assert!(!path.with_extension("toml.tmp").exists());
+    }
+
+    #[test]
+    fn signatures_round_trip_and_old_files_default() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("accounts.toml");
+        let mut account = sample();
+        account.signature = "山田 太郎\n株式会社サンプル".into();
+        account.signature_enabled = false;
+        let file = AccountsFile { accounts: vec![account] };
+        save(&path, &file).unwrap();
+        assert_eq!(load(&path).unwrap(), file);
+        // Files written before signatures existed: empty and enabled.
+        let mut plain = AccountsFile { accounts: vec![sample()] };
+        save(&path, &plain).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(!text.contains("signature"), "defaults are not written: {text}");
+        plain.accounts[0].signature_enabled = true;
+        assert_eq!(load(&path).unwrap(), plain);
     }
 
     #[test]

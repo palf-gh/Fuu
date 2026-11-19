@@ -265,6 +265,94 @@ fn send(command: Command) {
     }
 }
 
+thread_local! {
+    /// Accounts whose signature changed and the timer that saves them (typing
+    /// is saved once it pauses, not on every key).
+    static SIGNATURE_PENDING: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    static SIGNATURE_TIMER: slint::Timer = slint::Timer::default();
+}
+
+/// Settings → 署名: show the signature of account `index` (the active account
+/// when None) in the editor.
+pub fn load_signature_editor(ui: &AppWindow, index: Option<usize>) {
+    let (labels, chosen) = DATA.with(|d| {
+        let d = d.borrow();
+        let labels: Vec<SharedString> = d.accounts.iter().map(|a| account_item(a).name).collect();
+        let active = d.active.as_ref().and_then(|id| d.accounts.iter().position(|a| &a.id == id));
+        let i = index.filter(|&i| i < d.accounts.len()).or(active).or((!d.accounts.is_empty()).then_some(0));
+        (labels, i.map(|i| (i, d.accounts[i].clone())))
+    });
+    ui.set_signature_accounts(ModelRc::new(VecModel::from(labels)));
+    match chosen {
+        Some((i, account)) => {
+            ui.set_signature_account(i as i32);
+            ui.set_signature_text(account.signature.into());
+            ui.set_signature_enabled(account.signature_enabled);
+        }
+        None => {
+            ui.set_signature_account(-1);
+            ui.set_signature_text(SharedString::default());
+        }
+    }
+}
+
+/// The signature editor changed: update the account now, save shortly.
+pub fn signature_edited(ui: &AppWindow) {
+    let Ok(index) = usize::try_from(ui.get_signature_account()) else { return };
+    let (text, enabled) = (ui.get_signature_text().to_string(), ui.get_signature_enabled());
+    let changed = DATA.with(|d| {
+        let mut d = d.borrow_mut();
+        let account = d.accounts.get_mut(index)?;
+        if account.signature == text && account.signature_enabled == enabled {
+            return None;
+        }
+        account.signature = text;
+        account.signature_enabled = enabled;
+        Some(account.id.clone())
+    });
+    let Some(id) = changed else { return };
+    SIGNATURE_PENDING.with(|p| {
+        let mut p = p.borrow_mut();
+        if !p.contains(&id) {
+            p.push(id);
+        }
+    });
+    SIGNATURE_TIMER.with(|t| t.start(slint::TimerMode::SingleShot, std::time::Duration::from_millis(600), save_signatures));
+}
+
+/// Save signature edits now (settings closed).
+pub fn flush_signatures() {
+    SIGNATURE_TIMER.with(|t| t.stop());
+    save_signatures();
+}
+
+/// Quitting: the engine may not get to a queued save before the process
+/// ends, so write pending signatures to accounts.toml directly.
+pub fn flush_signatures_on_quit() {
+    SIGNATURE_TIMER.with(|t| t.stop());
+    let pending = SIGNATURE_PENDING.with(|p| std::mem::take(&mut *p.borrow_mut()));
+    if pending.is_empty() || is_spike() {
+        return;
+    }
+    let Ok(path) = fuu_core::config::default_path() else { return };
+    let Ok(mut file) = fuu_core::config::load(&path) else { return };
+    for id in pending {
+        if let (Some(mine), Some(saved)) = (account_by_id(&id), file.accounts.iter_mut().find(|a| a.id == id)) {
+            saved.signature = mine.signature;
+            saved.signature_enabled = mine.signature_enabled;
+        }
+    }
+    let _ = fuu_core::config::save(&path, &file);
+}
+
+fn save_signatures() {
+    for id in SIGNATURE_PENDING.with(|p| std::mem::take(&mut *p.borrow_mut())) {
+        if let Some(a) = account_by_id(&id) {
+            send(Command::SetSignature { account_id: a.id, signature: a.signature, enabled: a.signature_enabled });
+        }
+    }
+}
+
 /// Whether the account list is known (a new draft can pick its sender).
 pub fn accounts_ready() -> bool {
     DATA.with(|d| d.borrow().accounts_loaded)
@@ -285,6 +373,8 @@ pub fn start(ui: &AppWindow, spike: bool) {
                 smtp: ServerConfig { host: String::new(), port: 465, security: Security::Tls },
                 auth: AuthKind::Password,
                 oauth: None,
+                signature: "Fuu spike".into(),
+                signature_enabled: true,
             }];
             d.active = Some("spike".into());
             d.folder = "INBOX".into();
@@ -920,6 +1010,8 @@ fn form_account(ui: &AppWindow, email: String) -> Account {
         },
         auth: AuthKind::Password,
         oauth: None,
+        signature: String::new(),
+        signature_enabled: true,
     }
 }
 

@@ -1,6 +1,5 @@
 // Settings, shown as a tab in the right pane.
 
-import { TextEdit } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Divider, Icon, Avatar, MenuRow, SecondaryButton } from "components.slint";
 import { AccountItem } from "models.slint";
@@ -132,6 +131,9 @@ export component SettingsView inherits Rectangle {
     callback make-default-mail-app();
     in-out property <string> signature-text;
     in-out property <bool> signature-enabled;
+    // Accounts to pick the signature of, and the chosen one.
+    in property <[string]> signature-accounts;
+    in-out property <int> signature-account;
     in property <[AccountItem]> accounts;
     callback add-account();
     callback remove-account(string);
@@ -224,17 +226,86 @@ export component SettingsView inherits Rectangle {
                 spacing: 4px;
                 PageTitle { text: "署名"; }
                 Rectangle { height: 14px; }
-                SettingRow {
-                    title: "新規メッセージに署名を入れる";
-                    description: "作成・返信・転送のたびに、本文の下へ「-- 」区切り付きで挿入します。";
-                    Toggle { checked <=> root.signature-enabled; }
+                if root.signature-accounts.length == 0: Text {
+                    text: "アカウントを追加すると、アカウントごとに署名を設定できます。";
+                    font-size: Theme.font-m;
+                    color: Theme.text-faint;
+                    wrap: word-wrap;
                 }
-                Rectangle { height: 8px; }
-                Rectangle {
-                    height: 160px;
-                    opacity: root.signature-enabled ? 1 : 0.45;
-                    animate opacity { duration: 160ms; }
-                    TextEdit { text <=> root.signature-text; wrap: word-wrap; enabled: root.signature-enabled; }
+                if root.signature-accounts.length > 0: VerticalLayout {
+                    spacing: 4px;
+                    // Several accounts: pick whose signature to edit.
+                    if root.signature-accounts.length > 1: VerticalLayout {
+                        spacing: 2px;
+                        padding-bottom: 10px;
+                        Text { text: "アカウント"; font-size: Theme.font-m; color: Theme.text; }
+                        Text { text: "署名はアカウントごとに保存します。"; font-size: Theme.font-s; color: Theme.text-faint; }
+                        Rectangle { height: 6px; }
+                        for label[i] in root.signature-accounts: Rectangle {
+                            height: 34px;
+                            border-radius: Theme.radius-m;
+                            background: i == root.signature-account ? Theme.selected : pick.has-hover ? Theme.hover : transparent;
+                            pick := TouchArea { clicked => { root.signature-account = i; } }
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                spacing: 10px;
+                                Rectangle {
+                                    width: 8px;
+                                    height: 8px;
+                                    y: (parent.height - self.height) / 2;
+                                    border-radius: 4px;
+                                    background: i == root.signature-account ? Theme.accent : transparent;
+                                }
+                                Text {
+                                    text: label;
+                                    font-size: Theme.font-m;
+                                    font-weight: i == root.signature-account ? 600 : 400;
+                                    color: Theme.text;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+                            }
+                        }
+                        Divider { height: 1px; }
+                    }
+                    SettingRow {
+                        title: "新規メッセージに署名を入れる";
+                        description: "作成・返信・転送のたびに、本文の下へ「-- 」区切り付きで挿入します。変更はすぐに保存されます。";
+                        Toggle { checked <=> root.signature-enabled; }
+                    }
+                    Rectangle { height: 8px; }
+                    // Multi-line field in Fuu's own style (std TextEdit draws nothing
+                    // with this theme).
+                    Rectangle {
+                        height: 160px;
+                        border-radius: Theme.radius-l;
+                        background: Theme.field;
+                        border-width: 1px;
+                        border-color: signature-input.has-focus ? Theme.accent : Theme.border;
+                        opacity: root.signature-enabled ? 1 : 0.45;
+                        animate opacity { duration: 160ms; }
+                        clip: true;
+                        signature-input := TextInput {
+                            x: 12px;
+                            y: 10px;
+                            width: parent.width - 24px;
+                            height: parent.height - 20px;
+                            text <=> root.signature-text;
+                            enabled: root.signature-enabled;
+                            single-line: false;
+                            wrap: word-wrap;
+                            color: Theme.text;
+                            font-size: Theme.font-m;
+                        }
+                        if root.signature-text == "" && !signature-input.has-focus: Text {
+                            x: 12px;
+                            y: 10px;
+                            text: "例）山田 太郎\n株式会社サンプル";
+                            color: Theme.text-faint;
+                            font-size: Theme.font-m;
+                        }
+                    }
                 }
             }
 

@@ -126,6 +126,8 @@ fn engine_adds_account_and_loads_inbox() {
         smtp: ServerConfig { host: "127.0.0.1".into(), port: 3025, security: Security::InsecurePlainForTests },
         auth: AuthKind::Password,
         oauth: None,
+        signature: String::new(),
+        signature_enabled: true,
     };
 
     // A wrong password must not create the account.
@@ -191,6 +193,8 @@ fn engine_sends_reply_saves_sent_and_marks_answered() {
         smtp: ServerConfig { host: "127.0.0.1".into(), port: 3025, security: Security::InsecurePlainForTests },
         auth: AuthKind::Password,
         oauth: None,
+        signature: String::new(),
+        signature_enabled: true,
     };
     engine.send(Command::AddAccount { account, password: PASSWORD.into() });
     let Event::AccountAdded(added) = wait_for(&rx, |e| matches!(e, Event::AccountAdded(_))) else { unreachable!() };
@@ -276,6 +280,8 @@ fn engine_watcher_reports_inbox_changes() {
         smtp: ServerConfig { host: "127.0.0.1".into(), port: 3025, security: Security::InsecurePlainForTests },
         auth: AuthKind::Password,
         oauth: None,
+        signature: String::new(),
+        signature_enabled: true,
     };
     engine.send(Command::AddAccount { account, password: PASSWORD.into() });
     let Event::AccountAdded(added) = wait_for(&rx, |e| matches!(e, Event::AccountAdded(_))) else { unreachable!() };

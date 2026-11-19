@@ -346,15 +346,24 @@ export component AppWindow inherits Window {
     in property <bool> compose-sending;
     in property <bool> settings-open;
     in-out property <int> settings-page;
-    in-out property <string> signature-text: "Fuu spike";
+    // Settings → 署名: the chosen account's signature (src/mail.rs loads and saves it).
+    in-out property <string> signature-text;
     in-out property <bool> signature-enabled: true;
+    in property <[string]> signature-accounts;
+    in-out property <int> signature-account: -1;
+    callback signature-edited();
+    callback signature-account-picked();
+    changed signature-text => { self.signature-edited(); }
+    changed signature-enabled => { self.signature-edited(); }
+    changed signature-account => { self.signature-account-picked(); }
     in-out property <bool> compose-html: true;
     // Default mail app (settings → 一般); refreshed when settings open.
     in property <string> default-mail-status;
     in property <bool> is-default-mail-app;
     callback make-default-mail-app();
     callback refresh-default-mail();
-    changed settings-open => { if (self.settings-open) { self.refresh-default-mail(); } }
+    callback settings-closed();
+    changed settings-open => { if (self.settings-open) { self.refresh-default-mail(); } else { self.settings-closed(); } }
     // 0 system, 1 light, 2 dark
     in-out property <int> theme-mode;
     property <ColorScheme> system-scheme;
@@ -1207,6 +1216,8 @@ callback setup-oauth-cancel();
                     make-default-mail-app => { root.make-default-mail-app(); }
                     signature-text <=> root.signature-text;
                     signature-enabled <=> root.signature-enabled;
+                    signature-accounts: root.signature-accounts;
+                    signature-account <=> root.signature-account;
                     accounts: root.accounts;
                     add-account => { root.open-account-setup(); }
                     remove-account(id) => { root.remove-account(id); }

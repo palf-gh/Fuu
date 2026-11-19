@@ -52,6 +52,20 @@ pub struct Account {
     /// Identity provider for `AuthKind::OAuth2`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub oauth: Option<crate::oauth::Provider>,
+    /// Plain-text signature put below new messages (after a "-- " line).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub signature: String,
+    /// Whether new messages get the signature.
+    #[serde(default = "enabled_by_default", skip_serializing_if = "is_true")]
+    pub signature_enabled: bool,
+}
+
+fn enabled_by_default() -> bool {
+    true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }
 
 impl Account {
