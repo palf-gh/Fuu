@@ -415,7 +415,7 @@ fn handle(ui: &AppWindow, event: Event) {
                     let d = d.borrow();
                     usize::try_from(ui.get_current_row()).ok().and_then(|i| d.summaries.get(i)).map(|m| m.uid)
                 });
-                let rows: Vec<MessageRow> = page.messages.iter().map(row_from_summary).collect();
+                let rows = list_rows(&page.messages);
                 let model = ui.get_messages();
                 match model.as_any().downcast_ref::<VecModel<MessageRow>>() {
                     Some(vec) => crate::sync_rows(vec, &rows),
@@ -433,7 +433,7 @@ fn handle(ui: &AppWindow, event: Event) {
             let display = DATA.with(|d| d.borrow().folders.iter().find(|f| f.path == path).map(folder_title)).unwrap_or_else(|| path.clone());
             ui.set_mailbox(display.into());
             ui.set_current_folder(path.clone().into());
-            let rows: Vec<MessageRow> = page.messages.iter().map(row_from_summary).collect();
+            let rows = list_rows(&page.messages);
             let empty = rows.is_empty();
             ui.set_messages(ModelRc::new(VecModel::from(rows)));
             ui.set_current_row(-1);
@@ -496,7 +496,9 @@ fn handle(ui: &AppWindow, event: Event) {
             });
             if let Some(row) = removed_row {
                 if let Some(vec) = ui.get_messages().as_any().downcast_ref::<VecModel<MessageRow>>() {
+                    let was_header = vec.row_data(row).is_some_and(|r| r.header);
                     vec.remove(row);
+                    crate::sections::removed(vec, row, was_header);
                 }
             }
             let what = if target == MoveTarget::Trash { "ゴミ箱に移動しました" } else { "アーカイブしました" };
@@ -632,6 +634,17 @@ fn strip_bidi(s: &str) -> String {
     s.chars().filter(|c| !matches!(c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{200E}' | '\u{200F}')).collect()
 }
 
+/// List rows for a page of messages, with date sections marked.
+fn list_rows(messages: &[MessageSummary]) -> Vec<MessageRow> {
+    let today = crate::sections::today();
+    let mut rows: Vec<MessageRow> = messages
+        .iter()
+        .map(|m| MessageRow { section: crate::sections::date_section(m.date, today).into(), ..row_from_summary(m) })
+        .collect();
+    crate::sections::mark(&mut rows, None);
+    rows
+}
+
 fn row_from_summary(m: &MessageSummary) -> MessageRow {
     let sender = strip_bidi(if m.from_name.is_empty() { &m.from_email } else { &m.from_name });
     MessageRow {
@@ -642,6 +655,7 @@ fn row_from_summary(m: &MessageSummary) -> MessageRow {
         preview: strip_bidi(&m.from_email).into(),
         date: format_date(m.date).into(),
         unread: !m.seen,
+        ..Default::default()
     }
 }
 
@@ -661,7 +675,12 @@ pub fn message_ref(ui: &AppWindow, row: usize) -> Option<MessageRef> {
             subject: r.subject.into(),
             from_name: r.sender.into(),
             from_email: format!("sender{row}@example.com"),
-            date_text: format!("2026/{} 10:{:02}", r.date, row % 60),
+            // The list shows a time (today), month/day (this year) or a full date.
+            date_text: match r.date.matches('/').count() {
+                _ if r.date.contains(':') => format!("{} {}", Local::now().format("%Y/%m/%d"), r.date),
+                1 => format!("{}/{} 10:{:02}", Local::now().year(), r.date, row % 60),
+                _ => format!("{} 10:{:02}", r.date, row % 60),
+            },
         });
     }
     let m = summary?;

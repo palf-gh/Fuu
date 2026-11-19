@@ -25,6 +25,11 @@ export struct MessageRow {
     unread: bool,
     initials: string,
     avatar: int,
+    // Date section (今日, 昨日, …); `header` on the first row of a run, and
+    // `collapsed` when the user closed the section (row hidden, header kept).
+    section: string,
+    header: bool,
+    collapsed: bool,
 }
 
 export struct AttachmentItem {
@@ -81,12 +86,48 @@ component MessageItem inherits Rectangle {
     in property <bool> selected;
     callback clicked;
     callback open-in-background;
-    height: 80px;
-    Rectangle {
+    callback toggle-section();
+    property <length> header-height: root.message.header ? 34px : 0px;
+    height: root.header-height + (root.message.collapsed ? 0px : 80px);
+    clip: true;
+    if root.message.header: Rectangle {
         x: 10px;
-        y: 1px;
+        y: 0px;
         width: parent.width - 20px;
-        height: parent.height - 2px;
+        height: root.header-height;
+        border-radius: Theme.radius-m;
+        background: section-area.has-hover ? Theme.hover : transparent;
+        section-area := TouchArea { clicked => { root.toggle-section(); } }
+        Icon {
+            source: @image-url("icons/chevron-down.svg");
+            x: 10px;
+            y: (parent.height - self.height) / 2;
+            width: 13px;
+            height: 13px;
+            transform-rotation: root.message.collapsed ? -90deg : 0deg;
+            animate transform-rotation { duration: 120ms; easing: ease-out; }
+            tint: Theme.text-faint;
+        }
+        Text {
+            x: 32px;
+            height: parent.height;
+            text: root.message.section;
+            font-size: Theme.font-s;
+            font-weight: 600;
+            color: Theme.text-muted;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            y: parent.height - 1px;
+            height: 1px;
+            background: Theme.border;
+        }
+    }
+    if !root.message.collapsed: Rectangle {
+        x: 10px;
+        y: root.header-height + 1px;
+        width: parent.width - 20px;
+        height: 78px;
         border-radius: Theme.radius-l;
         background: root.selected ? Theme.selected : area.has-hover ? Theme.hover : transparent;
         animate background { duration: 80ms; }
@@ -168,6 +209,10 @@ export component AppWindow inherits Window {
 
     in property <[MessageRow]> messages;
     in-out property <int> current-row: -1;
+    // Open or close a date section of the list; the next visible row from a
+    // row in a direction (±1), skipping closed sections.
+    callback toggle-section(string);
+    pure callback step-row(int, int) -> int;
     in property <bool> has-message;
     // The reader shows an attachment preview (no reply / archive / delete).
     in property <bool> viewing-attachment;
@@ -401,15 +446,15 @@ callback setup-oauth-cancel();
         if (!e.modifiers.control && !e.modifiers.meta && !e.modifiers.alt && !root.composing
             && !root.settings-open && !root.setup-open && !root.link-dialog-open && !root.info-dialog-open) {
             if (e.text == "j" || (e.text == Key.DownArrow && root.current-row >= 0)) {
-                if (root.current-row < root.messages.length - 1) {
-                    root.current-row += 1;
+                if (root.step-row(root.current-row, 1) != root.current-row) {
+                    root.current-row = root.step-row(root.current-row, 1);
                     root.row-selected(root.current-row);
                 }
                 return accept;
             }
             if (e.text == "k" || (e.text == Key.UpArrow && root.current-row >= 0)) {
-                if (root.current-row > 0) {
-                    root.current-row -= 1;
+                if (root.current-row > 0 && root.step-row(root.current-row, -1) != root.current-row) {
+                    root.current-row = root.step-row(root.current-row, -1);
                     root.row-selected(root.current-row);
                 }
                 return accept;
@@ -655,6 +700,7 @@ callback setup-oauth-cancel();
                         root.row-selected(i);
                     }
                     open-in-background => { root.row-open-in-tab(i); }
+                    toggle-section => { root.toggle-section(row.section); }
                 }
               }
             }

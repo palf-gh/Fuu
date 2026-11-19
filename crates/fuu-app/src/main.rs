@@ -6,6 +6,7 @@ mod editor;
 mod mail;
 mod preview;
 mod samples;
+mod sections;
 mod tabs;
 
 use std::cell::RefCell;
@@ -138,17 +139,22 @@ fn spawn_mail_feed(ui: slint::Weak<AppWindow>) {
         rt.block_on(async move {
             let started = Instant::now();
             let batches = SPIKE_ROWS / BATCH;
+            // Spread the dummy mail over about two years, newest first.
+            let now = chrono::Local::now().timestamp();
+            let today = sections::today();
             for batch in 0..batches {
                 tokio::time::sleep(Duration::from_millis(60)).await;
-                let rows: Vec<(String, String, String, String, bool)> = (0..BATCH)
+                let rows: Vec<(String, String, String, String, bool, String)> = (0..BATCH)
                     .map(|j| {
                         let n = batch * BATCH + j;
+                        let date = now - n as i64 * 11_500;
                         (
                             ["佐藤 花子", "Oliver Smith", "鈴木一郎", "Newsletter", "山田 太郎"][n % 5].to_owned(),
                             format!("［#{n}］打ち合わせの件について — Re: colour proposal"),
                             "お疲れさまです。先日の件ですが、資料を添付しましたのでご確認ください。".to_owned(),
-                            format!("11/{:02}", 18 - (n / 300).min(17)),
+                            mail::format_date(date),
                             n % 7 == 0,
+                            sections::date_section(date, today),
                         )
                     })
                     .collect();
@@ -159,15 +165,23 @@ fn spawn_mail_feed(ui: slint::Weak<AppWindow>) {
                     let Some(ui) = ui.upgrade() else { return };
                     let model = ui.get_messages();
                     let Some(vec) = model.as_any().downcast_ref::<VecModel<MessageRow>>() else { return };
-                    vec.extend(rows.into_iter().map(|(sender, subject, preview, date, unread)| MessageRow {
-                        initials: initials(&sender).into(),
-                        avatar: avatar_index(&sender),
-                        sender: sender.into(),
-                        subject: subject.into(),
-                        preview: preview.into(),
-                        date: date.into(),
-                        unread,
-                    }));
+                    let mut rows: Vec<MessageRow> = rows
+                        .into_iter()
+                        .map(|(sender, subject, preview, date, unread, section)| MessageRow {
+                            initials: initials(&sender).into(),
+                            avatar: avatar_index(&sender),
+                            sender: sender.into(),
+                            subject: subject.into(),
+                            preview: preview.into(),
+                            date: date.into(),
+                            unread,
+                            section: section.into(),
+                            ..Default::default()
+                        })
+                        .collect();
+                    let before = vec.row_count().checked_sub(1).and_then(|i| vec.row_data(i)).map(|r| r.section);
+                    sections::mark(&mut rows, before.as_deref());
+                    vec.extend(rows);
                     if last {
                         ui.set_feed_summary(
                             format!("{} 件を {:.0} ms で取り込み", vec.row_count(), elapsed.as_secs_f64() * 1000.0).into(),
@@ -745,6 +759,19 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.set_tabs(ModelRc::new(VecModel::<TabItem>::default()));
     render_tabs(&ui, &tabs.borrow());
 
+    {
+        let weak = ui.as_weak();
+        ui.on_toggle_section(move |section| {
+            let Some(ui) = weak.upgrade() else { return };
+            let model = ui.get_messages();
+            let Some(vec) = model.as_any().downcast_ref::<VecModel<MessageRow>>() else { return };
+            sections::toggle(vec, &section);
+        });
+        let weak = ui.as_weak();
+        ui.on_step_row(move |from, dir| {
+            weak.upgrade().map_or(from, |ui| sections::step(&ui.get_messages(), from, dir))
+        });
+    }
     {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_row_selected(move |i| {
@@ -1546,7 +1573,7 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     // Development aid: FUU_SNAPSHOT=<file.png> opens a sample, saves a snapshot of the
-    // window and exits. FUU_SNAPSHOT_STEP picks the scene (message|security|compose|dialog|empty).
+    // window and exits. FUU_SNAPSHOT_STEP picks the scene (message|security|compose|dialog|empty|sections|…).
     let snapshot_timer = slint::Timer::default();
     if let Ok(path) = std::env::var("FUU_SNAPSHOT") {
         let weak = ui.as_weak();
@@ -1606,6 +1633,10 @@ fn main() -> Result<(), slint::PlatformError> {
                         notify(&ui, "サーバーに接続できません: imap.example.jp:993 (connection refused)", true);
                     }
                     "empty" => {}
+                    "sections" => {
+                        ui.invoke_row_selected(7);
+                        ui.invoke_toggle_section("今日".into());
+                    }
                     _ => ui.invoke_row_selected(1),
                 },
                 4 if step == "rich" => editor::load(&ui, editor::sample()),
