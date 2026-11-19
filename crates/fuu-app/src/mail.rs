@@ -433,6 +433,8 @@ fn handle(ui: &AppWindow, event: Event) {
             let display = DATA.with(|d| d.borrow().folders.iter().find(|f| f.path == path).map(folder_title)).unwrap_or_else(|| path.clone());
             ui.set_mailbox(display.into());
             ui.set_current_folder(path.clone().into());
+            let role = DATA.with(|d| d.borrow().folders.iter().find(|f| f.path == path).map(|f| role_index(f.role)));
+            ui.set_folder_role(role.unwrap_or(6));
             let rows = list_rows(&page.messages);
             let empty = rows.is_empty();
             crate::set_message_model(&ui, rows);
@@ -502,7 +504,11 @@ fn handle(ui: &AppWindow, event: Event) {
                     crate::sections::renumber(vec, row);
                 }
             }
-            let what = if target == MoveTarget::Trash { "ゴミ箱に移動しました" } else { "アーカイブしました" };
+            let what = match target {
+                MoveTarget::Trash => "ゴミ箱に移動しました",
+                MoveTarget::Archive => "アーカイブしました",
+                MoveTarget::Inbox => "受信トレイに戻しました",
+            };
             crate::notify(&ui, what, false);
             ui.invoke_message_moved(account_id.into(), folder.into(), uid as i32);
         }
@@ -531,6 +537,7 @@ fn clear_mailbox(ui: &AppWindow) {
     ui.set_folders(ModelRc::new(VecModel::<FolderItem>::default()));
     ui.set_mailbox("受信トレイ".into());
     ui.set_current_folder(SharedString::default());
+    ui.set_folder_role(0);
     DATA.with(|d| {
         let mut d = d.borrow_mut();
         d.folders.clear();
@@ -661,6 +668,7 @@ fn row_from_summary(m: &MessageSummary) -> MessageRow {
         preview: strip_bidi(&m.from_email).into(),
         date: format_date(m.date).into(),
         unread: !m.seen,
+        attachment: m.attachment,
         ..Default::default()
     }
 }

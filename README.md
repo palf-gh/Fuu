@@ -78,7 +78,7 @@ SLINT_BACKEND=winit-skia cargo run -p fuu-app --features skia
 | `r` | 返信 |
 | `a` | 全員に返信 |
 | `f` | 転送 |
-| `e` | アーカイブ |
+| `e` | アーカイブ（ゴミ箱・迷惑メールでは受信トレイに戻す） |
 | `Delete` / `#` | 削除 |
 | `c` | 新規作成 |
 | `F5` | 表示中のフォルダーを再読み込み |
@@ -225,7 +225,7 @@ SLINT_BACKEND=winit-skia cargo run -p fuu-app --features skia
 | `r` | Reply |
 | `a` | Reply all |
 | `f` | Forward |
-| `e` | Archive |
+| `e` | Archive (in Trash or Junk: move back to the inbox) |
 | `Delete` / `#` | Delete |
 | `c` | New message |
 | `F5` | Reload the folder |

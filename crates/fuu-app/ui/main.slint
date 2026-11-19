@@ -32,6 +32,7 @@ export struct MessageRow {
     collapsed: bool,
     // Position in `messages` (the full list), for rows shown via `list-rows`.
     index: int,
+    attachment: bool,
 }
 
 export struct AttachmentItem {
@@ -89,6 +90,11 @@ component MessageItem inherits Rectangle {
     callback clicked;
     callback open-in-background;
     callback toggle-section();
+    // Quick actions shown on hover: 0 delete, 1 archive, 2 restore.
+    callback quick-action(int);
+    // Role of the shown folder (0 inbox … 4 junk, 5 trash, 6 other).
+    in property <int> folder-role;
+    property <bool> restorable: root.folder-role == 4 || root.folder-role == 5;
     property <length> header-height: root.message.header ? 34px : 0px;
     height: root.header-height + (root.message.collapsed ? 0px : 80px);
     clip: true;
@@ -133,12 +139,6 @@ component MessageItem inherits Rectangle {
         border-radius: Theme.radius-l;
         background: root.selected ? Theme.selected : area.has-hover ? Theme.hover : transparent;
         animate background { duration: 80ms; }
-        area := TouchArea {
-            clicked => { root.clicked(); }
-            pointer-event(e) => {
-                if (e.button == PointerEventButton.middle && e.kind == PointerEventKind.up) { root.open-in-background(); }
-            }
-        }
         // Unread marker in the left gutter
         Rectangle {
             opacity: root.message.unread ? 1 : 0;
@@ -166,11 +166,19 @@ component MessageItem inherits Rectangle {
                     font-weight: root.message.unread ? 600 : 400;
                     color: Theme.text;
                 }
+                if root.message.attachment: Icon {
+                    source: @image-url("icons/paperclip.svg");
+                    width: 13px;
+                    height: 13px;
+                    y: (parent.height - self.height) / 2;
+                    tint: Theme.text-faint;
+                }
                 Text {
                     text: root.message.date;
                     font-size: Theme.font-xs;
                     color: Theme.text-faint;
                     vertical-alignment: center;
+                    opacity: area.has-hover ? 0 : 1;
                 }
             }
             Text {
@@ -185,6 +193,40 @@ component MessageItem inherits Rectangle {
                 overflow: elide;
                 font-size: Theme.font-s;
                 color: Theme.text-faint;
+            }
+        }
+        // Last, so it sits above the text; the hover actions are its children so
+        // hovering them keeps the row hovered.
+        area := TouchArea {
+            clicked => { root.clicked(); }
+            pointer-event(e) => {
+                if (e.button == PointerEventButton.middle && e.kind == PointerEventKind.up) { root.open-in-background(); }
+            }
+            if area.has-hover: Rectangle {
+                x: parent.width - self.width - 8px;
+                y: 6px;
+                width: actions.preferred-width;
+                height: 28px;
+                border-radius: Theme.radius-m;
+                background: root.selected ? Theme.selected : Theme.hover;
+                actions := HorizontalLayout {
+                    spacing: 2px;
+                    if root.restorable: IconButton {
+                        icon: @image-url("icons/inbox.svg"); size: 28px; icon-size: 15px; tint: Theme.text-muted;
+                        tooltip: "受信トレイに戻す";
+                        clicked => { root.quick-action(2); }
+                    }
+                    if !root.restorable && root.folder-role != 3: IconButton {
+                        icon: @image-url("icons/archive.svg"); size: 28px; icon-size: 15px; tint: Theme.text-muted;
+                        tooltip: "アーカイブ";
+                        clicked => { root.quick-action(1); }
+                    }
+                    if root.folder-role != 5: IconButton {
+                        icon: @image-url("icons/trash.svg"); size: 28px; icon-size: 15px; tint: Theme.text-muted;
+                        tooltip: "削除";
+                        clicked => { root.quick-action(0); }
+                    }
+                }
             }
         }
     }
@@ -217,6 +259,12 @@ export component AppWindow inherits Window {
     // Open or close a date section of the list; the next visible row from a
     // row in a direction (±1), skipping closed sections.
     callback toggle-section(string);
+    // A hover action on a list row (index into `messages`; 0 delete,
+    // 1 archive, 2 restore to the inbox).
+    callback row-action(int, int);
+    // Role of the shown folder, as FolderItem.role.
+    in property <int> folder-role;
+    callback restore();
     pure callback step-row(int, int) -> int;
     in property <bool> has-message;
     // The reader shows an attachment preview (no reply / archive / delete).
@@ -470,8 +518,14 @@ callback setup-oauth-cancel();
                 if (e.text == "r") { root.reply(false); return accept; }
                 if (e.text == "a" || e.text == "R") { root.reply(true); return accept; }
                 if (e.text == "f") { root.forward(); return accept; }
-                if (e.text == "e") { root.archive(); return accept; }
-                if (e.text == "#" || e.text == Key.Delete) { root.delete(); return accept; }
+                if (e.text == "e") {
+                    if (root.folder-role == 4 || root.folder-role == 5) { root.restore(); } else if (root.folder-role != 3) { root.archive(); }
+                    return accept;
+                }
+                if (e.text == "#" || e.text == Key.Delete) {
+                    if (root.folder-role != 5) { root.delete(); }
+                    return accept;
+                }
             }
         }
         if (e.modifiers.control) {
@@ -706,6 +760,8 @@ callback setup-oauth-cancel();
                     }
                     open-in-background => { root.row-open-in-tab(row.index); }
                     toggle-section => { root.toggle-section(row.section); }
+                    folder-role: root.folder-role;
+                    quick-action(action) => { root.row-action(row.index, action); }
                 }
               }
             }
@@ -762,8 +818,9 @@ callback setup-oauth-cancel();
                             IconButton { icon: @image-url("icons/reply-all.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "全員に返信（A）"; clicked => { root.reply(true); } }
                             IconButton { icon: @image-url("icons/forward.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "転送（F）"; clicked => { root.forward(); } }
                             Rectangle { width: 8px; }
-                            IconButton { icon: @image-url("icons/archive.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "アーカイブ（E）"; clicked => { root.archive(); } }
-                            IconButton { icon: @image-url("icons/trash.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "削除（Delete）"; clicked => { root.delete(); } }
+                            if root.folder-role == 4 || root.folder-role == 5: IconButton { icon: @image-url("icons/inbox.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "受信トレイに戻す（E）"; clicked => { root.restore(); } }
+                            if root.folder-role != 4 && root.folder-role != 5 && root.folder-role != 3: IconButton { icon: @image-url("icons/archive.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "アーカイブ（E）"; clicked => { root.archive(); } }
+                            if root.folder-role != 5: IconButton { icon: @image-url("icons/trash.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "削除（Delete）"; clicked => { root.delete(); } }
                         }
                     }
                 }

@@ -52,14 +52,17 @@ pub enum Command {
     FetchRemoteImages { account_id: String, folder: String, uid: u32, urls: Vec<String> },
     /// Send a message; `answered` marks the replied-to message.
     Send { account_id: String, outgoing: crate::compose::Outgoing, answered: Option<(String, u32)>, draft_id: u64 },
-    /// Move a message to the account's Trash or Archive folder.
+    /// Move a message to the account's Trash, Archive or Inbox (restore).
     Move { account_id: String, folder: String, uid: u32, target: MoveTarget },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MoveTarget {
     Trash,
+    /// Created next to the other special folders when the account has none.
     Archive,
+    /// Back to the inbox (restoring from Trash or Junk).
+    Inbox,
 }
 
 #[derive(Debug, Clone)]
@@ -571,10 +574,22 @@ impl Inner {
         let role = match target {
             MoveTarget::Trash => FolderRole::Trash,
             MoveTarget::Archive => FolderRole::Archive,
+            MoveTarget::Inbox => FolderRole::Inbox,
         };
-        let destination = self.folders.lock().await.get(&account.id).and_then(|list| list.iter().find(|f| f.role == role && f.selectable).map(|f| f.path.clone()));
+        let known = self.folders.lock().await.get(&account.id).cloned().unwrap_or_default();
+        let mut destination = known.iter().find(|f| f.role == role && f.selectable).map(|f| f.path.clone());
+        if destination.is_none() && target == MoveTarget::Archive {
+            destination = self.create_archive(&account, &known).await;
+            if destination.is_none() {
+                return;
+            }
+        }
         let Some(destination) = destination else {
-            let name = if target == MoveTarget::Trash { "ゴミ箱" } else { "アーカイブ" };
+            let name = match target {
+                MoveTarget::Trash => "ゴミ箱",
+                MoveTarget::Archive => "アーカイブ",
+                MoveTarget::Inbox => "受信トレイ",
+            };
             return self.emit(Event::Error(format!("{name}フォルダーが見つかりません")));
         };
         if destination == folder {
@@ -595,6 +610,38 @@ impl Inner {
                 self.emit(Event::Moved { account_id: account.id, folder: folder.to_owned(), uid, target });
             }
             Err(e) => self.emit(Event::Error(e)),
+        }
+    }
+
+    /// Create an Archive folder for an account that has none (many hosting
+    /// providers only set up Trash, Sent, Drafts and Junk), then reload the
+    /// folder list. Returns the new folder's path.
+    async fn create_archive(&self, account: &Account, known: &[imap::Folder]) -> Option<String> {
+        let path = imap::archive_path(known);
+        let create = path.clone();
+        let created = self
+            .with_session(account, move |s| {
+                let create = create.clone();
+                Box::pin(async move {
+                    imap::create_folder(s, &create).await?;
+                    imap::list_folders(s).await
+                })
+            })
+            .await;
+        match created {
+            Ok(folders) => {
+                let found = folders.iter().find(|f| f.path == path).map(|f| f.path.clone());
+                self.folders.lock().await.insert(account.id.clone(), folders.clone());
+                self.emit(Event::Folders { account_id: account.id.clone(), folders });
+                if found.is_none() {
+                    self.emit(Event::Error(format!("アーカイブフォルダー「{path}」を作成しましたが、一覧に見つかりません")));
+                }
+                found
+            }
+            Err(e) => {
+                self.emit(Event::Error(format!("アーカイブフォルダーを作成できませんでした: {e}")));
+                None
+            }
         }
     }
 

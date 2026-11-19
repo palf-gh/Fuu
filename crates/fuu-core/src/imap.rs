@@ -5,6 +5,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use async_imap::imap_proto::BodyStructure;
 use async_imap::types::{Fetch, Flag, Name, NameAttribute};
 use async_imap::{Client, Session};
 use futures::TryStreamExt;
@@ -285,6 +286,8 @@ pub struct MessageSummary {
     pub seen: bool,
     pub answered: bool,
     pub flagged: bool,
+    /// The message carries attachments (from BODYSTRUCTURE).
+    pub attachment: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -323,7 +326,53 @@ fn summary_from_fetch(fetch: &Fetch) -> Option<MessageSummary> {
         seen: flags.contains(&Flag::Seen),
         answered: flags.contains(&Flag::Answered),
         flagged: flags.contains(&Flag::Flagged),
+        attachment: fetch.bodystructure().is_some_and(has_attachment),
     })
+}
+
+/// Whether a message structure holds a part the user would call an
+/// attachment: a part marked `attachment`, an attached message, or a named
+/// non-text part that is not shown inline (inline images of an HTML body are
+/// not attachments).
+pub fn has_attachment(structure: &BodyStructure<'_>) -> bool {
+    let named = |params: &Option<Vec<(std::borrow::Cow<'_, str>, std::borrow::Cow<'_, str>)>>, key: &str| {
+        params.iter().flatten().any(|(k, _)| k.eq_ignore_ascii_case(key) || k.to_ascii_lowercase().starts_with(&format!("{key}*")))
+    };
+    match structure {
+        BodyStructure::Multipart { bodies, .. } => bodies.iter().any(has_attachment),
+        BodyStructure::Message { .. } => true,
+        BodyStructure::Basic { common, .. } | BodyStructure::Text { common, .. } => {
+            let disposition = common.disposition.as_ref();
+            if disposition.is_some_and(|d| d.ty.eq_ignore_ascii_case("attachment")) {
+                return true;
+            }
+            let inline = disposition.is_some_and(|d| d.ty.eq_ignore_ascii_case("inline"));
+            let has_name = named(&common.ty.params, "name") || disposition.is_some_and(|d| named(&d.params, "filename"));
+            matches!(structure, BodyStructure::Basic { .. }) && has_name && !inline
+        }
+    }
+}
+
+/// Where to create an Archive folder when the account has none: next to the
+/// other special folders (`INBOX.Archive` on servers that keep everything
+/// under INBOX), otherwise at the top level.
+pub fn archive_path(folders: &[Folder]) -> String {
+    let sibling = folders
+        .iter()
+        .filter(|f| matches!(f.role, FolderRole::Trash | FolderRole::Sent | FolderRole::Drafts | FolderRole::Junk))
+        .find_map(|f| f.path.rfind(['.', '/']).map(|i| f.path[..=i].to_owned()));
+    format!("{}Archive", sibling.unwrap_or_default())
+}
+
+/// Create (and subscribe to) a folder.
+pub async fn create_folder(session: &mut ImapSession, path: &str) -> Result<(), ImapError> {
+    timed(COMMAND_TIMEOUT, async {
+        session.create(path).await.map_err(protocol)?;
+        // Some clients only show subscribed folders; failure here is harmless.
+        let _ = session.subscribe(path).await;
+        Ok(())
+    })
+    .await
 }
 
 /// Fetch the newest `limit` summaries of a folder. Uses EXAMINE (read-only), so
@@ -337,7 +386,7 @@ pub async fn fetch_summaries(session: &mut ImapSession, path: &str, limit: u32) 
         }
         let start = mailbox.exists.saturating_sub(limit.max(1)) + 1;
         let fetches: Vec<Fetch> = session
-            .fetch(format!("{start}:*"), "(UID FLAGS INTERNALDATE ENVELOPE)")
+            .fetch(format!("{start}:*"), "(UID FLAGS INTERNALDATE ENVELOPE BODYSTRUCTURE)")
             .await
             .map_err(protocol)?
             .try_collect()
@@ -482,6 +531,49 @@ pub fn saves_sent_automatically(imap_host: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn structure(response: &str) -> bool {
+        use async_imap::imap_proto::{AttributeValue, Response};
+        let raw = format!("* 1 FETCH (BODYSTRUCTURE {response})\r\n");
+        let (_, parsed) = Response::parse(raw.as_bytes()).unwrap_or_else(|e| panic!("{response}: {e:?}"));
+        let Response::Fetch(_, attributes) = parsed else { panic!("not a fetch") };
+        attributes
+            .iter()
+            .find_map(|a| match a {
+                AttributeValue::BodyStructure(b) => Some(has_attachment(b)),
+                _ => None,
+            })
+            .expect("has a body structure")
+    }
+
+    #[test]
+    fn attachments_from_body_structure() {
+        // Plain text only.
+        assert!(!structure(r#"("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "7BIT" 12 1)"#));
+        // Text + PDF marked as an attachment.
+        assert!(structure(
+            r#"(("TEXT" "PLAIN" ("CHARSET" "UTF-8") NIL NIL "7BIT" 12 1)("APPLICATION" "PDF" ("NAME" "a.pdf") NIL NIL "BASE64" 100 NIL ("ATTACHMENT" ("FILENAME" "a.pdf")) NIL) "MIXED")"#
+        ));
+        // HTML with an inline cid image: not an attachment.
+        assert!(!structure(
+            r#"(("TEXT" "HTML" ("CHARSET" "UTF-8") NIL NIL "7BIT" 40 2)("IMAGE" "PNG" ("NAME" "logo.png") "<logo>" NIL "BASE64" 100 NIL ("INLINE" ("FILENAME" "logo.png")) NIL) "RELATED")"#
+        ));
+        // A named part without a disposition (older mailers) counts.
+        assert!(structure(
+            r#"(("TEXT" "PLAIN" ("CHARSET" "ISO-2022-JP") NIL NIL "7BIT" 12 1)("APPLICATION" "OCTET-STREAM" ("NAME" "data.bin") NIL NIL "BASE64" 100) "MIXED")"#
+        ));
+    }
+
+    fn folder(path: &str, role: FolderRole) -> Folder {
+        Folder { path: path.into(), display: path.into(), role, selectable: true }
+    }
+
+    #[test]
+    fn archive_goes_next_to_the_special_folders() {
+        assert_eq!(archive_path(&[folder("INBOX", FolderRole::Inbox), folder("INBOX.Trash", FolderRole::Trash)]), "INBOX.Archive");
+        assert_eq!(archive_path(&[folder("INBOX", FolderRole::Inbox), folder("Trash", FolderRole::Trash)]), "Archive");
+        assert_eq!(archive_path(&[folder("INBOX", FolderRole::Inbox)]), "Archive");
+    }
 
     #[test]
     fn decodes_encoded_words_including_iso_2022_jp() {

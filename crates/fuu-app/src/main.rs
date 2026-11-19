@@ -178,6 +178,7 @@ fn spawn_mail_feed(ui: slint::Weak<AppWindow>) {
                             preview: preview.into(),
                             date: date.into(),
                             unread,
+                            attachment: (offset + k) % 4 == 1,
                             section: section.into(),
                             ..Default::default()
                         })
@@ -1269,6 +1270,31 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) {
                 mail::move_message(&r, fuu_core::engine::MoveTarget::Archive);
             }
+        });
+    }
+    {
+        let weak = ui.as_weak();
+        let tabs = tabs.clone();
+        ui.on_restore(move || {
+            let Some(_ui) = weak.upgrade() else { return };
+            if let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) {
+                mail::move_message(&r, fuu_core::engine::MoveTarget::Inbox);
+            }
+        });
+    }
+    {
+        // Hover actions on list rows act on that row, not the open message.
+        let weak = ui.as_weak();
+        ui.on_row_action(move |row, action| {
+            let Some(ui) = weak.upgrade() else { return };
+            let Some(r) = usize::try_from(row).ok().and_then(|i| mail::message_ref(&ui, i)) else { return };
+            use fuu_core::engine::MoveTarget;
+            let target = match action {
+                0 => MoveTarget::Trash,
+                1 => MoveTarget::Archive,
+                _ => MoveTarget::Inbox,
+            };
+            mail::move_message(&r, target);
         });
     }
     {
