@@ -598,24 +598,49 @@ fn caption_font() -> &'static str {
 /// Notes do). The title bar grows to the toolbar height and AppKit centres the
 /// real traffic-light buttons in it, level with Fuu's own title-bar row.
 #[cfg(target_os = "macos")]
-fn unify_mac_titlebar(ui: &AppWindow) {
+fn unify_mac_titlebar(ui: &AppWindow) -> bool {
     use objc2::MainThreadMarker;
     use objc2_app_kit::{NSToolbar, NSView, NSWindowToolbarStyle};
     use slint::winit_030::winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
     use slint::winit_030::WinitWindowAccessor;
 
-    let Some(mtm) = MainThreadMarker::new() else { return };
-    ui.window().with_winit_window(|w| {
-        let Ok(handle) = w.window_handle() else { return };
-        let RawWindowHandle::AppKit(appkit) = handle.as_raw() else { return };
+    let debug = std::env::var_os("FUU_DEBUG_CHROME").is_some();
+    let Some(mtm) = MainThreadMarker::new() else {
+        if debug { eprintln!("chrome: not on main thread") }
+        return true;
+    };
+    let reached = ui.window().with_winit_window(|w| {
+        let Ok(handle) = w.window_handle() else {
+            if debug { eprintln!("chrome: no window handle") }
+            return false;
+        };
+        let RawWindowHandle::AppKit(appkit) = handle.as_raw() else { return true };
         // SAFETY: winit hands out the window's live content view, and we are on
         // the main thread (checked above) inside the event loop.
         let view: &NSView = unsafe { appkit.ns_view.cast::<NSView>().as_ref() };
-        let Some(window) = view.window() else { return };
+        let Some(window) = view.window() else {
+            if debug { eprintln!("chrome: view has no window") }
+            return false;
+        };
         let toolbar = NSToolbar::new(mtm);
         window.setToolbar(Some(&toolbar));
         window.setToolbarStyle(NSWindowToolbarStyle::Unified);
+        if debug {
+            use objc2_app_kit::NSWindowButton;
+            let frame = window.frame();
+            let layout = window.contentLayoutRect();
+            eprintln!("chrome: window {frame:?} layout {layout:?} (title bar {:.1}pt)",
+                frame.size.height - layout.size.height);
+            if let Some(close) = window.standardWindowButton(NSWindowButton::CloseButton) {
+                let f = close.frame();
+                let sup = unsafe { close.superview() }.map(|s| s.frame());
+                eprintln!("chrome: close button {f:?} in {sup:?}");
+            }
+        }
+        true
     });
+    if debug { eprintln!("chrome: winit window reached = {reached:?}") }
+    reached.unwrap_or(false)
 }
 
 fn install_window_chrome(ui: &AppWindow) {
@@ -1415,16 +1440,25 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     ui.show()?;
-    // The native window exists once the event loop runs.
+    // The native window is created lazily once the event loop runs, so retry
+    // briefly until winit hands it out.
     #[cfg(target_os = "macos")]
-    {
+    let _titlebar_timer = {
+        let timer = std::rc::Rc::new(slint::Timer::default());
+        let me = std::rc::Rc::downgrade(&timer);
         let weak = ui.as_weak();
-        slint::Timer::single_shot(Duration::ZERO, move || {
-            if let Some(ui) = weak.upgrade() {
-                unify_mac_titlebar(&ui);
+        let tries = std::cell::Cell::new(0u32);
+        timer.start(slint::TimerMode::Repeated, Duration::from_millis(20), move || {
+            tries.set(tries.get() + 1);
+            let done = weak.upgrade().is_none_or(|ui| unify_mac_titlebar(&ui));
+            if done || tries.get() >= 250 {
+                if let Some(t) = me.upgrade() {
+                    t.stop();
+                }
             }
         });
-    }
+        timer
+    };
 
     // Renderer geometry sync (polling is a spike simplification).
     let sync_timer = slint::Timer::default();
