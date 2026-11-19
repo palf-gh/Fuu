@@ -1,5 +1,11 @@
 # Fuu (封)
 
+[![License: GPL-3.0](https://img.shields.io/github/license/palf-gh/Fuu)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/palf-gh/Fuu?include_prereleases&label=release)](https://github.com/palf-gh/Fuu/releases)
+[![Downloads](https://img.shields.io/github/downloads/palf-gh/Fuu/total)](https://github.com/palf-gh/Fuu/releases)
+[![Rust 1.95+](https://img.shields.io/badge/Rust-1.95%2B-dea584?logo=rust)](https://www.rust-lang.org/)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-informational)](#ビルド)
+
 [日本語](#日本語) | [English](#english)
 
 ## 日本語
@@ -9,7 +15,11 @@ Windows・macOS・Linux 向けの、機能を絞ったミニマルなメール�
 IMAP / SMTP サーバーに直接接続し、中継サーバーは使いません。名前は漢字の「封」の字義
 （封をする、閉じて守る）から来ています。
 
-現在の状態: **M5** — アカウント（パスワード／アプリ パスワード、または Google /
+現在の状態: **アルファ版（v0.1.0-alpha.1）**。基本の機能はそろっていますが、不具合や仕様の変更が
+ありえます。配布ファイルは [Releases](https://github.com/palf-gh/Fuu/releases) にあります
+（macOS 版は署名・公証がまだなので、初回はシステム設定の「プライバシーとセキュリティ」で
+「このまま開く」を選ぶ必要があります）。
+機能: アカウント（パスワード／アプリ パスワード、または Google /
 Microsoft の OAuth 2.0 ログイン）、フォルダー、無害化した本文の表示（Blitz）、
 許可したときだけの外部画像、添付ファイル（画像・PDF・Word・Excel・PowerPoint はプレビュー）、
 リッチテキストの作成画面、SMTP での送信・
@@ -176,7 +186,10 @@ multiple accounts and per-account signatures. Fuu talks to your IMAP/SMTP server
 directly; there is no relay service. The name comes from the meaning of the
 character 封 (*fū*): to seal, to close something up and keep it safe.
 
-Status: **M5** — accounts (password / app password, or Google / Microsoft sign-in
+Status: **alpha (v0.1.0-alpha.1)**. The basics are in place, but expect bugs and
+changes. Downloads are on [Releases](https://github.com/palf-gh/Fuu/releases)
+(the macOS build is not signed or notarised yet: the first time, allow it under
+System Settings → Privacy & Security → Open Anyway). Features: accounts (password / app password, or Google / Microsoft sign-in
 with OAuth 2.0), folders, sanitised bodies (Blitz), remote images on request,
 attachments (images, PDF, Word, Excel and PowerPoint preview in a tab), a rich-text
 composer, and sending, replying and forwarding over SMTP.
