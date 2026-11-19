@@ -297,6 +297,7 @@ pub fn start(ui: &AppWindow, spike: bool) {
     });
     DATA.with(|d| d.borrow_mut().engine = Some(Arc::new(engine)));
     ui.set_list_busy(true);
+    ui.set_list_failed(false);
     ui.set_list_message("読み込み中…".into());
     send(Command::LoadAccounts);
 }
@@ -420,6 +421,7 @@ fn handle(ui: &AppWindow, event: Event) {
                 DATA.with(|d| d.borrow_mut().summaries = page.messages);
                 ui.set_list_busy(false);
                 ui.set_list_message(if empty { "メールはありません".into() } else { SharedString::default() });
+                ui.set_list_failed(false);
                 return;
             }
             let display = DATA.with(|d| d.borrow().folders.iter().find(|f| f.path == path).map(folder_title)).unwrap_or_else(|| path.clone());
@@ -436,6 +438,7 @@ fn handle(ui: &AppWindow, event: Event) {
             });
             ui.set_list_busy(false);
             ui.set_list_message(if empty { "メールはありません".into() } else { SharedString::default() });
+                ui.set_list_failed(false);
         }
         Event::Body { account_id, folder, uid, raw } => {
             let k = (account_id, folder, uid);
@@ -468,7 +471,7 @@ fn handle(ui: &AppWindow, event: Event) {
                     d.allowed.insert(k, Rc::new(doc));
                 }
             });
-            ui.set_feed_summary(format!("外部画像を {fetched} / {} 件読み込みました", images.len()).into());
+            crate::notify(&ui, format!("外部画像を {fetched} / {} 件読み込みました", images.len()), false);
             ui.invoke_body_ready();
         }
         Event::Moved { account_id, folder, uid, target } => {
@@ -491,14 +494,14 @@ fn handle(ui: &AppWindow, event: Event) {
                 }
             }
             let what = if target == MoveTarget::Trash { "ゴミ箱に移動しました" } else { "アーカイブしました" };
-            ui.set_feed_summary(what.into());
+            crate::notify(&ui, what, false);
             ui.invoke_message_moved(account_id.into(), folder.into(), uid as i32);
         }
         Event::Sent { draft_id, warning, .. } => {
-            ui.set_feed_summary(match warning {
-                Some(w) => format!("送信しました（{w}）").into(),
-                None => "送信しました".into(),
-            });
+            crate::notify(&ui, match warning {
+                Some(w) => SharedString::from(format!("送信しました（{w}）")),
+                None => SharedString::from("送信しました"),
+            }, false);
             ui.invoke_draft_sent(draft_id as i32);
         }
         Event::SendFailed { draft_id, message } => ui.invoke_draft_failed(draft_id as i32, message.into()),
@@ -507,8 +510,9 @@ fn handle(ui: &AppWindow, event: Event) {
             ui.set_list_busy(false);
             if ui.get_messages().row_count() == 0 {
                 ui.set_list_message(message.clone().into());
+                ui.set_list_failed(true);
             }
-            ui.set_feed_summary(message.into());
+            crate::notify(&ui, message, true);
         }
     }
 }
@@ -529,6 +533,7 @@ fn clear_mailbox(ui: &AppWindow) {
 fn open_account(ui: &AppWindow, account_id: &str) {
     clear_mailbox(ui);
     ui.set_list_busy(true);
+    ui.set_list_failed(false);
     ui.set_list_message("読み込み中…".into());
     send(Command::OpenAccount { account_id: account_id.to_owned(), folder: None });
 }
@@ -900,7 +905,20 @@ pub fn select_folder(ui: &AppWindow, path: &str) {
         return;
     }
     ui.set_list_busy(true);
+    ui.set_list_failed(false);
     send(Command::OpenFolder { account_id: account.id, path: path.to_owned() });
+}
+
+/// Load the shown folder again after a failure (or the account, when even the
+/// folder list never arrived).
+pub fn retry_load(ui: &AppWindow) {
+    let Some(account) = active_account() else { return };
+    let folder = DATA.with(|d| d.borrow().folder.clone());
+    if folder.is_empty() {
+        open_account(ui, &account.id);
+    } else {
+        select_folder(ui, &folder);
+    }
 }
 
 pub fn remove_account(id: &str) {

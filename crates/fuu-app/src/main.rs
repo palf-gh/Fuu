@@ -483,7 +483,7 @@ fn show_message(ui: &AppWindow, r: &MessageRef) -> SafeDocument {
 fn show_viewer(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, content: TabContent) {
     save_draft(ui, tabs);
     if tabs.borrow_mut().show(content).is_err() {
-        ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
+        crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
         return;
     }
     apply_active(ui, state, tabs);
@@ -532,7 +532,7 @@ fn open_draft(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, mut draft:
     });
     draft.show_cc_bcc = draft.show_cc_bcc || !draft.cc.is_empty() || !draft.bcc.is_empty();
     if tabs.borrow_mut().open(TabContent::Draft(draft), true).is_err() {
-        ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
+        crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
         return;
     }
     apply_active(ui, state, tabs);
@@ -625,6 +625,37 @@ fn install_window_chrome(ui: &AppWindow) {
     }
 }
 
+thread_local! {
+    static NOTICE_SERIAL: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Show a short notice at the bottom of the window; it hides itself after a
+/// few seconds (errors stay longer and can be closed).
+pub(crate) fn notify(ui: &AppWindow, text: impl Into<SharedString>, error: bool) {
+    let text: SharedString = text.into();
+    let notice = ui.global::<Notice>();
+    let serial = NOTICE_SERIAL.with(|s| {
+        s.set(s.get() + 1);
+        s.get()
+    });
+    if text.is_empty() {
+        notice.set_shown(false);
+        return;
+    }
+    notice.set_text(text);
+    notice.set_error(error);
+    notice.set_shown(true);
+    let weak = ui.as_weak();
+    let linger = if error { Duration::from_secs(10) } else { Duration::from_secs(4) };
+    slint::Timer::single_shot(linger, move || {
+        if NOTICE_SERIAL.with(|s| s.get()) == serial {
+            if let Some(ui) = weak.upgrade() {
+                ui.global::<Notice>().set_shown(false);
+            }
+        }
+    });
+}
+
 fn main() -> Result<(), slint::PlatformError> {
     select_backend()?;
     let ui = AppWindow::new()?;
@@ -655,7 +686,7 @@ fn main() -> Result<(), slint::PlatformError> {
             save_draft(&ui, &tabs);
             let Some(r) = mail::message_ref(&ui, i as usize) else { return };
             if tabs.borrow_mut().open(TabContent::Message(r), false).is_err() {
-                ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
+                crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
             }
             render_tabs(&ui, &tabs.borrow());
         });
@@ -682,7 +713,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(ui) = weak.upgrade() else { return };
             save_draft(&ui, &tabs);
             if tabs.borrow_mut().show_single(TabContent::Settings).is_err() {
-                ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
+                crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
                 return;
             }
             apply_active(&ui, &state, &tabs);
@@ -699,7 +730,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 mail::reset_setup(&ui);
             }
             if tabs.borrow_mut().show_single(TabContent::AccountSetup).is_err() {
-                ui.set_feed_summary(TAB_LIMIT_MESSAGE.into());
+                crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
                 return;
             }
             apply_active(&ui, &state, &tabs);
@@ -735,6 +766,12 @@ fn main() -> Result<(), slint::PlatformError> {
             }
         });
         ui.on_setup_oauth_cancel(mail::cancel_oauth);
+        let weak = ui.as_weak();
+        ui.on_retry_load(move || {
+            if let Some(ui) = weak.upgrade() {
+                mail::retry_load(&ui);
+            }
+        });
         let weak = ui.as_weak();
         ui.on_reauth(move || {
             if let Some(ui) = weak.upgrade() {
@@ -822,9 +859,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 _ => None,
             }) else { return };
             match mail::save_attachment(&r, index) {
-                Ok(Some(path)) => ui.set_feed_summary(format!("保存しました: {path}").into()),
+                Ok(Some(path)) => crate::notify(&ui, format!("保存しました: {path}"), false),
                 Ok(None) => {}
-                Err(e) => ui.set_feed_summary(e.into()),
+                Err(e) => crate::notify(&ui, e, true),
             }
         });
     }
@@ -956,7 +993,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let text = state.borrow().reader.as_ref().and_then(|r| r.renderer.selected_text());
             let Some(text) = text else { return };
             match arboard::Clipboard::new().and_then(|mut c| c.set_text(text.clone())) {
-                Ok(()) => ui.set_feed_summary(format!("{} 文字をコピー", text.chars().count()).into()),
+                Ok(()) => crate::notify(&ui, format!("{} 文字をコピー", text.chars().count()), false),
                 Err(e) => eprintln!("clipboard: {e}"),
             }
         });
@@ -1432,6 +1469,10 @@ fn main() -> Result<(), slint::PlatformError> {
                     "reauth" => {
                         ui.set_reauth_email("someone@gmail.com".into());
                         ui.set_reauth_error("再ログインが必要です（invalid_grant: Token has been expired or revoked.）".into());
+                    }
+                    "notice" => {
+                        ui.invoke_row_selected(1);
+                        notify(&ui, "サーバーに接続できません: imap.example.jp:993 (connection refused)", true);
                     }
                     "empty" => {}
                     _ => ui.invoke_row_selected(1),

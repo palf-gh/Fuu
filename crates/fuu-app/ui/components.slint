@@ -37,6 +37,75 @@ export component TooltipLayer inherits Rectangle {
     }
 }
 
+// Short notices ("sent", "saved", errors) shown at the bottom of the window.
+// The app sets them through `notify`, which also hides them again.
+export global Notice {
+    in-out property <string> text;
+    in-out property <bool> error;
+    in-out property <bool> shown;
+}
+
+export component NoticeLayer inherits Rectangle {
+    if Notice.shown && Notice.text != "": Rectangle {
+        property <length> max-w: Math.min(520px, root.width - 32px);
+        width: Math.min(max-w, row.preferred-width);
+        height: row.preferred-height;
+        x: (root.width - self.width) / 2;
+        y: root.height - self.height - 22px;
+        border-radius: Theme.radius-l;
+        background: Theme.dark ? #2c2c30 : #2b2b29;
+        border-width: Notice.error ? 1px : 0px;
+        border-color: Theme.close-hover;
+        drop-shadow-blur: 14px;
+        drop-shadow-color: #00000040;
+        // Clicks on the notice do not fall through to the list or reader.
+        TouchArea { }
+        row := HorizontalLayout {
+            padding-left: 14px;
+            padding-right: Notice.error ? 6px : 14px;
+            padding-top: 9px;
+            padding-bottom: 9px;
+            spacing: 8px;
+            if Notice.error: Rectangle {
+                width: 8px;
+                Rectangle {
+                    y: (parent.height - 8px) / 2;
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 4px;
+                    background: Theme.close-hover;
+                }
+            }
+            Text {
+                text: Notice.text;
+                font-size: Theme.font-m;
+                color: #f4f4f2;
+                wrap: word-wrap;
+                vertical-alignment: center;
+            }
+            if Notice.error: Rectangle {
+                width: 24px;
+                close-area := TouchArea {
+                    mouse-cursor: MouseCursor.pointer;
+                    clicked => { Notice.shown = false; }
+                }
+                Rectangle {
+                    y: (parent.height - 24px) / 2;
+                    height: 24px;
+                    border-radius: Theme.radius-s;
+                    background: close-area.has-hover ? #ffffff1a : transparent;
+                    Image {
+                        source: @image-url("icons/close.svg");
+                        width: 14px;
+                        height: 14px;
+                        colorize: #c8c8c4;
+                    }
+                }
+            }
+        }
+    }
+}
+
 export component Divider inherits Rectangle {
     background: Theme.hairline;
 }

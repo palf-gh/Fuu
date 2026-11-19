@@ -100,6 +100,8 @@ export component RichEditor inherits Rectangle {
     // Focus loss (e.g. the link popup) clears the TextInput's selection; ignore
     // that so the document selection survives, and restore it on focus.
     callback focus-gained();
+    // Ctrl/Cmd+Enter: send the message.
+    callback submit();
     changed cursor => { if (input.has-focus) { root.caret-moved(root.anchor, root.cursor); } }
     changed anchor => { if (input.has-focus) { root.caret-moved(root.anchor, root.cursor); } }
     changed focused => { if (root.focused) { root.focus-gained(); } }
@@ -196,6 +198,7 @@ export component RichEditor inherits Rectangle {
                     if (e.text == Key.End) { root.navigate("end", e.modifiers.shift); return accept; }
                     if (e.text == Key.PageUp) { root.navigate("pageup", e.modifiers.shift); return accept; }
                     if (e.text == Key.PageDown) { root.navigate("pagedown", e.modifiers.shift); return accept; }
+                    if (e.text == Key.Return && (e.modifiers.control || e.modifiers.meta)) { root.submit(); return accept; }
                     if (e.text == Key.Return && !e.modifiers.control && !e.modifiers.meta && self.preedit-text == "") {
                         if (root.enter()) { return accept; }
                     }

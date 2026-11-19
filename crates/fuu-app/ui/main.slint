@@ -9,12 +9,12 @@ import { AccountItem, FolderItem } from "models.slint";
 export { AccountItem, FolderItem }
 import { Theme } from "theme.slint";
 import { RichEditor, EditorRect } from "editor.slint";
-import { Tooltip } from "components.slint";
-export { Tooltip }
+import { Tooltip, Notice } from "components.slint";
+export { Tooltip, Notice }
 export { EditorRect }
 import {
     Divider, Icon, IconButton, PrimaryButton, SecondaryButton, Avatar, NavItem,
-    SearchField, ComposeField, Dialog, MenuRow, CaptionButton, Tab, TooltipLayer,
+    SearchField, ComposeField, Dialog, MenuRow, CaptionButton, Tab, TooltipLayer, NoticeLayer,
 } from "components.slint";
 
 export struct MessageRow {
@@ -262,6 +262,9 @@ export component AppWindow inherits Window {
     // Shown in the list when there are no rows (loading, error, empty folder).
     in property <string> list-message;
     in property <bool> list-busy;
+    // The list could not be loaded (list-message holds the reason).
+    in property <bool> list-failed;
+    callback retry-load();
     // OAuth sign-in renewal (banner above the message list)
     in property <string> reauth-email;
     in property <string> reauth-error;
@@ -382,6 +385,37 @@ callback setup-oauth-cancel();
             if (e.text >= "1" && e.text <= "8" && e.text.character-count == 1) { root.select-tab(e.text.to-float() - 1); return accept; }
             if (root.is-mac && e.modifiers.shift && (e.text == "]" || e.text == "}")) { root.cycle-tab(1); return accept; }
             if (root.is-mac && e.modifiers.shift && (e.text == "[" || e.text == "{")) { root.cycle-tab(-1); return accept; }
+        }
+        if ((e.modifiers.control || e.modifiers.meta) && e.text == Key.Return && root.composing) {
+            if (!root.compose-sending) { root.send-compose(); }
+            return accept;
+        }
+        // Single keys (only reached when no text field has focus).
+        if (!e.modifiers.control && !e.modifiers.meta && !e.modifiers.alt && !root.composing
+            && !root.settings-open && !root.setup-open && !root.link-dialog-open && !root.info-dialog-open) {
+            if (e.text == "j" || (e.text == Key.DownArrow && root.current-row >= 0)) {
+                if (root.current-row < root.messages.length - 1) {
+                    root.current-row += 1;
+                    root.row-selected(root.current-row);
+                }
+                return accept;
+            }
+            if (e.text == "k" || (e.text == Key.UpArrow && root.current-row >= 0)) {
+                if (root.current-row > 0) {
+                    root.current-row -= 1;
+                    root.row-selected(root.current-row);
+                }
+                return accept;
+            }
+            if (e.text == "c") { root.start-compose(); return accept; }
+            if (e.text == Key.F5) { root.select-folder(root.current-folder); return accept; }
+            if (root.has-message) {
+                if (e.text == "r") { root.reply(false); return accept; }
+                if (e.text == "a" || e.text == "R") { root.reply(true); return accept; }
+                if (e.text == "f") { root.forward(); return accept; }
+                if (e.text == "e") { root.archive(); return accept; }
+                if (e.text == "#" || e.text == Key.Delete) { root.delete(); return accept; }
+            }
         }
         if (e.modifiers.control) {
             if (e.text == Key.Tab) { root.cycle-tab(e.modifiers.shift ? -1 : 1); return accept; }
@@ -586,6 +620,10 @@ callback setup-oauth-cancel();
                     alignment: center;
                     PrimaryButton { text: "アカウントを追加"; clicked => { root.open-account-setup(); } }
                 }
+                if root.list-failed && root.accounts.length > 0: HorizontalLayout {
+                    alignment: center;
+                    SecondaryButton { text: "再読み込み"; clicked => { root.retry-load(); } }
+                }
               }
               if root.messages.length > 0: ListView {
                 for row[i] in root.messages: MessageItem {
@@ -645,12 +683,12 @@ callback setup-oauth-cancel();
                         Text { text: root.reader-date; font-size: Theme.font-s; color: Theme.text-faint; overflow: elide; horizontal-stretch: 1; vertical-alignment: center; }
                         HorizontalLayout {
                             spacing: 2px;
-                            IconButton { icon: @image-url("icons/reply.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "返信"; clicked => { root.reply(false); } }
-                            IconButton { icon: @image-url("icons/reply-all.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "全員に返信"; clicked => { root.reply(true); } }
-                            IconButton { icon: @image-url("icons/forward.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "転送"; clicked => { root.forward(); } }
+                            IconButton { icon: @image-url("icons/reply.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "返信（R）"; clicked => { root.reply(false); } }
+                            IconButton { icon: @image-url("icons/reply-all.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "全員に返信（A）"; clicked => { root.reply(true); } }
+                            IconButton { icon: @image-url("icons/forward.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "転送（F）"; clicked => { root.forward(); } }
                             Rectangle { width: 8px; }
-                            IconButton { icon: @image-url("icons/archive.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "アーカイブ"; clicked => { root.archive(); } }
-                            IconButton { icon: @image-url("icons/trash.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "削除"; clicked => { root.delete(); } }
+                            IconButton { icon: @image-url("icons/archive.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "アーカイブ（E）"; clicked => { root.archive(); } }
+                            IconButton { icon: @image-url("icons/trash.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "削除（Delete）"; clicked => { root.delete(); } }
                         }
                     }
                 }
@@ -894,6 +932,7 @@ callback setup-oauth-cancel();
                             preedit-changed(p) => { root.editor-preedit-changed(p); }
                             resized(w) => { root.editor-resized(w); }
                             focus-gained => { root.editor-focus-gained(); }
+                            submit => { if (!root.compose-sending) { root.send-compose(); } }
                         }
                         if root.compose-attachments.length > 0: VerticalLayout {
                             padding-top: 10px;
@@ -949,6 +988,13 @@ callback setup-oauth-cancel();
                             Icon { source: @image-url("icons/mail-open.svg"); width: 26px; height: 26px; tint: Theme.text-faint.with-alpha(0.7); }
                         }
                         Text { text: "メールを選択してください"; font-size: Theme.font-m; color: Theme.text-faint; horizontal-alignment: center; }
+                        Text {
+                            text: "j / k で移動　r 返信　a 全員に返信　f 転送　e アーカイブ　c 新規作成";
+                            font-size: Theme.font-xs;
+                            color: Theme.text-faint.with-alpha(0.8);
+                            horizontal-alignment: center;
+                            wrap: word-wrap;
+                        }
                     }
                 }
               }
@@ -1123,6 +1169,7 @@ callback setup-oauth-cancel();
     }
 
     // ───────────── Hover tooltips (above everything)
+    NoticeLayer { width: root.width; height: root.height; }
     TooltipLayer { width: root.width; height: root.height; }
 
     // ───────────── Frameless resize handles (not needed on macOS)

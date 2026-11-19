@@ -44,6 +44,25 @@ cargo run -p fuu-app --features skia
 SLINT_BACKEND=winit-skia cargo run -p fuu-app --features skia
 ```
 
+### キーボード ショートカット
+
+| キー | 操作 |
+|---|---|
+| `j` / `k`（または ↓ / ↑） | 次 / 前のメール |
+| `r` | 返信 |
+| `a` | 全員に返信 |
+| `f` | 転送 |
+| `e` | アーカイブ |
+| `Delete` / `#` | 削除 |
+| `c` | 新規作成 |
+| `F5` | 表示中のフォルダーを再読み込み |
+| `Ctrl+Enter`（macOS は `Cmd+Enter`） | 送信 |
+| `Ctrl+T` / `Ctrl+W` / `Ctrl+Shift+T` | タブを開く / 閉じる / 閉じたタブを開き直す |
+| `Ctrl+,` | 設定 |
+
+1 文字のキーは、入力欄にフォーカスがないときだけ働きます。受信トレイは IDLE で
+見張っており、新着メールは自動で一覧に入ります（IDLE がないサーバーでは 5 分ごとに確認します）。
+
 ### 構成
 
 | クレート | 役割 |
@@ -144,6 +163,25 @@ cargo run -p fuu-app --features skia
 SLINT_BACKEND=winit-skia cargo run -p fuu-app --features skia
 ```
 
+
+### Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| `j` / `k` (or ↓ / ↑) | Next / previous message |
+| `r` | Reply |
+| `a` | Reply all |
+| `f` | Forward |
+| `e` | Archive |
+| `Delete` / `#` | Delete |
+| `c` | New message |
+| `F5` | Reload the folder |
+| `Ctrl+Enter` (`Cmd+Enter` on macOS) | Send |
+| `Ctrl+T` / `Ctrl+W` / `Ctrl+Shift+T` | New tab / close tab / reopen closed tab |
+| `Ctrl+,` | Settings |
+
+Single keys work only while no text field has focus. INBOX is watched with IDLE,
+so new mail appears on its own (servers without IDLE are checked every 5 minutes).
 
 ### Layout
 
