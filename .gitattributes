@@ -1,4 +1,2 @@
 # Fuzz seeds are raw bytes (CRLF, escapes): never convert line endings.
 fuzz/corpus/** -text
-# Shell scripts run on macOS: keep LF even when checked out on Windows.
-*.sh text eol=lf

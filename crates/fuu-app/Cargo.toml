@@ -34,3 +34,27 @@ png = "0.18"
 
 [build-dependencies]
 slint-build = "1.19"
+
+# Installers and app bundles: `cargo packager --release` (see README). The
+# packaging tools (NSIS, …) are fetched at pinned versions and verified by hash,
+# so packages build the same on every machine.
+[package.metadata.packager]
+productName = "Fuu"
+identifier = "dev.fuu.Fuu"
+publisher = "Fuu"
+copyright = "GPL-3.0-only"
+description = "A minimal mail client"
+category = "Productivity"
+licenseFile = "../../LICENSE"
+beforePackagingCommand = "cargo build -p fuu-app --release --locked"
+outDir = "../../dist"
+binaries = [{ path = "fuu", main = true }]
+resources = ["../../README.md", "../../LICENSE"]
+
+[package.metadata.packager.nsis]
+# Per user, no administrator rights (%LOCALAPPDATA%\Fuu).
+installMode = "currentUser"
+languages = ["Japanese", "English"]
+
+[package.metadata.packager.macos]
+minimumSystemVersion = "11.0"

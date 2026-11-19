@@ -39,17 +39,20 @@ FUU_GREENMAIL=1 cargo test -p fuu-core --features insecure-test-transport --test
 cargo test -p fuu-core -- --ignored keychain   # 実際の OS キーチェーンでの読み書き
 ```
 
-配布用パッケージ（`dist/` に出力。署名・公証はまだです）:
+配布用パッケージ（`dist/` に出力。署名・公証はまだです）は cargo-packager で作ります。
+NSIS などの作成ツールは決まったバージョンを自動で取得し、ハッシュを確かめるので、
+どの PC でも同じものができます。設定は `crates/fuu-app/Cargo.toml` の
+`[package.metadata.packager]` にあります。
 
 ```sh
-pwsh scripts/package-windows.ps1   # Fuu-<版>-windows-x64-setup.exe と .zip
-sh scripts/package-macos.sh        # Fuu.app と Fuu-<版>-macos-<arch>.zip（Mac で実行）
+cargo install cargo-packager --version 0.11.8 --locked   # 初回だけ
+cd crates/fuu-app
+cargo packager --release --formats nsis       # Windows: fuu_<版>_x64-setup.exe
+cargo packager --release --formats app,dmg    # macOS: Fuu.app と .dmg（Mac で実行）
 ```
 
-Windows のインストーラーは Inno Setup 6 で作ります（`packaging/windows/fuu.iss`）。
-既定では管理者権限なしでユーザーごとに `%LOCALAPPDATA%\Programs\Fuu` へ入れ、
-全ユーザー向けのインストールも選べます。アンインストールしてもアカウント設定・
-キャッシュ・キーチェーンの内容は残します。
+Windows のインストーラーは管理者権限なしで、ユーザーごとに `%LOCALAPPDATA%\Fuu` へ
+入れます。アンインストールしてもアカウント設定・キャッシュ・キーチェーンの内容は残します。
 
 ファズテスト（nightly と cargo-fuzz が必要。シードは `fuzz/corpus/`）:
 
@@ -181,17 +184,21 @@ FUU_GREENMAIL=1 cargo test -p fuu-core --features insecure-test-transport --test
 cargo test -p fuu-core -- --ignored keychain   # real OS keychain round trip
 ```
 
-Packages (written to `dist/`; not signed or notarised yet):
+Packages (written to `dist/`; not signed or notarised yet) are built with
+cargo-packager. It fetches its tools (NSIS, …) at pinned versions and verifies
+them by hash, so every machine builds the same package. The configuration is
+`[package.metadata.packager]` in `crates/fuu-app/Cargo.toml`.
 
 ```sh
-pwsh scripts/package-windows.ps1   # Fuu-<version>-windows-x64-setup.exe and .zip
-sh scripts/package-macos.sh        # Fuu.app and Fuu-<version>-macos-<arch>.zip (run on a Mac)
+cargo install cargo-packager --version 0.11.8 --locked   # once
+cd crates/fuu-app
+cargo packager --release --formats nsis       # Windows: fuu_<version>_x64-setup.exe
+cargo packager --release --formats app,dmg    # macOS: Fuu.app and a .dmg (run on a Mac)
 ```
 
-The Windows installer is built with Inno Setup 6 (`packaging/windows/fuu.iss`).
-By default it installs per user into `%LOCALAPPDATA%\Programs\Fuu` without
-administrator rights; an all-users install can be chosen instead. Uninstalling
-keeps account settings, the cache and keychain entries.
+The Windows installer installs per user into `%LOCALAPPDATA%\Fuu` without
+administrator rights. Uninstalling keeps account settings, the cache and
+keychain entries.
 
 Fuzzing (needs nightly and cargo-fuzz; seeds live in `fuzz/corpus/`):
 
