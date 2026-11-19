@@ -11,7 +11,8 @@ IMAP / SMTP サーバーに直接接続し、中継サーバーは使いませ�
 
 現在の状態: **M5** — アカウント（パスワード／アプリ パスワード、または Google /
 Microsoft の OAuth 2.0 ログイン）、フォルダー、無害化した本文の表示（Blitz）、
-許可したときだけの外部画像、添付ファイル、リッチテキストの作成画面、SMTP での送信・
+許可したときだけの外部画像、添付ファイル（画像・PDF・Word・Excel・PowerPoint はプレビュー）、
+リッチテキストの作成画面、SMTP での送信・
 返信・転送に対応しています。M5 で受信トレイの IDLE、通知とショートカット、ファズテスト、配布用パッケージを
 加えました（`docs/plan.md`）。
 
@@ -94,6 +95,7 @@ SLINT_BACKEND=winit-skia cargo run -p fuu-app --features skia
 | `fuu-sanitiser` | 許可リスト方式の HTML / CSS 無害化 |
 | `fuu-core` | アカウント、IMAP / SMTP、OAuth、キャッシュ、メール作成 |
 | `fuu-render` | `BodyRenderer` トレイト、Blitz とテキストの描画 |
+| `fuu-preview` | 添付ファイルのプレビュー（画像・PDF・Office を HTML に変換） |
 | `fuu-app` | Slint の UI と全体の組み立て |
 
 詳しくは `ARCHITECTURE.md` と `SECURITY.md` を参照してください。
@@ -154,7 +156,8 @@ character 封 (*fū*): to seal, to close something up and keep it safe.
 
 Status: **M5** — accounts (password / app password, or Google / Microsoft sign-in
 with OAuth 2.0), folders, sanitised bodies (Blitz), remote images on request,
-attachments, a rich-text composer, and sending, replying and forwarding over SMTP.
+attachments (images, PDF, Word, Excel and PowerPoint preview in a tab), a rich-text
+composer, and sending, replying and forwarding over SMTP.
 M5 adds IDLE on INBOX, notices and shortcuts, fuzzing and packages — see `docs/plan.md`.
 
 Accounts are stored in `<config dir>/Fuu/accounts.toml` (no secrets). Run with
@@ -235,6 +238,7 @@ so new mail appears on its own (servers without IDLE are checked every 5 minutes
 | `fuu-sanitiser` | Allow-list HTML/CSS sanitiser |
 | `fuu-core` | Accounts, IMAP/SMTP, OAuth, cache, compose |
 | `fuu-render` | `BodyRenderer` trait, Blitz and text renderers |
+| `fuu-preview` | Attachment previews (images, PDF and Office files to HTML) |
 | `fuu-app` | Slint UI and wiring |
 
 See `ARCHITECTURE.md` and `SECURITY.md`.

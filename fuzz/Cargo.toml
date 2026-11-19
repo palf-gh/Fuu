@@ -22,6 +22,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 fuu-parser = { path = "../crates/fuu-parser" }
 fuu-sanitiser = { path = "../crates/fuu-sanitiser" }
+fuu-preview = { path = "../crates/fuu-preview" }
 
 [workspace]
 
@@ -42,6 +43,13 @@ bench = false
 [[bin]]
 name = "headers"
 path = "fuzz_targets/headers.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "preview"
+path = "fuzz_targets/preview.rs"
 test = false
 doc = false
 bench = false

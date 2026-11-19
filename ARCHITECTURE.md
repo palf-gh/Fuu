@@ -23,6 +23,21 @@ Rules:
   runs the shared renderer test-suite (zero network requests, refused schemes, no
   navigation).
 
+## Attachment previews
+
+```
+attachment bytes (from the message's raw MIME)
+  -> fuu-preview        image / PDF / docx / xlsx… / pptx -> neutral HTML + cid: images
+  -> ParsedMessage      same model as a mail body
+  -> Sanitiser          always runs
+  -> SafeDocument -> Blitz
+```
+
+`fuu-preview` depends only on `fuu-model` and format crates (hayro, calamine,
+quick-xml, zip, image); like `fuu-parser` it may know file formats and MIME types,
+and it never sees UI or renderer types. The app converts on a worker thread and
+keeps a few previews in memory. Limits and threats: `SECURITY.md`.
+
 ## Threads
 
 - Main thread: Slint event loop and the Blitz renderer.
@@ -52,6 +67,7 @@ independent of them and with nothing open there are no tabs.
 | Kind | Opened by | Notes |
 |---|---|---|
 | Message / sample | clicking a row (replaces the active viewer tab), middle click (unseen background tab) | |
+| Attachment | clicking a previewable attachment (opens beside the message; one tab per attachment) | read-only preview; only 保存 acts, never reply / archive / delete |
 | Draft | new, reply, reply all, forward, `mailto:` | from / to / CC / BCC / subject / body; send or discard closes the tab |
 | Settings | title-bar button, Ctrl/Cmd+, | single instance |
 

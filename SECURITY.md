@@ -37,6 +37,9 @@
    that message in the current session. No automatic read receipts.
 5. **Attachments**: never auto-opened; file names sanitised; executable types
    warned; Mark-of-the-Web / quarantine attribute on save.
+6. **Attachment previews** (`fuu-preview`, see below): converted to neutral HTML
+   and always passed through the sanitiser (layer 2) and Blitz (layer 3) like a
+   mail body.
 
 Blitz never navigates on its own: links are acted on only from a host click, and
 every external link still requires explicit user confirmation.
@@ -52,3 +55,48 @@ Refresh tokens live only in the OS keychain (chunked across entries to fit the
 Windows size limit); access tokens only in memory. Refreshes are serialised per
 account and rotated refresh tokens are persisted. The app opens only Google or
 Microsoft sign-in URLs from the engine's browser event. No client IDs ship with Fuu.
+
+## Attachment previews
+
+Images, PDF, Word (docx), spreadsheets (xlsx/xlsm/xlsb/xls/ods) and PowerPoint
+(pptx) attachments open in a preview tab when clicked; every other type is only
+saved (executables after the warning). SVG is never previewed (scriptable);
+`.doc` / `.ppt` and unknown types fall back to saving.
+
+Threats: parser bugs and hangs on hostile files (PDF, Office XML, image codecs),
+decompression bombs (images, zip), memory exhaustion from huge page or sheet
+counts, external references used for tracking (linked pictures, remote
+templates), script or navigation smuggled through the generated HTML.
+
+Defences:
+
+- **One path to the screen.** `fuu-preview` turns the file into HTML with `cid:`
+  images plus inline raster resources (a `ParsedMessage`); the app runs the
+  sanitiser on it and Blitz shows the result. The converters escape all text, emit
+  only allow-listed tags and CSS, and only `http`/`https`/`mailto` link targets;
+  the sanitiser would strip anything else anyway.
+- **Memory-safe parsers.** PDF is rasterised by hayro (pure Rust,
+  `forbid(unsafe_code)`); Office XML is read with quick-xml and zip (deflate only,
+  pure Rust); spreadsheets with calamine; images with the `image` crate.
+- **Limits.** Input ≤ 64 MB. Images: header checked before decoding, ≤ 50 MP,
+  allocation-capped, scaled to ≤ 2400 px and re-encoded (the renderer only decodes
+  Fuu's own PNG/JPEG). PDF: first 15 pages, ≤ 6 MP per page. Zip packages: ≤ 4000
+  entries, ≤ 48 MB per entry and 256 MB in total, enforced on the bytes actually
+  decompressed (not the declared sizes); spreadsheets are decompressed once under
+  these limits before calamine reads them. Sheets: 12 × 500 rows × 40 columns.
+  Word: 6000 paragraphs, 60 pictures. Slides: 60, with 80 pictures.
+- **No external references.** Relationships with `TargetMode="External"` and
+  `r:link` pictures are never fetched; the preview says how many were dropped.
+- **Isolation from the UI.** Conversion runs on a worker thread under
+  `catch_unwind`; a panic or error becomes a notice, and a slow file only delays
+  its own tab. Nothing is written to disk; previews are kept in memory (6 at most).
+- **No actions on the message from a preview tab.** Reply, archive and delete
+  buttons and their shortcuts are disabled there; the only action is 保存.
+- **Fonts.** PDFs that do not embed CJK fonts fall back to the OS's own Japanese /
+  Chinese / Korean font files (read-only, fixed paths).
+
+Tests: per-format unit tests (including a zip bomb, an image header claiming
+60000 × 60000 px, a docx with a `javascript:` link and an external picture, a pptx
+with an external picture), the `preview` fuzz target, and its stable replay
+(`crates/fuu-preview/tests/fuzz_replay.rs`), which also checks that no `<script>`
+tag or `javascript:` URL survives sanitising.
