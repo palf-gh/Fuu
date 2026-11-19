@@ -9,10 +9,11 @@ Windows・macOS 向けの、機能を絞ったミニマルなメールクライ�
 IMAP / SMTP サーバーに直接接続し、中継サーバーは使いません。名前は漢字の「封」の字義
 （封をする、閉じて守る）から来ています。
 
-現在の状態: **M4** — アカウント（パスワード／アプリ パスワード、または Google /
+現在の状態: **M5** — アカウント（パスワード／アプリ パスワード、または Google /
 Microsoft の OAuth 2.0 ログイン）、フォルダー、無害化した本文の表示（Blitz）、
 許可したときだけの外部画像、添付ファイル、リッチテキストの作成画面、SMTP での送信・
-返信・転送に対応しています。IDLE とパッケージングは M5 の予定です（`docs/plan.md`）。
+返信・転送に対応しています。M5 で受信トレイの IDLE、通知とショートカット、ファズテスト、配布用パッケージを
+加えました（`docs/plan.md`）。
 
 アカウントは `<設定フォルダー>/Fuu/accounts.toml` に保存します（パスワードなどの
 秘密情報は書きません）。`FUU_SPIKE_FEED=1` を付けて起動すると、実際のアカウントの
@@ -35,6 +36,13 @@ docker run -d --name fuu-greenmail -p 127.0.0.1:3025:3025 -p 127.0.0.1:3143:3143
   greenmail/standalone:2.1.3
 FUU_GREENMAIL=1 cargo test -p fuu-core --features insecure-test-transport --test greenmail
 cargo test -p fuu-core -- --ignored keychain   # 実際の OS キーチェーンでの読み書き
+```
+
+配布用パッケージ（`dist/` に出力。署名・公証はまだです）:
+
+```sh
+pwsh scripts/package-windows.ps1   # Fuu-<版>-windows-x64.zip
+sh scripts/package-macos.sh        # Fuu.app と Fuu-<版>-macos-<arch>.zip（Mac で実行）
 ```
 
 ファズテスト（nightly と cargo-fuzz が必要。シードは `fuzz/corpus/`）:
@@ -139,10 +147,10 @@ multiple accounts and per-account signatures. Fuu talks to your IMAP/SMTP server
 directly; there is no relay service. The name comes from the meaning of the
 character 封 (*fū*): to seal, to close something up and keep it safe.
 
-Status: **M4** — accounts (password / app password, or Google / Microsoft sign-in
+Status: **M5** — accounts (password / app password, or Google / Microsoft sign-in
 with OAuth 2.0), folders, sanitised bodies (Blitz), remote images on request,
 attachments, a rich-text composer, and sending, replying and forwarding over SMTP.
-IDLE and packaging arrive in M5 — see `docs/plan.md`.
+M5 adds IDLE on INBOX, notices and shortcuts, fuzzing and packages — see `docs/plan.md`.
 
 Accounts are stored in `<config dir>/Fuu/accounts.toml` (no secrets). Run with
 `FUU_SPIKE_FEED=1` to use dummy data instead of real accounts.
@@ -163,6 +171,13 @@ docker run -d --name fuu-greenmail -p 127.0.0.1:3025:3025 -p 127.0.0.1:3143:3143
   greenmail/standalone:2.1.3
 FUU_GREENMAIL=1 cargo test -p fuu-core --features insecure-test-transport --test greenmail
 cargo test -p fuu-core -- --ignored keychain   # real OS keychain round trip
+```
+
+Packages (written to `dist/`; not signed or notarised yet):
+
+```sh
+pwsh scripts/package-windows.ps1   # Fuu-<version>-windows-x64.zip
+sh scripts/package-macos.sh        # Fuu.app and Fuu-<version>-macos-<arch>.zip (run on a Mac)
 ```
 
 Fuzzing (needs nightly and cargo-fuzz; seeds live in `fuzz/corpus/`):
