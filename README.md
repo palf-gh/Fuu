@@ -6,8 +6,8 @@
 
 Windows・macOS 向けの、機能を絞ったミニマルなメールクライアントです。メールの閲覧・
 送信・返信ができ、複数のアカウントとアカウントごとの署名に対応しています。Fuu は
-IMAP / SMTP サーバーに直接接続し、中継サーバーは使いません。名前は「封」（封筒の封）
-から来ています。
+IMAP / SMTP サーバーに直接接続し、中継サーバーは使いません。名前は漢字の「封」の字義
+（封をする、閉じて守る）から来ています。
 
 現在の状態: **M4** — アカウント（パスワード／アプリ パスワード、または Google /
 Microsoft の OAuth 2.0 ログイン）、フォルダー、無害化した本文の表示（Blitz）、
@@ -108,8 +108,8 @@ GPL-3.0-only。Fuu は Slint を GPLv3 で利用しています。
 
 A minimal desktop mail client for Windows and macOS: read, send and reply, with
 multiple accounts and per-account signatures. Fuu talks to your IMAP/SMTP servers
-directly; there is no relay service. The name comes from 封 (*fū*), "seal", as in
-sealing an envelope.
+directly; there is no relay service. The name comes from the meaning of the
+character 封 (*fū*): to seal, to close something up and keep it safe.
 
 Status: **M4** — accounts (password / app password, or Google / Microsoft sign-in
 with OAuth 2.0), folders, sanitised bodies (Blitz), remote images on request,
