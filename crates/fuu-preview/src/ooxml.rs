@@ -48,6 +48,11 @@ impl Package {
         MAX_ENTRY_BYTES.min(MAX_TOTAL_BYTES.saturating_sub(self.read_so_far))
     }
 
+    /// Names of all entries.
+    pub fn names(&mut self) -> Vec<String> {
+        (0..self.zip.len()).filter_map(|i| self.zip.name_for_index(i).and_then(|n| n.ok()).map(|n| n.into_owned())).collect()
+    }
+
     pub fn read_text(&mut self, name: &str) -> Result<Option<String>, PreviewError> {
         Ok(self.read(name)?.map(|b| String::from_utf8_lossy(&b).into_owned()))
     }

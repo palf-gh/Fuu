@@ -55,7 +55,8 @@ pub fn kind_of(file_name: &str, mime: &str) -> Option<Kind> {
         "png" | "jpg" | "jpeg" | "jpe" | "gif" | "webp" | "bmp" | "tif" | "tiff" => Some(Kind::Image),
         "pdf" => Some(Kind::Pdf),
         "docx" | "docm" => Some(Kind::Word),
-        "xlsx" | "xlsm" | "xlsb" | "xls" | "ods" => Some(Kind::Spreadsheet),
+        // xls / xlsb / ods: their sheet sizes cannot be checked before loading.
+        "xlsx" | "xlsm" => Some(Kind::Spreadsheet),
         "pptx" | "pptm" => Some(Kind::Slides),
         _ => None,
     };
@@ -63,9 +64,7 @@ pub fn kind_of(file_name: &str, mime: &str) -> Option<Kind> {
         "image/png" | "image/jpeg" | "image/jpg" | "image/gif" | "image/webp" | "image/bmp" | "image/tiff" => Some(Kind::Image),
         "application/pdf" => Some(Kind::Pdf),
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => Some(Kind::Word),
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        | "application/vnd.ms-excel"
-        | "application/vnd.oasis.opendocument.spreadsheet" => Some(Kind::Spreadsheet),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => Some(Kind::Spreadsheet),
         "application/vnd.openxmlformats-officedocument.presentationml.presentation" => Some(Kind::Slides),
         _ => None,
     })
@@ -143,7 +142,7 @@ mod tests {
         assert_eq!(kind_of("写真.JPG", "application/octet-stream"), Some(Kind::Image));
         assert_eq!(kind_of("report.pdf", ""), Some(Kind::Pdf));
         assert_eq!(kind_of("見積書.xlsx", ""), Some(Kind::Spreadsheet));
-        assert_eq!(kind_of("old.xls", ""), Some(Kind::Spreadsheet));
+        assert_eq!(kind_of("old.xls", "application/vnd.ms-excel"), None, "unbounded sheet sizes");
         assert_eq!(kind_of("deck.pptx", ""), Some(Kind::Slides));
         assert_eq!(kind_of("letter.docx", ""), Some(Kind::Word));
         assert_eq!(kind_of("noext", "application/pdf"), Some(Kind::Pdf));

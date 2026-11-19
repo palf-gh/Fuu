@@ -824,6 +824,17 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     {
+        // A finished preview redraws only an attachment tab (not a message the
+        // user went back to meanwhile).
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_preview_ready(move || {
+            let Some(ui) = weak.upgrade() else { return };
+            if matches!(tabs.borrow().active().map(|t| &t.content), Some(TabContent::Attachment(_))) {
+                apply_active(&ui, &state, &tabs);
+            }
+        });
+    }
+    {
         // "Show images" for the active message only.
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_allow_remote(move || {

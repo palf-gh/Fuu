@@ -58,14 +58,16 @@ Microsoft sign-in URLs from the engine's browser event. No client IDs ship with 
 
 ## Attachment previews
 
-Images, PDF, Word (docx), spreadsheets (xlsx/xlsm/xlsb/xls/ods) and PowerPoint
-(pptx) attachments open in a preview tab when clicked; every other type is only
-saved (executables after the warning). SVG is never previewed (scriptable);
-`.doc` / `.ppt` and unknown types fall back to saving.
+Images, PDF, Word (docx), Excel (xlsx/xlsm) and PowerPoint (pptx) attachments
+open in a preview tab when clicked; every other type is only saved (executables
+after the warning). SVG is never previewed (scriptable). `.doc`, `.ppt`, `.xls`,
+`.xlsb` and `.ods` fall back to saving: their sheet sizes cannot be checked before
+a reader allocates them.
 
 Threats: parser bugs and hangs on hostile files (PDF, Office XML, image codecs),
 decompression bombs (images, zip), memory exhaustion from huge page or sheet
-counts, external references used for tracking (linked pictures, remote
+counts or from sizes declared in the file (an allocation failure aborts the whole
+process, which `catch_unwind` cannot stop), external references used for tracking (linked pictures, remote
 templates), script or navigation smuggled through the generated HTML.
 
 Defences:
@@ -83,7 +85,11 @@ Defences:
   Fuu's own PNG/JPEG). PDF: first 15 pages, ≤ 6 MP per page. Zip packages: ≤ 4000
   entries, ≤ 48 MB per entry and 256 MB in total, enforced on the bytes actually
   decompressed (not the declared sizes); spreadsheets are decompressed once under
-  these limits before calamine reads them. Sheets: 12 × 500 rows × 40 columns.
+  these limits before calamine reads them. calamine stores a sheet as a dense grid
+  of its bounding box and reserves the declared shared-string count, so before it
+  runs Fuu measures each sheet's bounding box from the cell references (sheets
+  over 2 million cells are skipped with a note) and refuses any `sst` part
+  declaring more than 2 million strings. Shown: 12 sheets × 500 rows × 40 columns.
   Word: 6000 paragraphs, 60 pictures. Slides: 60, with 80 pictures.
 - **No external references.** Relationships with `TargetMode="External"` and
   `r:link` pictures are never fetched; the preview says how many were dropped.
@@ -96,7 +102,8 @@ Defences:
   Chinese / Korean font files (read-only, fixed paths).
 
 Tests: per-format unit tests (including a zip bomb, an image header claiming
-60000 × 60000 px, a docx with a `javascript:` link and an external picture, a pptx
+60000 × 60000 px, a two-cell sheet spanning A1:XFD1048576, an inflated
+shared-string count, a docx with a `javascript:` link and an external picture, a pptx
 with an external picture), the `preview` fuzz target, and its stable replay
 (`crates/fuu-preview/tests/fuzz_replay.rs`), which also checks that no `<script>`
 tag or `javascript:` URL survives sanitising.

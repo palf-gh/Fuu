@@ -84,8 +84,8 @@ pub fn document(ui: &AppWindow, a: &AttachmentRef) -> SafeDocument {
                 Err(why) => Entry::Failed(why),
             });
             if let Some(ui) = weak.upgrade() {
-                // Re-applies the active tab if it is this attachment.
-                ui.invoke_body_ready();
+                // Re-applies the active tab only if it is an attachment preview.
+                ui.invoke_preview_ready();
             }
         });
     });

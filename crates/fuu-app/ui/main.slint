@@ -349,6 +349,7 @@ in property <bool> setup-oauth-waiting;
     // Rust closes the setup tab once the account has been added.
     callback setup-finished();
     callback body-ready();
+    callback preview-ready();
     callback message-moved(string, string, int);
     callback save-attachment(int, bool);
     // Preview when possible, otherwise save.
