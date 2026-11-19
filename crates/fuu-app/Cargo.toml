@@ -35,6 +35,11 @@ png = "0.18"
 [build-dependencies]
 slint-build = "1.19"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# A unified (empty) toolbar centres the native traffic lights in the title bar.
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSToolbar", "NSWindow", "NSView", "NSResponder"] }
+
 # Installers and app bundles: `cargo packager --release` (see README). The
 # packaging tools (NSIS, …) are fetched at pinned versions and verified by hash,
 # so packages build the same on every machine.

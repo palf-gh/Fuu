@@ -433,9 +433,10 @@ callback setup-oauth-cancel();
         return reject;
       }
     VerticalLayout {
-        // ───────────── Title bar
+        // ───────────── Title bar (52px on macOS: the unified toolbar height,
+        // so the native traffic lights sit level with this row)
         Rectangle {
-            height: 48px;
+            height: root.is-mac ? 52px : 48px;
             // Empty areas of the bar move the window (double-click maximises natively).
             TouchArea {
                 pointer-event(e) => {

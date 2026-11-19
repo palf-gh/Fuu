@@ -594,6 +594,30 @@ fn caption_font() -> &'static str {
     ""
 }
 
+/// macOS: give the window an empty toolbar in the unified style (as Mail and
+/// Notes do). The title bar grows to the toolbar height and AppKit centres the
+/// real traffic-light buttons in it, level with Fuu's own title-bar row.
+#[cfg(target_os = "macos")]
+fn unify_mac_titlebar(ui: &AppWindow) {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{NSToolbar, NSView, NSWindowToolbarStyle};
+    use slint::winit_030::winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    use slint::winit_030::WinitWindowAccessor;
+
+    let Some(mtm) = MainThreadMarker::new() else { return };
+    ui.window().with_winit_window(|w| {
+        let Ok(handle) = w.window_handle() else { return };
+        let RawWindowHandle::AppKit(appkit) = handle.as_raw() else { return };
+        // SAFETY: winit hands out the window's live content view, and we are on
+        // the main thread (checked above) inside the event loop.
+        let view: &NSView = unsafe { appkit.ns_view.cast::<NSView>().as_ref() };
+        let Some(window) = view.window() else { return };
+        let toolbar = NSToolbar::new(mtm);
+        window.setToolbar(Some(&toolbar));
+        window.setToolbarStyle(NSWindowToolbarStyle::Unified);
+    });
+}
+
 fn install_window_chrome(ui: &AppWindow) {
     use slint::winit_030::winit::window::ResizeDirection;
     use slint::winit_030::WinitWindowAccessor;
@@ -1391,6 +1415,16 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     ui.show()?;
+    // The native window exists once the event loop runs.
+    #[cfg(target_os = "macos")]
+    {
+        let weak = ui.as_weak();
+        slint::Timer::single_shot(Duration::ZERO, move || {
+            if let Some(ui) = weak.upgrade() {
+                unify_mac_titlebar(&ui);
+            }
+        });
+    }
 
     // Renderer geometry sync (polling is a spike simplification).
     let sync_timer = slint::Timer::default();
