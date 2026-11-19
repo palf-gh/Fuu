@@ -621,6 +621,35 @@ fn caption_font() -> &'static str {
     ""
 }
 
+/// Platform touches that need the native window; false until it exists.
+#[cfg(target_os = "macos")]
+fn finish_native_window(ui: &AppWindow) -> bool {
+    unify_mac_titlebar(ui)
+}
+
+/// Windows: the window and taskbar icons, loaded from the icon build.rs embeds
+/// (resource 1) so Windows picks the right size from the .ico. Slint's `icon`
+/// property would hand winit one large RGBA image, which the taskbar shrinks
+/// crudely.
+#[cfg(target_os = "windows")]
+fn finish_native_window(ui: &AppWindow) -> bool {
+    use slint::winit_030::winit::platform::windows::{IconExtWindows, WindowExtWindows};
+    use slint::winit_030::winit::window::Icon;
+    use slint::winit_030::WinitWindowAccessor;
+
+    ui.window()
+        .with_winit_window(|w| {
+            match (Icon::from_resource(1, None), Icon::from_resource(1, None)) {
+                (Ok(small), Ok(big)) => {
+                    w.set_window_icon(Some(small));
+                    w.set_taskbar_icon(Some(big));
+                }
+                (Err(e), _) | (_, Err(e)) => eprintln!("window icon: {e}"),
+            }
+        })
+        .is_some()
+}
+
 /// macOS: give the window an empty toolbar in the unified style (as Mail and
 /// Notes do). The title bar grows to the toolbar height and AppKit centres the
 /// real traffic-light buttons in it, level with Fuu's own title-bar row.
@@ -1507,15 +1536,15 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.show()?;
     // The native window is created lazily once the event loop runs, so retry
     // briefly until winit hands it out.
-    #[cfg(target_os = "macos")]
-    let _titlebar_timer = {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    let _native_window_timer = {
         let timer = std::rc::Rc::new(slint::Timer::default());
         let me = std::rc::Rc::downgrade(&timer);
         let weak = ui.as_weak();
         let tries = std::cell::Cell::new(0u32);
         timer.start(slint::TimerMode::Repeated, Duration::from_millis(20), move || {
             tries.set(tries.get() + 1);
-            let done = weak.upgrade().is_none_or(|ui| unify_mac_titlebar(&ui));
+            let done = weak.upgrade().is_none_or(|ui| finish_native_window(&ui));
             if done || tries.get() >= 250 {
                 if let Some(t) = me.upgrade() {
                     t.stop();
