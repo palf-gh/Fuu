@@ -12,7 +12,7 @@ use fuu_core::account::{self, Account, AuthKind, Security, ServerConfig};
 use fuu_core::engine::{Command, Engine, Event, MoveTarget};
 use fuu_core::imap::{Folder, FolderRole, MessageSummary};
 use fuu_core::secrets::KeychainStore;
-use fuu_model::{Address, Attachment, ManifestEntry, ResourceManifest, SafeDocument};
+use fuu_model::{Address, Attachment, ResourceManifest, SafeDocument};
 use fuu_parser::mailparser::{self, MailParserEngine};
 use fuu_parser::{MessageParser, ParseLimits};
 use fuu_sanitiser::filename;

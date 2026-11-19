@@ -76,6 +76,7 @@ fn with<R>(f: impl FnOnce(&mut Editor) -> R) -> R {
 }
 
 /// Convert plain text with `> ` quoting (as produced for replies) into quote blocks.
+#[cfg(test)]
 pub fn doc_from_plain(text: &str) -> RichDoc {
     let converted: Vec<String> = text
         .split('\n')
