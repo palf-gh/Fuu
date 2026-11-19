@@ -8,6 +8,8 @@ fn main() {
     if let Some(fuu_model::BodyPart::Html(html)) = message.body.first() {
         std::fs::write(format!("{prefix}.html"), html).unwrap();
     }
+    // What the reader actually gets.
+    std::fs::write(format!("{prefix}.safe.html"), fuu_sanitiser::sanitise(&message).html).unwrap();
     for (i, image) in message.inline.iter().enumerate() {
         let ext = if image.mime == "image/png" { "png" } else { "jpg" };
         std::fs::write(format!("{prefix}-{i}.{ext}"), &image.data).unwrap();

@@ -936,6 +936,7 @@ checksum = "f431b67cba6122a1f7d26b7adafc71bbdf07026095fe811f5efc025d8748e1d8"
 dependencies = [
  "atoi_simd",
  "byteorder",
+ "chrono",
  "codepage",
  "encoding_rs",
  "fast-float2",
@@ -1055,6 +1056,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link",
 ]
@@ -2154,7 +2156,9 @@ name = "fuu-preview"
 version = "0.1.0"
 dependencies = [
  "calamine",
+ "chrono",
  "fuu-model",
+ "fuu-sanitiser",
  "hayro",
  "image",
  "quick-xml 0.41.0",
