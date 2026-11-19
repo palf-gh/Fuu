@@ -48,7 +48,7 @@ winresource = "0.1"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSToolbar", "NSWindow", "NSView", "NSResponder", "NSButton", "NSControl"] }
 # mailto: URLs arrive as Apple Events; the bundle id names the default handler.
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSAppleEventManager", "NSAppleEventDescriptor", "NSBundle", "NSString", "NSObject"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSAppleEventManager", "NSAppleEventDescriptor", "NSBundle", "NSString", "NSObject", "objc2-core-services"] }
 
 [target.'cfg(windows)'.dependencies]
 # Single instance (named pipe) and registering as a mail app (HKCU).
