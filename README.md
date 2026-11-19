@@ -15,7 +15,7 @@ Windows・macOS・Linux 向けの、機能を絞ったミニマルなメール�
 IMAP / SMTP サーバーに直接接続し、中継サーバーは使いません。名前は漢字の「封」の字義
 （封をする、閉じて守る）から来ています。
 
-現在の状態: **アルファ版（v0.1.0-alpha.1）**。基本の機能はそろっていますが、不具合や仕様の変更が
+現在の状態: **アルファ版（v0.1.0-alpha.2）**。基本の機能はそろっていますが、不具合や仕様の変更が
 ありえます。配布ファイルは [Releases](https://github.com/palf-gh/Fuu/releases) にあります
 （macOS 版は署名・公証がまだなので、初回はシステム設定の「プライバシーとセキュリティ」で
 「このまま開く」を選ぶ必要があります）。
@@ -186,7 +186,7 @@ multiple accounts and per-account signatures. Fuu talks to your IMAP/SMTP server
 directly; there is no relay service. The name comes from the meaning of the
 character 封 (*fū*): to seal, to close something up and keep it safe.
 
-Status: **alpha (v0.1.0-alpha.1)**. The basics are in place, but expect bugs and
+Status: **alpha (v0.1.0-alpha.2)**. The basics are in place, but expect bugs and
 changes. Downloads are on [Releases](https://github.com/palf-gh/Fuu/releases)
 (the macOS build is not signed or notarised yet: the first time, allow it under
 System Settings → Privacy & Security → Open Anyway). Features: accounts (password / app password, or Google / Microsoft sign-in
