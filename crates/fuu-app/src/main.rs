@@ -647,7 +647,11 @@ fn select_backend() -> Result<(), slint::PlatformError> {
             }
             #[cfg(not(any(target_os = "macos", target_os = "windows")))]
             {
-                attributes.with_decorations(false)
+                use slint::winit_030::winit::platform::{wayland::WindowAttributesExtWayland, x11::WindowAttributesExtX11};
+                // Wayland app id / X11 WM_CLASS: matches the desktop file
+                // (fuu.desktop) so docks show Fuu's icon and name.
+                let attributes = WindowAttributesExtWayland::with_name(attributes, "fuu", "fuu");
+                WindowAttributesExtX11::with_name(attributes, "fuu", "fuu").with_decorations(false)
             }
         })
         .select()
@@ -673,6 +677,26 @@ fn caption_font() -> &'static str {
 #[cfg(target_os = "macos")]
 fn finish_native_window(ui: &AppWindow) -> bool {
     unify_mac_titlebar(ui)
+}
+
+/// Linux (X11): the window icon (Wayland takes it from the desktop file).
+#[cfg(all(unix, not(target_os = "macos")))]
+fn finish_native_window(ui: &AppWindow) -> bool {
+    use slint::winit_030::winit::window::Icon;
+    use slint::winit_030::WinitWindowAccessor;
+
+    fn decode() -> Option<Icon> {
+        let png = include_bytes!("../icons/app/fuu-128.png");
+        let mut reader = png::Decoder::new(std::io::Cursor::new(&png[..])).read_info().ok()?;
+        let mut rgba = vec![0; reader.output_buffer_size()?];
+        let info = reader.next_frame(&mut rgba).ok()?;
+        if info.color_type != png::ColorType::Rgba || info.bit_depth != png::BitDepth::Eight {
+            return None;
+        }
+        rgba.truncate(info.buffer_size());
+        Icon::from_rgba(rgba, info.width, info.height).ok()
+    }
+    ui.window().with_winit_window(|w| w.set_window_icon(decode())).is_some()
 }
 
 /// Windows: the window and taskbar icons, loaded from the icon build.rs embeds
@@ -1631,7 +1655,6 @@ fn main() -> Result<(), slint::PlatformError> {
     ui.show()?;
     // The native window is created lazily once the event loop runs, so retry
     // briefly until winit hands it out.
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
     let _native_window_timer = {
         let timer = std::rc::Rc::new(slint::Timer::default());
         let me = std::rc::Rc::downgrade(&timer);

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Fuu
+Comment=A minimal mail client
+Comment[ja]=ミニマルなメールクライアント
+Exec=fuu %u
+Icon=fuu
+Terminal=false
+Categories=Network;Email;
+MimeType=x-scheme-handler/mailto;
+StartupWMClass=fuu

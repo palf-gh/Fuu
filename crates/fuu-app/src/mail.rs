@@ -135,7 +135,7 @@ fn process(raw: Arc<Vec<u8>>) -> Body {
 /// A quiet one-line document (loading, errors).
 pub fn notice_document(text: &str) -> SafeDocument {
     let html = format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"><style>:root{{color-scheme:light dark}}body{{font:14px/1.7 system-ui,'Segoe UI','Hiragino Sans','Yu Gothic UI',sans-serif;margin:6px 40px 48px;opacity:.55}}</style></head><body><p>{}</p></body></html>",
+        "<!doctype html><html><head><meta charset=\"utf-8\"><style>:root{{color-scheme:light dark}}body{{font:14px/1.7 system-ui,'Segoe UI','Hiragino Sans','Yu Gothic UI','Noto Sans CJK JP',sans-serif;margin:6px 40px 48px;opacity:.55}}</style></head><body><p>{}</p></body></html>",
         escape_html(text)
     );
     SafeDocument { html, text: text.to_owned(), resources: ResourceManifest::default(), flags: Default::default(), remote_images: Vec::new() }

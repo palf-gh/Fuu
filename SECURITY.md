@@ -123,9 +123,11 @@ one) and go through `fuu_core::mailto::parse` only.
   body 32 KiB). Decoding is URL percent-decoding, not form decoding (`+` stays a
   plus, as in `user+tag@example.com`).
 - **Never sends.** The result is an ordinary draft; sending needs the user.
-- **Single instance (Windows).** A second `fuu.exe` hands its request to the
-  running one over a named pipe scoped to the user and session
-  (`PIPE_REJECT_REMOTE_CLIENTS`, first instance owns it). The receiver accepts one
+- **Single instance (Windows, Linux).** A second `fuu.exe` hands its request to
+  the running one over a named pipe scoped to the user and session
+  (`PIPE_REJECT_REMOTE_CLIENTS`, first instance owns it); on Linux over a Unix
+  socket in `$XDG_RUNTIME_DIR` (private to the user; the `/tmp` fallback is per
+  uid and made 0600). The receiver accepts one
   message of at most 64 KiB that is empty (show the window) or starts with
   `mailto:`; anything else is dropped.
 - **Registration.** Settings → 一般 → 「Fuu を既定にする」 writes, for the current
@@ -135,7 +137,10 @@ one) and go through `fuu_core::mailto::parse` only.
   `Software\Classes\mailto` or `UserChoice`. The uninstaller does not remove these
   keys; they point at the installed `fuu.exe` and are ignored once it is gone. On
   macOS the bundle declares `mailto` (`CFBundleURLTypes`) and the button calls
-  `LSSetDefaultHandlerForURLScheme`.
+  `LSSetDefaultHandlerForURLScheme`. On Linux the button writes
+  `~/.local/share/applications/fuu.desktop` (overriding the packaged one, same id;
+  the executable path is quoted for the Exec key) and runs
+  `xdg-mime default fuu.desktop x-scheme-handler/mailto`.
 
 Tests: `fuu_core::mailto` unit tests (percent-decoding, `+`, CR/LF injection,
 `attach`, broken escapes, caps) and a registry round trip in a scratch key.

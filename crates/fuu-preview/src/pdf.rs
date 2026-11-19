@@ -46,6 +46,23 @@ fn system_font_paths(script: Script, bold: bool) -> &'static [&'static str] {
         (Script::Chinese, _) => &["/System/Library/Fonts/PingFang.ttc", "/System/Library/Fonts/Hiragino Sans GB.ttc"],
         #[cfg(target_os = "macos")]
         (Script::Korean, _) => &["/System/Library/Fonts/AppleSDGothicNeo.ttc"],
+        // Linux: Noto Sans CJK (Debian/Ubuntu, Arch, Fedora layouts; the
+        // collection's first face is JP), then IPA Gothic.
+        #[cfg(all(unix, not(target_os = "macos")))]
+        (_, false) => &[
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
+        ],
+        #[cfg(all(unix, not(target_os = "macos")))]
+        (_, true) => &[
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
+        ],
         #[allow(unreachable_patterns)]
         _ => &[],
     }

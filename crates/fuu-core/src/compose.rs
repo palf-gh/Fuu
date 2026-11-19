@@ -267,7 +267,7 @@ pub fn forward_block(original: &Headers, original_text: &str, date: &str) -> Str
 }
 
 
-const FONT_STACK: &str = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', Meiryo, sans-serif";
+const FONT_STACK: &str = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', Meiryo, 'Noto Sans CJK JP', sans-serif";
 
 fn escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());

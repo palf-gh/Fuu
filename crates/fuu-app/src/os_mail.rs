@@ -5,6 +5,8 @@
 //! - Windows starts `fuu.exe "mailto:…"` for each click. A second instance
 //!   hands the URL to the running one over a per-user named pipe and exits.
 //! - macOS delivers URLs to the running app as an Apple Event (kAEGetURL).
+//! - Linux starts `fuu "mailto:…"` from the desktop file (`%u`); a second
+//!   instance hands the URL over a Unix socket in `$XDG_RUNTIME_DIR`.
 //!
 //! URLs from here are untrusted input; they only ever reach
 //! `fuu_core::mailto::parse`, which keeps the address, subject and body.
@@ -39,7 +41,7 @@ pub fn set_sink(sink: impl Fn(String) + 'static) {
     }
 }
 
-/// The `mailto:` URL among the command-line arguments (Windows launches).
+/// The `mailto:` URL among the command-line arguments (Windows and Linux).
 pub fn mailto_argument() -> Option<String> {
     std::env::args().skip(1).find(|a| a.len() >= 7 && a[..7].eq_ignore_ascii_case("mailto:"))
 }
@@ -50,6 +52,8 @@ pub fn is_default() -> Option<bool> {
     return Some(win::is_default());
     #[cfg(target_os = "macos")]
     return mac::is_default();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    return linux::is_default();
     #[allow(unreachable_code)]
     None
 }
@@ -62,15 +66,20 @@ pub fn make_default() -> Result<(), String> {
     return win::make_default();
     #[cfg(target_os = "macos")]
     return mac::make_default();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    return linux::make_default();
     #[allow(unreachable_code)]
     Err("この OS には対応していません".into())
 }
 
-/// Windows: become the single running instance, or pass `request` to the one
-/// already running. Returns false when this process should exit.
+/// Windows and Linux: become the single running instance, or pass `request`
+/// to the one already running. Returns false when this process should exit.
+/// (macOS: LaunchServices already keeps one instance of the app.)
 pub fn claim_instance(request: Option<&str>) -> bool {
     #[cfg(windows)]
     return win::claim_instance(request.unwrap_or_default());
+    #[cfg(all(unix, not(target_os = "macos")))]
+    return linux::claim_instance(request.unwrap_or_default());
     #[allow(unreachable_code)]
     {
         let _ = request;
@@ -80,6 +89,169 @@ pub fn claim_instance(request: Option<&str>) -> bool {
 
 #[cfg(target_os = "macos")]
 pub use mac::install_url_handler;
+
+/// A request as received from another instance: empty, or one `mailto:` URL.
+#[cfg_attr(target_os = "macos", allow(dead_code))]
+fn acceptable(text: &str) -> bool {
+    text.is_empty() || (text.len() <= fuu_core::mailto::MAX_URL && text.len() >= 7 && text[..7].eq_ignore_ascii_case("mailto:"))
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+mod linux {
+    use std::io::{Read, Write};
+    use std::os::unix::fs::PermissionsExt;
+    use std::os::unix::net::{UnixListener, UnixStream};
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    use fuu_core::mailto::MAX_URL;
+
+    /// Same id as the packaged desktop file, so the user's copy (written by
+    /// make_default with this Fuu's path) overrides it instead of adding a
+    /// second entry.
+    const DESKTOP_ID: &str = "fuu.desktop";
+    const ICON: &[u8] = include_bytes!("../icons/app/fuu-256.png");
+
+    unsafe extern "C" {
+        fn getuid() -> u32;
+    }
+
+    /// `$XDG_RUNTIME_DIR` is private to the user (0700); the fallback names the
+    /// uid and the socket is made 0600 after binding.
+    fn socket_path() -> PathBuf {
+        match std::env::var_os("XDG_RUNTIME_DIR") {
+            Some(dir) if !dir.is_empty() => PathBuf::from(dir).join("dev.fuu.Fuu.sock"),
+            // SAFETY: getuid has no preconditions.
+            _ => std::env::temp_dir().join(format!("dev.fuu.Fuu-{}.sock", unsafe { getuid() })),
+        }
+    }
+
+    pub fn claim_instance(request: &str) -> bool {
+        let path = socket_path();
+        if let Ok(mut stream) = UnixStream::connect(&path) {
+            return stream.write_all(request.as_bytes()).is_err();
+        }
+        // Nobody answers: a stale socket left by a crash, or none at all.
+        let _ = std::fs::remove_file(&path);
+        let Ok(listener) = UnixListener::bind(&path) else { return true };
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+        std::thread::spawn(move || {
+            for stream in listener.incoming().flatten() {
+                let mut bytes = Vec::new();
+                if stream.take(MAX_URL as u64 + 1).read_to_end(&mut bytes).is_ok() && bytes.len() <= MAX_URL {
+                    if let Ok(text) = String::from_utf8(bytes) {
+                        if super::acceptable(&text) {
+                            let _ = slint::invoke_from_event_loop(move || super::deliver(text));
+                        }
+                    }
+                }
+            }
+        });
+        true
+    }
+
+    fn data_home() -> Option<PathBuf> {
+        std::env::var_os("XDG_DATA_HOME")
+            .filter(|d| !d.is_empty())
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
+    }
+
+    /// Quote a path for a desktop file's Exec key.
+    fn exec_quote(s: &str) -> String {
+        let mut out = String::from('"');
+        for c in s.chars() {
+            if matches!(c, '"' | '`' | '$' | '\\') {
+                out.push('\\');
+            }
+            out.push(c);
+        }
+        out.push('"');
+        out
+    }
+
+    pub(super) fn desktop_entry(exe: &str, icon: &str) -> String {
+        format!(
+            "[Desktop Entry]\nType=Application\nName=Fuu\nComment=ミニマルなメールクライアント\nExec={} %u\nIcon={icon}\nTerminal=false\nCategories=Network;Email;\nMimeType=x-scheme-handler/mailto;\nStartupWMClass=fuu\n",
+            exec_quote(exe)
+        )
+    }
+
+    /// Write a desktop file (and icon) for this Fuu under the user's data
+    /// directory and make it the mailto: handler with xdg-mime.
+    pub fn make_default() -> Result<(), String> {
+        // An AppImage runs from a temporary mount; register the image itself.
+        let exe = match std::env::var_os("APPIMAGE") {
+            Some(image) => PathBuf::from(image),
+            None => std::env::current_exe().map_err(|e| e.to_string())?,
+        };
+        let data = data_home().ok_or("ホームフォルダーが見つかりません")?;
+        let icon_dir = data.join("icons/hicolor/256x256/apps");
+        let apps = data.join("applications");
+        std::fs::create_dir_all(&icon_dir).and_then(|_| std::fs::create_dir_all(&apps)).map_err(|e| e.to_string())?;
+        // Themed name `fuu` (packages install it; AppImage and cargo builds get it here).
+        std::fs::write(icon_dir.join("fuu.png"), ICON).map_err(|e| e.to_string())?;
+        let entry = desktop_entry(&exe.to_string_lossy(), "fuu");
+        std::fs::write(apps.join(DESKTOP_ID), entry).map_err(|e| e.to_string())?;
+        let _ = Command::new("update-desktop-database").arg(&apps).status();
+        // xdg-mime writes mimeapps.list there and fails if the folder is missing.
+        let config = std::env::var_os("XDG_CONFIG_HOME")
+            .filter(|d| !d.is_empty())
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")));
+        if let Some(config) = config {
+            let _ = std::fs::create_dir_all(config);
+        }
+        let status = Command::new("xdg-mime")
+            .args(["default", DESKTOP_ID, "x-scheme-handler/mailto"])
+            .status()
+            .map_err(|e| format!("xdg-mime を実行できませんでした: {e}"))?;
+        if status.success() { Ok(()) } else { Err("既定のメールアプリにできませんでした（xdg-mime）".into()) }
+    }
+
+    pub fn is_default() -> Option<bool> {
+        let out = Command::new("xdg-mime").args(["query", "default", "x-scheme-handler/mailto"]).output().ok()?;
+        Some(String::from_utf8_lossy(&out.stdout).trim() == DESKTOP_ID)
+    }
+}
+
+#[cfg(all(test, unix, not(target_os = "macos")))]
+mod linux_tests {
+    #[test]
+    fn desktop_entry_quotes_the_path() {
+        let entry = super::linux::desktop_entry(r#"/opt/My "Apps"/fuu"#, "/icons/fuu.png");
+        assert!(entry.contains(r#"Exec="/opt/My \"Apps\"/fuu" %u"#), "{entry}");
+        assert!(entry.contains("MimeType=x-scheme-handler/mailto;"));
+    }
+
+    /// Writes a desktop file and sets the handler with xdg-mime, inside scratch
+    /// XDG directories. Changes process environment, so it is run on its own:
+    /// `cargo test -p fuu-app xdg_default -- --ignored --test-threads=1`.
+    #[test]
+    #[ignore]
+    fn xdg_default_round_trip() {
+        let dir = std::env::temp_dir().join(format!("fuu-xdg-{}", std::process::id()));
+        // SAFETY: this test runs alone (see above).
+        unsafe {
+            std::env::set_var("XDG_DATA_HOME", dir.join("data"));
+            std::env::set_var("XDG_CONFIG_HOME", dir.join("config"));
+        }
+        assert_eq!(super::is_default(), Some(false));
+        super::make_default().expect("make default");
+        let desktop = std::fs::read_to_string(dir.join("data/applications/fuu.desktop")).expect("desktop file");
+        assert!(desktop.contains("MimeType=x-scheme-handler/mailto;"));
+        assert_eq!(super::is_default(), Some(true));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn requests_are_filtered() {
+        assert!(super::acceptable(""));
+        assert!(super::acceptable("mailto:a@example.com"));
+        assert!(!super::acceptable("https://example.com"));
+        assert!(!super::acceptable(&format!("mailto:{}", "a".repeat(fuu_core::mailto::MAX_URL))));
+    }
+}
 
 #[cfg(windows)]
 mod win {
@@ -169,8 +341,7 @@ mod win {
                 if read.is_ok() && bytes.len() <= MAX_URL {
                     if let Ok(text) = String::from_utf8(bytes) {
                         // Only an empty request or a single mailto: URL.
-                        let ok = text.is_empty() || (text.len() >= 7 && text[..7].eq_ignore_ascii_case("mailto:"));
-                        if ok {
+                        if super::acceptable(&text) {
                             let _ = slint::invoke_from_event_loop(move || super::deliver(text));
                         }
                     }

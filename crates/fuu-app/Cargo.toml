@@ -24,7 +24,7 @@ fuu-core.workspace = true
 fuu-parser.workspace = true
 fuu-editor.workspace = true
 fuu-preview.workspace = true
-rfd = { version = "0.15", default-features = false, features = ["xdg-portal"] }
+rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "tokio"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 slint = { version = "1.19", features = ["raw-window-handle-06", "unstable-winit-030"] }
 tokio = { version = "1", features = ["rt-multi-thread", "time", "macros"] }
@@ -83,3 +83,10 @@ languages = ["Japanese", "English"]
 minimumSystemVersion = "11.0"
 # Declares the mailto: scheme (merged into the generated Info.plist).
 infoPlistPath = "packaging/macos-Info.plist"
+
+[package.metadata.packager.deb]
+# fontconfig/freetype are linked; the display libraries are loaded at run time.
+depends = ["libfontconfig1", "libfreetype6", "libxkbcommon0", "libwayland-client0 | libx11-6", "xdg-utils"]
+# fuu.desktop with `%u`, the mailto: MIME type and StartupWMClass (the AppImage
+# reuses it).
+desktopTemplate = "packaging/linux/fuu.desktop"

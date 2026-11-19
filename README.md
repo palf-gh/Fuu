@@ -4,7 +4,7 @@
 
 ## 日本語
 
-Windows・macOS 向けの、機能を絞ったミニマルなメールクライアントです。メールの閲覧・
+Windows・macOS・Linux 向けの、機能を絞ったミニマルなメールクライアントです。メールの閲覧・
 送信・返信ができ、複数のアカウントとアカウントごとの署名に対応しています。Fuu は
 IMAP / SMTP サーバーに直接接続し、中継サーバーは使いません。名前は漢字の「封」の字義
 （封をする、閉じて守る）から来ています。
@@ -49,7 +49,14 @@ cargo install cargo-packager --version 0.11.8 --locked   # 初回だけ
 cd crates/fuu-app
 cargo packager --release --formats nsis       # Windows: fuu_<版>_x64-setup.exe
 cargo packager --release --formats app,dmg    # macOS: Fuu.app と .dmg（Mac で実行）
+cargo packager --release --formats deb,appimage   # Linux: .deb と AppImage（Linux で実行）
 ```
+
+Linux でビルドするには、C コンパイラと表示まわりの開発用パッケージが要ります
+（Ubuntu の例: `build-essential pkg-config clang libfontconfig1-dev libfreetype-dev
+libxkbcommon-dev libwayland-dev libx11-dev libgl1-mesa-dev`）。日本語の PDF プレビューには
+`fonts-noto-cjk`、パスワードの保存には Secret Service（GNOME キーリングや KWallet）が
+必要です。
 
 Windows のインストーラーは管理者権限なしで、ユーザーごとに `%LOCALAPPDATA%\Fuu` へ
 入れます。アンインストールしてもアカウント設定・キャッシュ・キーチェーンの内容は残します。
@@ -111,7 +118,8 @@ SLINT_BACKEND=winit-skia cargo run -p fuu-app --features skia
 設定 →「一般」→「Fuu を既定にする」で、メールアドレスのリンク（`mailto:`）を Fuu で
 開けるようにできます。Windows では Fuu をメールアプリとして登録し、「既定のアプリ」の
 画面を開くので、そこで Fuu を選んでください（Windows ではアプリが自分で既定にはなれません）。
-macOS では `Fuu.app` から起動したときに設定できます。リンクからは宛先・CC・BCC・件名・本文
+macOS では `Fuu.app` から起動したときに設定できます。Linux では Fuu の desktop ファイルを
+`~/.local/share/applications` に置き、`xdg-mime` で既定にします。リンクからは宛先・CC・BCC・件名・本文
 だけを取り込み、添付ファイルの指定は無視します。送信は必ず手動です。
 
 ### OAuth でのログイン（Gmail、Outlook.com）
@@ -163,7 +171,7 @@ GPL-3.0-only。Fuu は Slint を GPLv3 で利用しています。
 
 ## English
 
-A minimal desktop mail client for Windows and macOS: read, send and reply, with
+A minimal desktop mail client for Windows, macOS and Linux: read, send and reply, with
 multiple accounts and per-account signatures. Fuu talks to your IMAP/SMTP servers
 directly; there is no relay service. The name comes from the meaning of the
 character 封 (*fū*): to seal, to close something up and keep it safe.
@@ -205,7 +213,14 @@ cargo install cargo-packager --version 0.11.8 --locked   # once
 cd crates/fuu-app
 cargo packager --release --formats nsis       # Windows: fuu_<version>_x64-setup.exe
 cargo packager --release --formats app,dmg    # macOS: Fuu.app and a .dmg (run on a Mac)
+cargo packager --release --formats deb,appimage   # Linux: a .deb and an AppImage (run on Linux)
 ```
+
+Building on Linux needs a C toolchain and the display development packages
+(Ubuntu: `build-essential pkg-config clang libfontconfig1-dev libfreetype-dev
+libxkbcommon-dev libwayland-dev libx11-dev libgl1-mesa-dev`). Japanese PDF
+previews use `fonts-noto-cjk`; saving passwords needs a Secret Service (GNOME
+Keyring or KWallet).
 
 The Windows installer installs per user into `%LOCALAPPDATA%\Fuu` without
 administrator rights. Uninstalling keeps account settings, the cache and
@@ -270,7 +285,8 @@ See `ARCHITECTURE.md` and `SECURITY.md`.
 Settings → 一般 → 「Fuu を既定にする」 lets `mailto:` links open in Fuu. On
 Windows this registers Fuu as a mail app and opens the Default apps page, where
 you pick Fuu (Windows does not let apps make themselves the default). On macOS it
-works when Fuu runs as `Fuu.app`. Links only fill in the recipients, subject and
+works when Fuu runs as `Fuu.app`. On Linux Fuu writes its desktop file to
+`~/.local/share/applications` and sets it with `xdg-mime`. Links only fill in the recipients, subject and
 body; attachment requests are ignored, and nothing is sent without you.
 
 ### OAuth sign-in (Gmail, Outlook.com)
