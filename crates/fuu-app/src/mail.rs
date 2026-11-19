@@ -45,6 +45,8 @@ pub struct AppData {
     remote_pending: Vec<(String, String, u32)>,
     /// The account list has been loaded (drafts can pick a sender).
     accounts_loaded: bool,
+    /// The setup form edits this account instead of adding one.
+    editing: Option<String>,
     /// Account whose OAuth sign-in must be renewed, and whether a renewal runs.
     reauth: Option<String>,
     reauth_running: bool,
@@ -454,6 +456,10 @@ fn handle(ui: &AppWindow, event: Event) {
             ui.set_setup_busy(false);
             ui.set_setup_error(SharedString::default());
             ui.set_setup_password(SharedString::default());
+            if DATA.with(|d| d.borrow_mut().editing.take()).is_some() {
+                ui.set_setup_editing(false);
+                crate::notify(ui, "アカウントの設定を保存しました", false);
+            }
             ui.invoke_setup_finished();
         }
         Event::ReauthRequired { account_id, message } => {
@@ -897,7 +903,42 @@ pub fn reset_setup(ui: &AppWindow) {
     ui.set_setup_oauth_provider(SharedString::default());
     ui.set_setup_password_login(true);
     ui.set_setup_oauth_waiting(false);
-    DATA.with(|d| d.borrow_mut().setup_auto = true);
+    ui.set_setup_editing(false);
+    ui.set_setup_email_locked(false);
+    DATA.with(|d| {
+        let mut d = d.borrow_mut();
+        d.setup_auto = true;
+        d.editing = None;
+    });
+}
+
+pub fn is_editing_account() -> bool {
+    DATA.with(|d| d.borrow().editing.is_some())
+}
+
+/// Fill the setup form with an existing account to edit it. OAuth accounts
+/// keep their address and sign-in; password accounts may leave the password
+/// blank to keep the saved one.
+pub fn edit_account(ui: &AppWindow, id: &str) {
+    let Some(a) = account_by_id(id) else { return };
+    reset_setup(ui);
+    ui.set_setup_name(a.display_name.clone().into());
+    ui.set_setup_email(a.email.clone().into());
+    ui.set_setup_username(a.username.clone().into());
+    fill_servers(ui, &a.imap, &a.smtp);
+    if let Some(p) = account::preset_for(&a.email) {
+        ui.set_setup_provider(p.provider.into());
+    }
+    let oauth = a.auth == AuthKind::OAuth2;
+    ui.set_setup_password_login(!oauth);
+    ui.set_setup_email_locked(oauth);
+    ui.set_setup_advanced(true);
+    ui.set_setup_editing(true);
+    DATA.with(|d| {
+        let mut d = d.borrow_mut();
+        d.setup_auto = false;
+        d.editing = Some(a.id.clone());
+    });
 }
 
 /// Validate the form and ask the engine to verify and add the account.
@@ -905,9 +946,10 @@ pub fn setup_submit(ui: &AppWindow) {
     let email = ui.get_setup_email().trim().to_owned();
     let password = ui.get_setup_password().to_string();
     let parse_port = |s: SharedString| s.trim().parse::<u16>().ok();
+    let editing = DATA.with(|d| d.borrow().editing.clone()).and_then(|id| account_by_id(&id));
     let error = if !email.contains('@') {
         Some("メールアドレスを入力してください")
-    } else if password.is_empty() {
+    } else if password.is_empty() && editing.is_none() {
         Some("パスワードを入力してください")
     } else if ui.get_setup_imap_host().trim().is_empty() || ui.get_setup_smtp_host().trim().is_empty() {
         ui.set_setup_advanced(true);
@@ -926,10 +968,25 @@ pub fn setup_submit(ui: &AppWindow) {
         ui.set_setup_error("開発用データの表示中は追加できません（FUU_SPIKE_FEED を外して起動してください）".into());
         return;
     }
-    let account = form_account(ui, email);
+    let mut account = form_account(ui, email);
     ui.set_setup_error(SharedString::default());
     ui.set_setup_busy(true);
-    send(Command::AddAccount { account, password });
+    match editing {
+        Some(old) => {
+            // Same identity, sign-in method and signature; new settings.
+            account.id = old.id;
+            account.auth = old.auth;
+            account.oauth = old.oauth;
+            account.signature = old.signature;
+            account.signature_enabled = old.signature_enabled;
+            if account.auth == AuthKind::OAuth2 {
+                account.email = old.email;
+            }
+            let password = (account.auth == AuthKind::Password && !password.is_empty()).then_some(password);
+            send(Command::UpdateAccount { account, password });
+        }
+        None => send(Command::AddAccount { account, password }),
+    }
 }
 
 /// Start a browser sign-in for the provider detected from the address.

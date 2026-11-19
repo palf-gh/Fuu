@@ -41,6 +41,10 @@ pub enum Command {
     /// Abandon a browser sign-in in progress.
     CancelOAuth,
     RemoveAccount { account_id: String },
+    /// Change an existing account's settings (same id). The connection is
+    /// checked first; `password: None` keeps the saved password (or OAuth
+    /// sign-in). Answers with AccountAdded or AccountAddFailed.
+    UpdateAccount { account: Account, password: Option<String> },
     /// Change an account's signature (saved to accounts.toml; no event unless
     /// saving fails).
     SetSignature { account_id: String, signature: String, enabled: bool },
@@ -181,6 +185,7 @@ impl Inner {
         match command {
             Command::LoadAccounts => self.clone().load_accounts().await,
             Command::AddAccount { account, password } => self.clone().add_account(account, password).await,
+            Command::UpdateAccount { account, password } => self.clone().update_account(account, password).await,
             Command::AddOAuthAccount { account } => self.clone().add_oauth_account(account).await,
             Command::CancelOAuth => {
                 if let Some(cancel) = self.oauth_cancel.lock().unwrap().take() {
@@ -228,6 +233,33 @@ impl Inner {
         if let Err(e) = secrets::set_long(self.secrets.as_ref(), &account.id, &password) {
             return self.emit(Event::AccountAddFailed(e.to_string()));
         }
+        self.save_new_account(account, session).await;
+    }
+
+    async fn update_account(self: Arc<Self>, account: Account, password: Option<String>) {
+        if self.account(&account.id).await.is_none() {
+            return self.emit(Event::AccountAddFailed("アカウントが見つかりません".into()));
+        }
+        self.emit(Event::Status(format!("{} に接続しています…", account.imap.host)));
+        let credential = match &password {
+            Some(p) => Credential::Password(p.clone()),
+            None => match self.credential(&account, false).await {
+                Ok(c) => c,
+                Err(e) => return self.emit(Event::AccountAddFailed(e)),
+            },
+        };
+        let session = match imap::login(&account.imap, &account.username, &credential).await {
+            Ok(s) => s,
+            Err(e) => return self.emit(Event::AccountAddFailed(e.to_string())),
+        };
+        if let Some(p) = &password {
+            if let Err(e) = secrets::set_long(self.secrets.as_ref(), &account.id, p) {
+                return self.emit(Event::AccountAddFailed(e.to_string()));
+            }
+        }
+        // Drop the connection and watcher made with the old settings.
+        self.unwatch(&account.id);
+        self.sessions.lock().await.remove(&account.id);
         self.save_new_account(account, session).await;
     }
 

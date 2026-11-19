@@ -9,6 +9,7 @@ component SetupField inherits Rectangle {
     in property <string> label;
     in property <string> placeholder;
     in property <bool> password;
+    in property <bool> read-only;
     in-out property <string> text;
     callback edited(string);
     height: 46px;
@@ -19,7 +20,8 @@ component SetupField inherits Rectangle {
             input := TextInput {
                 text <=> root.text;
                 input-type: root.password ? InputType.password : InputType.text;
-                color: Theme.text;
+                read-only: root.read-only;
+                color: root.read-only ? Theme.text-muted : Theme.text;
                 font-size: Theme.font-m;
                 vertical-alignment: center;
                 single-line: true;
@@ -58,6 +60,10 @@ export component AccountSetupView inherits Rectangle {
     in property <string> oauth-provider;
     in property <bool> password-login: true;
     in property <bool> oauth-waiting;
+    // Editing an existing account (password may stay blank; OAuth accounts
+    // keep their address).
+    in property <bool> editing;
+    in property <bool> email-locked;
     callback email-edited(string);
     callback submit();
     callback oauth-submit();
@@ -71,7 +77,7 @@ export component AccountSetupView inherits Rectangle {
         spacing: 0px;
         alignment: start;
 
-        Text { text: "アカウントを追加"; font-size: Theme.font-xl; font-weight: 600; color: Theme.text; }
+        Text { text: root.editing ? "アカウントを編集" : "アカウントを追加"; font-size: Theme.font-xl; font-weight: 600; color: Theme.text; }
         Rectangle { height: 6px; }
         Text {
             text: "IMAP / SMTP でメールサーバーに直接接続します。パスワードやログイン情報は OS のキーチェーンにだけ保存されます。";
@@ -82,8 +88,14 @@ export component AccountSetupView inherits Rectangle {
         Rectangle { height: 16px; }
 
         SetupField { label: "名前"; placeholder: "差出人に表示される名前"; text <=> root.name; }
-        SetupField { label: "メールアドレス"; placeholder: "name@example.com"; text <=> root.email; edited(t) => { root.email-edited(t); } }
-        if root.password-login: SetupField { label: "パスワード"; placeholder: root.oauth-provider != "" ? "アプリ パスワード（" + root.oauth-provider + " でログインする場合は不要）" : "パスワードまたはアプリ パスワード"; password: true; text <=> root.password; }
+        SetupField { label: "メールアドレス"; placeholder: "name@example.com"; read-only: root.email-locked; text <=> root.email; edited(t) => { root.email-edited(t); } }
+        if root.password-login: SetupField {
+            label: "パスワード";
+            placeholder: root.editing ? "変更しない場合は空欄のまま"
+                : root.oauth-provider != "" ? "アプリ パスワード（" + root.oauth-provider + " でログインする場合は不要）" : "パスワードまたはアプリ パスワード";
+            password: true;
+            text <=> root.password;
+        }
 
         if root.note != "": Rectangle {
             height: note-text.preferred-height + 20px;
@@ -155,7 +167,11 @@ export component AccountSetupView inherits Rectangle {
         HorizontalLayout {
             spacing: 10px;
             alignment: start;
-            if root.oauth-provider != "": PrimaryButton {
+            if root.editing: PrimaryButton {
+                text: root.busy ? "接続を確認しています…" : "接続を確認して保存";
+                clicked => { if (!root.busy) { root.submit(); } }
+            }
+            if !root.editing && root.oauth-provider != "": PrimaryButton {
                 text: root.oauth-waiting ? "ブラウザでログインを続けてください…" : root.busy ? "接続を確認しています…" : root.oauth-provider + " でログイン";
                 clicked => { if (!root.busy) { root.oauth-submit(); } }
             }
@@ -163,11 +179,11 @@ export component AccountSetupView inherits Rectangle {
                 text: "取り消す";
                 clicked => { root.oauth-cancel(); }
             }
-            if root.password-login && root.oauth-provider == "": PrimaryButton {
+            if !root.editing && root.password-login && root.oauth-provider == "": PrimaryButton {
                 text: root.busy ? "接続を確認しています…" : "接続して追加";
                 clicked => { if (!root.busy) { root.submit(); } }
             }
-            if root.password-login && root.oauth-provider != "" && !root.busy: SecondaryButton {
+            if !root.editing && root.password-login && root.oauth-provider != "" && !root.busy: SecondaryButton {
                 text: "パスワードで追加";
                 clicked => { root.submit(); }
             }

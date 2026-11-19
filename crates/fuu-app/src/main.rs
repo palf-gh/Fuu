@@ -248,14 +248,14 @@ type SharedTabs = Rc<RefCell<Tabs>>;
 const TAB_LIMIT_MESSAGE: &str = "タブは最大 32 個までです";
 
 /// The signature block for a new draft from `account` (the active account
-/// when None): that account's signature after a "-- " line, if it has one.
+/// when None): that account's signature after a blank line, if it has one.
 fn signature(account: Option<&str>) -> String {
     let account = match account {
         Some(id) => mail::account_by_id(id),
         None => mail::active_account(),
     };
     match account {
-        Some(a) if a.signature_enabled && !a.signature.trim().is_empty() => format!("\n\n-- \n{}", a.signature),
+        Some(a) if a.signature_enabled && !a.signature.trim().is_empty() => format!("\n\n{}", a.signature),
         _ => String::new(),
     }
 }
@@ -268,7 +268,7 @@ fn tab_title(tab: &Tab) -> String {
         TabContent::CjkSample => "CJK 表示サンプル".into(),
         TabContent::Draft(d) => if d.subject.trim().is_empty() { d.title.clone() } else { d.subject.clone() },
         TabContent::Settings => "設定".into(),
-        TabContent::AccountSetup => "アカウントを追加".into(),
+        TabContent::AccountSetup => if mail::is_editing_account() { "アカウントを編集" } else { "アカウントを追加" }.into(),
     }
 }
 
@@ -1033,6 +1033,16 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     ui.on_remove_account(move |id| mail::remove_account(&id));
+    {
+        // Settings → アカウント → 編集: the setup form, filled in.
+        let (tabs, weak) = (tabs.clone(), ui.as_weak());
+        ui.on_edit_account(move |id| {
+            let Some(ui) = weak.upgrade() else { return };
+            ui.invoke_open_account_setup();
+            mail::edit_account(&ui, &id);
+            render_tabs(&ui, &tabs.borrow());
+        });
+    }
     {
         // A body arrived: refresh the pane if it belongs to the active tab.
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
@@ -1815,6 +1825,15 @@ fn main() -> Result<(), slint::PlatformError> {
                     "settings" => {
                         ui.invoke_row_selected(1);
                         ui.invoke_open_settings();
+                    }
+                    "accounts" => {
+                        ui.invoke_row_selected(1);
+                        ui.invoke_open_settings();
+                        ui.set_settings_page(1);
+                    }
+                    "edit-account" => {
+                        ui.invoke_row_selected(1);
+                        ui.invoke_edit_account("spike".into());
                     }
                     "signature" => {
                         ui.invoke_row_selected(1);

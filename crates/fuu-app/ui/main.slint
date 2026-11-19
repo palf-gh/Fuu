@@ -398,6 +398,9 @@ export component AppWindow inherits Window {
     // Account setup tab
     in property <bool> setup-open;
     in-out property <string> setup-name;
+    in property <bool> setup-editing;
+    in property <bool> setup-email-locked;
+    callback edit-account(string);
     in-out property <string> setup-email;
     in-out property <string> setup-password;
     in-out property <string> setup-username;
@@ -1197,6 +1200,8 @@ callback setup-oauth-cancel();
                         oauth-provider: root.setup-oauth-provider;
                         password-login: root.setup-password-login;
                         oauth-waiting: root.setup-oauth-waiting;
+                        editing: root.setup-editing;
+                        email-locked: root.setup-email-locked;
                         email-edited(t) => { root.setup-email-edited(t); }
                         submit => { root.setup-submit(); }
                         oauth-submit => { root.setup-oauth-submit(); }
@@ -1221,6 +1226,7 @@ callback setup-oauth-cancel();
                     accounts: root.accounts;
                     add-account => { root.open-account-setup(); }
                     remove-account(id) => { root.remove-account(id); }
+                    edit-account(id) => { root.edit-account(id); }
                 }
             }
             }

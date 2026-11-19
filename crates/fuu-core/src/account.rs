@@ -52,7 +52,7 @@ pub struct Account {
     /// Identity provider for `AuthKind::OAuth2`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub oauth: Option<crate::oauth::Provider>,
-    /// Plain-text signature put below new messages (after a "-- " line).
+    /// Plain-text signature put below new messages (after a blank line).
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub signature: String,
     /// Whether new messages get the signature.

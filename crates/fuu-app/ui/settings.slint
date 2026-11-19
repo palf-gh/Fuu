@@ -137,6 +137,7 @@ export component SettingsView inherits Rectangle {
     in property <[AccountItem]> accounts;
     callback add-account();
     callback remove-account(string);
+    callback edit-account(string);
 
     HorizontalLayout {
         padding-left: 32px;
@@ -208,6 +209,15 @@ export component SettingsView inherits Rectangle {
                             Text { text: account.email; font-size: Theme.font-s; color: Theme.text-faint; overflow: elide; }
                         }
                         Rectangle {
+                            width: edit-label.preferred-width + 20px;
+                            height: 30px;
+                            y: (parent.height - self.height) / 2;
+                            border-radius: Theme.radius-m;
+                            background: edit-area.has-hover ? Theme.hover : transparent;
+                            edit-area := TouchArea { clicked => { root.edit-account(account.id); } }
+                            edit-label := Text { text: "編集"; font-size: Theme.font-s; color: edit-area.has-hover ? Theme.text : Theme.text-muted; horizontal-alignment: center; vertical-alignment: center; }
+                        }
+                        Rectangle {
                             width: remove-label.preferred-width + 20px;
                             height: 30px;
                             y: (parent.height - self.height) / 2;
@@ -271,7 +281,7 @@ export component SettingsView inherits Rectangle {
                     }
                     SettingRow {
                         title: "新規メッセージに署名を入れる";
-                        description: "作成・返信・転送のたびに、本文の下へ「-- 」区切り付きで挿入します。変更はすぐに保存されます。";
+                        description: "作成・返信・転送のたびに、本文の下へ挿入します。変更はすぐに保存されます。";
                         Toggle { checked <=> root.signature-enabled; }
                     }
                     Rectangle { height: 8px; }
