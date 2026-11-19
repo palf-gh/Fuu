@@ -207,6 +207,12 @@ fn mark_downloaded(path: &std::path::Path) {
 #[cfg(not(any(windows, target_os = "macos")))]
 fn mark_downloaded(_path: &std::path::Path) {}
 
+/// Development aid (snapshots): use `raw` as the loaded body of `r`.
+pub fn insert_body(r: &MessageRef, raw: Vec<u8>) {
+    let body = Rc::new(process(Arc::new(raw)));
+    DATA.with(|d| d.borrow_mut().bodies.insert(key(r), body));
+}
+
 /// The loaded body for a message tab, if any.
 pub fn body_of(r: &MessageRef) -> Option<Rc<Body>> {
     DATA.with(|d| d.borrow().bodies.get(&key(r)).cloned())

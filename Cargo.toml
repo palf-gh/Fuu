@@ -7,6 +7,7 @@ members = [
     "crates/fuu-core",
     "crates/fuu-render",
     "crates/fuu-editor",
+    "crates/fuu-preview",
     "crates/fuu-app",
 ]
 # Needs nightly (cargo-fuzz); see fuzz/Cargo.toml.
@@ -16,7 +17,7 @@ exclude = ["fuzz"]
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-only"
-rust-version = "1.85"
+rust-version = "1.92"
 publish = false
 
 [workspace.dependencies]
@@ -26,3 +27,4 @@ fuu-sanitiser = { path = "crates/fuu-sanitiser" }
 fuu-core = { path = "crates/fuu-core" }
 fuu-render = { path = "crates/fuu-render" }
 fuu-editor = { path = "crates/fuu-editor" }
+fuu-preview = { path = "crates/fuu-preview" }

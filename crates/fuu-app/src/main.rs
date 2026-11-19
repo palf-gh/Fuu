@@ -4,6 +4,7 @@
 
 mod editor;
 mod mail;
+mod preview;
 mod samples;
 mod tabs;
 
@@ -18,7 +19,7 @@ use fuu_render::blitz::{BlitzRenderer, RenderedPage};
 use fuu_render::text::TextRenderer;
 use fuu_render::{BodyRenderer, LinkHandler, LinkRequest, PointerPhase, RenderStats};
 use slint::{ComponentHandle, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
-use tabs::{Draft, DraftAttachment, MessageRef, Tab, TabContent, Tabs};
+use tabs::{AttachmentRef, Draft, DraftAttachment, MessageRef, Tab, TabContent, Tabs};
 
 slint::include_modules!();
 
@@ -243,6 +244,7 @@ fn signature(ui: &AppWindow) -> String {
 fn tab_title(ui: &AppWindow, tab: &Tab) -> String {
     match &tab.content {
         TabContent::Message(r) => if r.subject.trim().is_empty() { "（件名なし）".into() } else { r.subject.clone() },
+        TabContent::Attachment(a) => a.name.clone(),
         TabContent::SecuritySample => "セキュリティ検査文書".into(),
         TabContent::CjkSample => "CJK 表示サンプル".into(),
         TabContent::Draft(d) => if d.subject.trim().is_empty() { d.title.clone() } else { d.subject.clone() },
@@ -255,6 +257,7 @@ fn tab_kind(tab: &Tab) -> i32 {
     match tab.content {
         TabContent::Draft(_) => 1,
         TabContent::Settings | TabContent::AccountSetup => 2,
+        TabContent::Attachment(_) => 3,
         _ => 0,
     }
 }
@@ -396,6 +399,7 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
     ui.set_setup_open(false);
     ui.set_current_row(-1);
     ui.set_has_message(false);
+    ui.set_viewing_attachment(false);
     ui.set_reader_to(SharedString::default());
     ui.set_reader_cc(SharedString::default());
     ui.set_attachments(ModelRc::new(VecModel::<AttachmentItem>::default()));
@@ -405,6 +409,12 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
     let doc = match content {
         None => None,
         Some(TabContent::Message(r)) => Some(show_message(ui, &r)),
+        Some(TabContent::Attachment(a)) => {
+            let subject = if a.message.subject.trim().is_empty() { "（件名なし）" } else { a.message.subject.as_str() };
+            set_reader_header(ui, &a.name, &preview::describe(&a), "", &format!("「{subject}」の添付ファイル"));
+            ui.set_viewing_attachment(true);
+            Some(preview::document(ui, &a))
+        }
         Some(TabContent::SecuritySample) => {
             set_reader_header(ui, "セキュリティ検査文書", "M0 spike", "spike@fuu.invalid", "");
             Some(samples::security_document())
@@ -807,7 +817,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_body_ready(move || {
             let Some(ui) = weak.upgrade() else { return };
-            let active_is_message = matches!(tabs.borrow().active().map(|t| &t.content), Some(TabContent::Message(_)));
+            let active_is_message = matches!(tabs.borrow().active().map(|t| &t.content), Some(TabContent::Message(_) | TabContent::Attachment(_)));
             if active_is_message {
                 apply_active(&ui, &state, &tabs);
             }
@@ -854,15 +864,41 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.set_exec_warning(name);
                 return;
             }
-            let Some(r) = (match tabs.borrow().active().map(|t| &t.content) {
-                Some(TabContent::Message(r)) => Some(r.clone()),
-                _ => None,
-            }) else { return };
+            let (r, index) = match tabs.borrow().active().map(|t| &t.content) {
+                Some(TabContent::Message(r)) => (r.clone(), index),
+                // From an attachment tab: its own file.
+                Some(TabContent::Attachment(a)) => (a.message.clone(), a.index),
+                _ => return,
+            };
             match mail::save_attachment(&r, index) {
                 Ok(Some(path)) => crate::notify(&ui, format!("保存しました: {path}"), false),
                 Ok(None) => {}
                 Err(e) => crate::notify(&ui, e, true),
             }
+        });
+    }
+    {
+        // Clicking an attachment previews it in its own tab when Fuu can show
+        // it; anything else is saved (executables after the warning).
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_open_attachment(move |index, executable| {
+            let Some(ui) = weak.upgrade() else { return };
+            let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) else { return };
+            let attachment = mail::body_of(&r).and_then(|body| body.attachments.get(index as usize).cloned());
+            let Some(attachment) = attachment else { return };
+            let name = fuu_sanitiser::filename::sanitise_file_name(&attachment.file_name);
+            if executable || !preview::previewable(&name, &attachment.mime) {
+                ui.invoke_save_attachment(index, executable);
+                return;
+            }
+            let size = ui.get_attachments().row_data(index as usize).map(|a| a.size.to_string()).unwrap_or_default();
+            let content = TabContent::Attachment(AttachmentRef { message: r, index: index as usize, name, mime: attachment.mime.clone(), size });
+            save_draft(&ui, &tabs);
+            if tabs.borrow_mut().show_single(content).is_err() {
+                crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
+                return;
+            }
+            apply_active(&ui, &state, &tabs);
         });
     }
     // Tabs
@@ -1420,6 +1456,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let snapshot_timer = slint::Timer::default();
     if let Ok(path) = std::env::var("FUU_SNAPSHOT") {
         let weak = ui.as_weak();
+        let snapshot_tabs = tabs.clone();
         let step = std::env::var("FUU_SNAPSHOT_STEP").unwrap_or_else(|_| "message".into());
         let mut ticks = 0u32;
         snapshot_timer.start(slint::TimerMode::Repeated, Duration::from_millis(500), move || {
@@ -1478,6 +1515,28 @@ fn main() -> Result<(), slint::PlatformError> {
                     _ => ui.invoke_row_selected(1),
                 },
                 4 if step == "rich" => editor::load(&ui, editor::sample()),
+                // FUU_SNAPSHOT_ATTACH=<file>: attach the file to the shown message and preview it.
+                4 if step == "attachment" => {
+                    let file = std::env::var("FUU_SNAPSHOT_ATTACH").unwrap_or_default();
+                    let Ok(data) = std::fs::read(&file) else { return };
+                    let name = std::path::Path::new(&file).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                    let Some(TabContent::Message(r)) = snapshot_tabs.borrow().active().map(|t| t.content.clone()) else { return };
+                    let outgoing = fuu_core::compose::Outgoing {
+                        from_email: "spike@fuu.invalid".into(),
+                        to: vec![fuu_core::compose::Recipient { name: None, email: "spike@fuu.invalid".into() }],
+                        subject: r.subject.clone(),
+                        body: "添付ファイルのテスト".into(),
+                        attachments: vec![fuu_core::compose::OutgoingAttachment { name, mime: "application/octet-stream".into(), data }],
+                        ..Default::default()
+                    };
+                    match fuu_core::compose::build(&outgoing) {
+                        Ok((_, raw)) => {
+                            mail::insert_body(&r, raw);
+                            ui.invoke_open_attachment(0, false);
+                        }
+                        Err(e) => eprintln!("snapshot attachment: {e}"),
+                    }
+                }
                 4 if step == "tooltip" => {
                     let tip = ui.global::<Tooltip>();
                     tip.set_text("全員に返信".into());
@@ -1489,7 +1548,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     editor::focus(&ui);
                     editor::pointer(&ui, 0, 30.0, 60.0, 2, false);
                 }
-                6 => {
+                n if n == if step == "attachment" { 16 } else { 6 } => {
                     {
                         use slint::winit_030::WinitWindowAccessor;
                         let decorated = ui.window().with_winit_window(|w| w.is_decorated());

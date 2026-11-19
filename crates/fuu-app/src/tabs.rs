@@ -64,9 +64,24 @@ pub struct MessageRef {
     pub date_text: String,
 }
 
+/// One attachment of a message, previewed in its own tab.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttachmentRef {
+    pub message: MessageRef,
+    /// Index into the message's attachment list.
+    pub index: usize,
+    /// Sanitised file name.
+    pub name: String,
+    pub mime: String,
+    /// Human-readable size.
+    pub size: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TabContent {
     Message(MessageRef),
+    /// Opens beside the message (never replaces a viewer), so it is not a viewer.
+    Attachment(AttachmentRef),
     SecuritySample,
     CjkSample,
     Draft(Draft),

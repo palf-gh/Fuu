@@ -23,6 +23,7 @@ fuu-sanitiser.workspace = true
 fuu-core.workspace = true
 fuu-parser.workspace = true
 fuu-editor.workspace = true
+fuu-preview.workspace = true
 rfd = { version = "0.15", default-features = false, features = ["xdg-portal"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 slint = { version = "1.19", features = ["raw-window-handle-06", "unstable-winit-030"] }

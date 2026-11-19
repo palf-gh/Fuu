@@ -167,6 +167,8 @@ export component AppWindow inherits Window {
     in property <[MessageRow]> messages;
     in-out property <int> current-row: -1;
     in property <bool> has-message;
+    // The reader shows an attachment preview (no reply / archive / delete).
+    in property <bool> viewing-attachment;
     in property <string> reader-subject;
     in property <string> reader-name;
     in property <string> reader-address;
@@ -349,6 +351,8 @@ in property <bool> setup-oauth-waiting;
     callback body-ready();
     callback message-moved(string, string, int);
     callback save-attachment(int, bool);
+    // Preview when possible, otherwise save.
+    callback open-attachment(int, bool);
     callback allow-remote();
     callback compose-add-attachment();
     callback compose-remove-attachment(int);
@@ -409,7 +413,7 @@ callback setup-oauth-cancel();
             }
             if (e.text == "c") { root.start-compose(); return accept; }
             if (e.text == Key.F5) { root.select-folder(root.current-folder); return accept; }
-            if (root.has-message) {
+            if (root.has-message && !root.viewing-attachment) {
                 if (e.text == "r") { root.reply(false); return accept; }
                 if (e.text == "a" || e.text == "R") { root.reply(true); return accept; }
                 if (e.text == "f") { root.forward(); return accept; }
@@ -681,7 +685,10 @@ callback setup-oauth-cancel();
                         spacing: 8px;
                         Text { text: root.reader-name; font-size: Theme.font-m; font-weight: 600; color: Theme.text; vertical-alignment: center; }
                         Text { text: root.reader-date; font-size: Theme.font-s; color: Theme.text-faint; overflow: elide; horizontal-stretch: 1; vertical-alignment: center; }
-                        HorizontalLayout {
+                        if root.viewing-attachment: HorizontalLayout {
+                            SecondaryButton { text: "保存"; clicked => { root.save-attachment(0, false); } }
+                        }
+                        if !root.viewing-attachment: HorizontalLayout {
                             spacing: 2px;
                             IconButton { icon: @image-url("icons/reply.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "返信（R）"; clicked => { root.reply(false); } }
                             IconButton { icon: @image-url("icons/reply-all.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "全員に返信（A）"; clicked => { root.reply(true); } }
@@ -712,7 +719,7 @@ callback setup-oauth-cancel();
                             width: min(240px, chip-row.preferred-width);
                             border-radius: Theme.radius-m;
                             background: chip-area.has-hover ? Theme.hover : Theme.field;
-                            chip-area := TouchArea { clicked => { root.save-attachment(i, attachment.executable); } }
+                            chip-area := TouchArea { clicked => { root.open-attachment(i, attachment.executable); } }
                             chip-row := HorizontalLayout {
                                 padding-left: 10px;
                                 padding-right: 10px;
