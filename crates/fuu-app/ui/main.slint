@@ -160,6 +160,8 @@ export component AppWindow inherits Window {
     // elsewhere Fuu draws its own caption buttons.
     in property <bool> is-mac;
     in property <bool> maximised;
+    // Windows caption-glyph font ("" when absent: SVG icons are used).
+    in property <string> caption-font;
     // Slint applies decorations from `no-frame` (overriding the winit hook), so the
     // frameless state must be declared here too. macOS keeps its native frame.
     no-frame: !root.is-mac;
@@ -540,12 +542,25 @@ callback setup-oauth-cancel();
                     clicked => { root.open-settings(); }
                 }
                 if !root.is-mac: Rectangle { width: 6px; }
-                if !root.is-mac: CaptionButton { icon: @image-url("icons/win-minimise.svg"); clicked => { root.minimise-window(); } }
                 if !root.is-mac: CaptionButton {
+                    glyph: "\u{E921}";
+                    glyph-font: root.caption-font;
+                    icon: @image-url("icons/win-minimise.svg");
+                    clicked => { root.minimise-window(); }
+                }
+                if !root.is-mac: CaptionButton {
+                    glyph: root.maximised ? "\u{E923}" : "\u{E922}";
+                    glyph-font: root.caption-font;
                     icon: root.maximised ? @image-url("icons/win-restore.svg") : @image-url("icons/win-maximise.svg");
                     clicked => { root.toggle-maximise(); }
                 }
-                if !root.is-mac: CaptionButton { icon: @image-url("icons/win-close.svg"); is-close: true; clicked => { root.close-window(); } }
+                if !root.is-mac: CaptionButton {
+                    glyph: "\u{E8BB}";
+                    glyph-font: root.caption-font;
+                    icon: @image-url("icons/win-close.svg");
+                    is-close: true;
+                    clicked => { root.close-window(); }
+                }
             }
         }
 

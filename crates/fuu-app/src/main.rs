@@ -579,11 +579,28 @@ fn select_backend() -> Result<(), slint::PlatformError> {
         .select()
 }
 
+/// The font Windows itself draws caption buttons with: Segoe Fluent Icons on
+/// Windows 11, Segoe MDL2 Assets on Windows 10; "" when neither is installed.
+fn caption_font() -> &'static str {
+    #[cfg(windows)]
+    {
+        let fonts = std::path::PathBuf::from(std::env::var_os("WINDIR").unwrap_or_else(|| "C:\\Windows".into())).join("Fonts");
+        if fonts.join("SegoeIcons.ttf").exists() {
+            return "Segoe Fluent Icons";
+        }
+        if fonts.join("segmdl2.ttf").exists() {
+            return "Segoe MDL2 Assets";
+        }
+    }
+    ""
+}
+
 fn install_window_chrome(ui: &AppWindow) {
     use slint::winit_030::winit::window::ResizeDirection;
     use slint::winit_030::WinitWindowAccessor;
 
     ui.set_is_mac(cfg!(target_os = "macos"));
+    ui.set_caption_font(caption_font().into());
     {
         let weak = ui.as_weak();
         ui.on_drag_window(move || {

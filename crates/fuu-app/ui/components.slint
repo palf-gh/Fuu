@@ -400,13 +400,26 @@ export component Dialog inherits Rectangle {
 
 /// Windows-style caption button (minimise / maximise / close).
 export component CaptionButton inherits Rectangle {
+    // Windows' own caption glyph (Segoe Fluent Icons / MDL2 Assets), used when
+    // `glyph-font` names an installed font; otherwise the SVG `icon`.
+    in property <string> glyph;
+    in property <string> glyph-font;
     in property <image> icon;
     in property <bool> is-close;
     callback clicked;
     width: 46px;
-    background: area.has-hover ? (root.is-close ? Theme.close-hover : Theme.hover) : transparent;
+    background: area.pressed ? (root.is-close ? Theme.close-hover.darker(0.15) : Theme.pressed)
+        : area.has-hover ? (root.is-close ? Theme.close-hover : Theme.hover) : transparent;
     area := TouchArea { clicked => { root.clicked(); } }
-    Icon {
+    if root.glyph-font != "": Text {
+        text: root.glyph;
+        font-family: root.glyph-font;
+        font-size: 10px;
+        color: area.has-hover && root.is-close ? #ffffff : Theme.text;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    if root.glyph-font == "": Icon {
         source: root.icon;
         width: 14px;
         height: 14px;
