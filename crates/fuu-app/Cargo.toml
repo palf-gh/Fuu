@@ -69,6 +69,8 @@ resources = ["../../README.md", "../../LICENSE"]
 [package.metadata.packager.nsis]
 # Per user, no administrator rights (%LOCALAPPDATA%\Fuu).
 installMode = "currentUser"
+# setup.exe's own icon (the `icons` list only reaches the installed app).
+installerIcon = "icons/app/fuu.ico"
 languages = ["Japanese", "English"]
 
 [package.metadata.packager.macos]

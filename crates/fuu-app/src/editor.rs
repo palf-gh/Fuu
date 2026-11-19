@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::ops::Range;
 
 use fuu_editor::history::{History, Snapshot};
-use fuu_editor::model::{Block, Mark, RichDoc, Size, QUOTE, RULE};
+use fuu_editor::model::{Block, Mark, RichDoc, Size, RULE};
 use fuu_editor::view::{EditorView, Palette};
 use slint::{ComponentHandle, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
 
@@ -78,6 +78,7 @@ fn with<R>(f: impl FnOnce(&mut Editor) -> R) -> R {
 /// Convert plain text with `> ` quoting (as produced for replies) into quote blocks.
 #[cfg(test)]
 pub fn doc_from_plain(text: &str) -> RichDoc {
+    use fuu_editor::model::QUOTE;
     let converted: Vec<String> = text
         .split('\n')
         .map(|line| {
