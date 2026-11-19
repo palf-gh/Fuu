@@ -8,8 +8,8 @@ body { margin: 18px 28px 48px; }
 .fuu-page { display: block; width: 100%; max-width: 100%; height: auto; margin: 0 auto 16px; border: 1px solid #e4e2dc; }
 .fuu-image { display: block; max-width: 100%; height: auto; margin: 0 auto; }
 .fuu-doc p { margin: 0 0 6px; }
-.fuu-doc table { border-collapse: separate; border-spacing: 0; border-top: 1px solid #c9c6bd; border-left: 1px solid #c9c6bd; margin: 8px 0 12px; }
-.fuu-doc td { border-right: 1px solid #c9c6bd; border-bottom: 1px solid #c9c6bd; padding: 3px 6px; vertical-align: top; }
+.fuu-doc table, .fuu-slide table { border-collapse: separate; border-spacing: 0; border-top: 1px solid #c9c6bd; border-left: 1px solid #c9c6bd; margin: 8px 0 12px; }
+.fuu-doc td, .fuu-slide td { border-right: 1px solid #c9c6bd; border-bottom: 1px solid #c9c6bd; padding: 3px 6px; vertical-align: top; }
 .fuu-sheet { border-collapse: separate; border-spacing: 0; border-top: 1px solid #d9d6cf; border-left: 1px solid #d9d6cf; font-size: 12px; margin: 6px 0 22px; }
 .fuu-sheet td, .fuu-sheet th { border-right: 1px solid #d9d6cf; border-bottom: 1px solid #d9d6cf; padding: 2px 6px; white-space: nowrap; }
 .fuu-sheet th { background-color: #f1f0ec; color: #6b6a66; font-weight: normal; }
@@ -18,6 +18,7 @@ body { margin: 18px 28px 48px; }
 .fuu-slide-no { color: #a3a19b; font-size: 11px; margin: 0 0 8px; }
 .fuu-slide h2 { font-size: 22px; margin: 0 0 12px; }
 .fuu-slide p { margin: 0 0 6px; }
+.fuu-slide td p { margin: 0; }
 .fuu-slide img { max-width: 100%; height: auto; margin: 6px 0; }
 .fuu-tabs { color: #6b6a66; font-size: 13px; margin: 18px 0 6px; font-weight: bold; }
 ";
