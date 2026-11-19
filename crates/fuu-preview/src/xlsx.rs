@@ -121,7 +121,7 @@ fn oversized_sheets(package: &mut Package) -> Result<HashSet<String>, PreviewErr
                     .attributes()
                     .flatten()
                     .find(|a| a.key.prefix().is_some() && a.key.local_name().as_ref() == b"id")
-                    .and_then(|a| a.unescape_value().ok().map(|v| v.into_owned()));
+                    .and_then(|a| a.normalized_value(quick_xml::XmlVersion::Implicit1_0).ok().map(|v| v.into_owned()));
                 if let Some(Target::Part(path)) = rel.and_then(|id| rels.get(&id).cloned()) {
                     sheets.push((name, path));
                 }

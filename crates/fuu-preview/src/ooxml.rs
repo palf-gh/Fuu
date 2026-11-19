@@ -101,7 +101,7 @@ pub(crate) fn relationships(xml: &str, base_dir: &str) -> HashMap<String, Target
             Ok(Event::Empty(e) | Event::Start(e)) if e.local_name().as_ref() == b"Relationship" => {
                 let (mut id, mut target, mut external) = (None, None, false);
                 for a in e.attributes().flatten() {
-                    let value = a.unescape_value().map(|v| v.into_owned()).unwrap_or_default();
+                    let value = a.normalized_value(quick_xml::XmlVersion::Implicit1_0).map(|v| v.into_owned()).unwrap_or_default();
                     match a.key.local_name().as_ref() {
                         b"Id" => id = Some(value),
                         b"Target" => target = Some(value),
@@ -154,7 +154,7 @@ pub(crate) fn attr(e: &quick_xml::events::BytesStart<'_>, name: &[u8]) -> Option
     e.attributes()
         .flatten()
         .find(|a| a.key.local_name().as_ref() == name)
-        .and_then(|a| a.unescape_value().ok().map(|v| v.into_owned()))
+        .and_then(|a| a.normalized_value(quick_xml::XmlVersion::Implicit1_0).ok().map(|v| v.into_owned()))
 }
 
 #[cfg(test)]

@@ -16,7 +16,6 @@ use std::time::{Duration, Instant};
 
 use fuu_model::{Rect, RemoteContentPolicy, SafeDocument};
 use fuu_render::blitz::{BlitzRenderer, RenderedPage};
-use fuu_render::text::TextRenderer;
 use fuu_render::{BodyRenderer, LinkHandler, LinkRequest, PointerPhase, RenderStats};
 use slint::{ComponentHandle, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
 use tabs::{AttachmentRef, Draft, DraftAttachment, MessageRef, Tab, TabContent, Tabs};
@@ -241,7 +240,7 @@ fn signature(ui: &AppWindow) -> String {
     }
 }
 
-fn tab_title(ui: &AppWindow, tab: &Tab) -> String {
+fn tab_title(tab: &Tab) -> String {
     match &tab.content {
         TabContent::Message(r) => if r.subject.trim().is_empty() { "（件名なし）".into() } else { r.subject.clone() },
         TabContent::Attachment(a) => a.name.clone(),
@@ -294,7 +293,7 @@ fn render_tabs(ui: &AppWindow, tabs: &Tabs) {
     let want: Vec<TabItem> = tabs
         .items()
         .iter()
-        .map(|t| TabItem { title: tab_title(ui, t).into(), kind: tab_kind(t), unseen: t.unseen, closing: false })
+        .map(|t| TabItem { title: tab_title(t).into(), kind: tab_kind(t), unseen: t.unseen, closing: false })
         .collect();
     let mut want = want;
     let ghost = GHOST.with(|g| g.borrow().clone());
