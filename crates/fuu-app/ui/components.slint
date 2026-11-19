@@ -406,12 +406,29 @@ export component CaptionButton inherits Rectangle {
     in property <string> glyph-font;
     in property <image> icon;
     in property <bool> is-close;
+    // GNOME style (Linux): a small round button with a symbolic icon, always
+    // tinted and darker on hover; no red close.
+    in property <bool> round;
     callback clicked;
-    width: 46px;
-    background: area.pressed ? (root.is-close ? Theme.close-hover.darker(0.15) : Theme.pressed)
+    width: root.round ? 32px : 46px;
+    background: root.round ? transparent
+        : area.pressed ? (root.is-close ? Theme.close-hover.darker(0.15) : Theme.pressed)
         : area.has-hover ? (root.is-close ? Theme.close-hover : Theme.hover) : transparent;
     area := TouchArea { clicked => { root.clicked(); } }
-    if root.glyph-font != "": Text {
+    if root.round: Rectangle {
+        width: 24px;
+        height: 24px;
+        border-radius: 12px;
+        background: area.pressed ? Theme.pressed.darker(0.1) : area.has-hover ? Theme.pressed : Theme.hover;
+        animate background { duration: 80ms; }
+        Icon {
+            source: root.icon;
+            width: 16px;
+            height: 16px;
+            tint: Theme.text;
+        }
+    }
+    if !root.round && root.glyph-font != "": Text {
         text: root.glyph;
         font-family: root.glyph-font;
         font-size: 10px;
@@ -419,7 +436,7 @@ export component CaptionButton inherits Rectangle {
         horizontal-alignment: center;
         vertical-alignment: center;
     }
-    if root.glyph-font == "": Icon {
+    if !root.round && root.glyph-font == "": Icon {
         source: root.icon;
         width: 14px;
         height: 14px;

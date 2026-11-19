@@ -248,6 +248,8 @@ export component AppWindow inherits Window {
     // Platform chrome: macOS keeps its traffic lights over a transparent title bar;
     // elsewhere Fuu draws its own caption buttons.
     in property <bool> is-mac;
+    // Linux: GNOME-style round caption buttons.
+    in property <bool> is-linux;
     in property <bool> maximised;
     // Windows caption-glyph font ("" when absent: SVG icons are used).
     in property <string> caption-font;
@@ -660,22 +662,27 @@ callback setup-oauth-cancel();
                 if !root.is-mac: CaptionButton {
                     glyph: "\u{E921}";
                     glyph-font: root.caption-font;
-                    icon: @image-url("icons/win-minimise.svg");
+                    round: root.is-linux;
+                    icon: root.is-linux ? @image-url("icons/gnome-minimise.svg") : @image-url("icons/win-minimise.svg");
                     clicked => { root.minimise-window(); }
                 }
                 if !root.is-mac: CaptionButton {
                     glyph: root.maximised ? "\u{E923}" : "\u{E922}";
                     glyph-font: root.caption-font;
-                    icon: root.maximised ? @image-url("icons/win-restore.svg") : @image-url("icons/win-maximise.svg");
+                    round: root.is-linux;
+                    icon: root.is-linux ? (root.maximised ? @image-url("icons/gnome-restore.svg") : @image-url("icons/gnome-maximise.svg"))
+                        : root.maximised ? @image-url("icons/win-restore.svg") : @image-url("icons/win-maximise.svg");
                     clicked => { root.toggle-maximise(); }
                 }
                 if !root.is-mac: CaptionButton {
                     glyph: "\u{E8BB}";
                     glyph-font: root.caption-font;
-                    icon: @image-url("icons/win-close.svg");
+                    round: root.is-linux;
+                    icon: root.is-linux ? @image-url("icons/gnome-close.svg") : @image-url("icons/win-close.svg");
                     is-close: true;
                     clicked => { root.close-window(); }
                 }
+                if root.is-linux: Rectangle { width: 8px; }
             }
         }
 

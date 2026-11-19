@@ -776,6 +776,7 @@ fn install_window_chrome(ui: &AppWindow) {
     use slint::winit_030::WinitWindowAccessor;
 
     ui.set_is_mac(cfg!(target_os = "macos"));
+    ui.set_is_linux(cfg!(all(unix, not(target_os = "macos"))));
     ui.set_caption_font(caption_font().into());
     {
         let weak = ui.as_weak();
