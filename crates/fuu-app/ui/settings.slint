@@ -266,6 +266,13 @@ export component SettingsView inherits Rectangle {
 
             if root.page == 5: VerticalLayout {
                 spacing: 8px;
+                Image {
+                    source: @image-url("../icons/app/fuu.svg");
+                    width: 88px;
+                    height: 88px;
+                    x: -8px;
+                    image-rendering: smooth;
+                }
                 PageTitle { text: "Fuu (封)"; }
                 Text { text: "バージョン 0.1.0（開発版）"; font-size: Theme.font-m; color: Theme.text-muted; }
                 Rectangle { height: 8px; }

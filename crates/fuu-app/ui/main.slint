@@ -235,6 +235,8 @@ component MessageItem inherits Rectangle {
 
 export component AppWindow inherits Window {
     title: "Fuu";
+    // Taskbar / Alt+Tab icon (macOS takes the bundle's icon instead).
+    icon: @image-url("../icons/app/fuu-256.png");
     preferred-width: 1240px;
     preferred-height: 800px;
     min-width: 900px;

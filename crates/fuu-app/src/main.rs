@@ -1649,6 +1649,11 @@ fn main() -> Result<(), slint::PlatformError> {
                         ui.invoke_row_selected(1);
                         ui.invoke_open_settings();
                     }
+                    "about" => {
+                        ui.invoke_row_selected(1);
+                        ui.invoke_open_settings();
+                        ui.set_settings_page(5);
+                    }
                     "dialog" => {
                         ui.invoke_row_selected(1);
                         ui.set_info_dialog_open(true);

@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tileFill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E9E7E1"/><stop offset="50%" stop-color="#DDDCD5"/><stop offset="100%" stop-color="#D0D0CA"/></linearGradient>
+    <linearGradient id="bodyFill" x1="12%" y1="0%" x2="82%" y2="100%">
+      <stop offset="0%" stop-color="#FEFFFC"/><stop offset="52%" stop-color="#FCFCF9"/><stop offset="100%" stop-color="#F3F3EF"/></linearGradient>
+    <linearGradient id="flapFill" x1="0%" y1="0%" x2="75%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/><stop offset="58%" stop-color="#FDFDFA"/><stop offset="100%" stop-color="#F5F6F2"/></linearGradient>
+    <linearGradient id="buttonFill" x1="4%" y1="0%" x2="82%" y2="100%">
+      <stop offset="0%" stop-color="#50606A"/><stop offset="46%" stop-color="#3D5060"/><stop offset="100%" stop-color="#304451"/></linearGradient>
+    <linearGradient id="cordFill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2D3A45" stop-opacity="1"/>
+      <stop offset="52%" stop-color="#1C1C1E" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#394957" stop-opacity="1"/>
+    </linearGradient>
+    <radialGradient id="tileLight" cx="10%" cy="2%" r="90%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+    <filter id="tileShadow" x="-45%" y="-45%" width="190%" height="200%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="19" result="blur"/>
+      <feOffset in="blur" dx="0" dy="15" result="offset"/>
+      <feFlood flood-color="#677784" flood-opacity="0.14" result="flood"/>
+      <feComposite in="flood" in2="offset" operator="in" result="shadow"/>
+    </filter>
+    <filter id="bodyShadow" x="-45%" y="-45%" width="190%" height="200%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="9" result="blur"/>
+      <feOffset in="blur" dx="0" dy="10" result="offset"/>
+      <feFlood flood-color="#66625B" flood-opacity="0.33" result="flood"/>
+      <feComposite in="flood" in2="offset" operator="in" result="shadow"/>
+    </filter>
+    <filter id="flapShadow" x="-45%" y="-45%" width="190%" height="200%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="blur"/>
+      <feOffset in="blur" dx="0" dy="8" result="offset"/>
+      <feFlood flood-color="#555B58" flood-opacity="0.32" result="flood"/>
+      <feComposite in="flood" in2="offset" operator="in" result="shadow"/>
+    </filter>
+    <filter id="buttonShadow" x="-45%" y="-45%" width="190%" height="200%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur"/>
+      <feOffset in="blur" dx="0" dy="5" result="offset"/>
+      <feFlood flood-color="#1E2B32" flood-opacity="0.24" result="flood"/>
+      <feComposite in="flood" in2="offset" operator="in" result="shadow"/>
+    </filter>
+    <clipPath id="envClip">
+      <path id="envClipOutline" d="M321.6,332h369.7c34.2,0,61.6,29,61.6,63.2v244.2c0,34.9-27.4,62.3-61.6,62.3h-369.7c-34.1,0-57.9-27.4-57.9-62.3v-243.5C263.7,361,288.2,332,321.6,332Z"/>
+    </clipPath>
+    <filter id="bodyAmbientShadow" x="-45%" y="-45%" width="190%" height="200%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="23" result="blur"/><feOffset in="blur" dx="0" dy="18" result="offset"/><feFlood flood-color="#48463F" flood-opacity=".13" result="flood"/><feComposite in="flood" in2="offset" operator="in" result="shadow"/></filter></defs>
+  <g id="background">
+    <rect id="tile-cast-shadow" class="st0" x="132.3" y="141.3" width="748.8" height="747.2" rx="163.3" ry="163.3" fill="#6C7B87" filter="url(#tileShadow)"/>
+    <rect id="tile-face" class="st0" x="132.3" y="141.3" width="748.8" height="747.2" rx="163.3" ry="163.3" fill="url(#tileFill)"/>
+    <rect id="tile-ambient-light" class="st0" x="132.3" y="141.3" width="748.8" height="747.2" rx="163.3" ry="163.3" fill="url(#tileLight)"/>
+  </g>
+  <g id="envelope">
+    <path id="envelope-ambient-shadow" d="M321.6,332h369.7c34.2,0,61.6,29,61.6,63.2v244.2c0,34.9-27.4,62.3-61.6,62.3h-369.7c-34.1,0-57.9-27.4-57.9-62.3v-243.5C263.7,361,288.2,332,321.6,332Z" fill="#667681" filter="url(#bodyAmbientShadow)"/>
+    <path id="envelope-soft-shadow" d="M321.6,332h369.7c34.2,0,61.6,29,61.6,63.2v244.2c0,34.9-27.4,62.3-61.6,62.3h-369.7c-34.1,0-57.9-27.4-57.9-62.3v-243.5C263.7,361,288.2,332,321.6,332Z" fill="#667681" filter="url(#bodyShadow)"/>
+    <path id="envelope-surface" d="M321.6,332h369.7c34.2,0,61.6,29,61.6,63.2v244.2c0,34.9-27.4,62.3-61.6,62.3h-369.7c-34.1,0-57.9-27.4-57.9-62.3v-243.5C263.7,361,288.2,332,321.6,332Z" fill="url(#bodyFill)"/>
+    <g id="flap-layers" clip-path="url(#envClip)">
+      <path id="flap-cast-shadow" d="M321.6,332 H691.3 C725.5,332 752.9,361 752.9,395.2 C752.9,416.3 731.4,426.9 706.2,440.3 L626,481.4 C613.4,488.4 601.5,489.5 588.9,489.5 H433.7 C420.4,489.5 408.5,487.9 394.4,480.4 L312.7,439.8 C290.4,428 264.5,417.9 264.5,393.8 C264.5,361 288.2,332 321.6,332 Z" fill="#536675" filter="url(#flapShadow)"/>
+      <path id="flap-surface" d="M321.6,332 H691.3 C725.5,332 752.9,361 752.9,395.2 C752.9,416.3 731.4,426.9 706.2,440.3 L626,481.4 C613.4,488.4 601.5,489.5 588.9,489.5 H433.7 C420.4,489.5 408.5,487.9 394.4,480.4 L312.7,439.8 C290.4,428 264.5,417.9 264.5,393.8 C264.5,361 288.2,332 321.6,332 Z" fill="url(#flapFill)"/>
+    </g>
+    <path id="envelope-outline" d="M321.6,332h369.7c34.2,0,61.6,29,61.6,63.2v244.2c0,34.9-27.4,62.3-61.6,62.3h-369.7c-34.1,0-57.9-27.4-57.9-62.3v-243.5C263.7,361,288.2,332,321.6,332Z" fill="none" stroke="#86939C" stroke-opacity="0" stroke-width="2.8" stroke-linejoin="round"/>
+    <path id="flap-edge" d="M264.5,393.8c0,24.1,25.9,34.2,48.2,46l81.7,40.6c14.1,7.5,26,9.1,39.3,9.1h155.2c12.6,0,24.5-1.1,37.1-8.1l80.2-41.1c25.2-13.4,46.7-24,46.7-46.5" fill="none" stroke="#73818B" stroke-opacity="0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <g id="string-tie">
+      <path id="cord-left-to-right" d="M487.2,437.2l42.9,105.8" fill="none" stroke="url(#cordFill)" stroke-width="8" stroke-linecap="round"/>
+      <path id="cord-right-to-left" d="M530.1,437.2l-42.9,105.8" fill="none" stroke="url(#cordFill)" stroke-width="8" stroke-linecap="round"/>
+    </g>
+    <g id="buttons">
+      <path id="button-1-shadow" d="M552.2,413.9c0,24-19.5,43.5-43.5,43.5s-43.5-19.5-43.5-43.5h0c0-24,19.5-43.5,43.5-43.5S552.2,389.9,552.2,413.9H552.2ZM521.6,413.9c0-7.1-5.8-12.9-12.9-12.9s-12.9,5.8-12.9,12.9h0c0,7.1,5.8,12.8,12.9,12.8S521.6,421,521.6,413.9H521.6Z" fill="#1D303D" fill-rule="evenodd" filter="url(#buttonShadow)"/>
+      <path id="button-1" d="M552.2,413.9c0,24-19.5,43.5-43.5,43.5s-43.5-19.5-43.5-43.5h0c0-24,19.5-43.5,43.5-43.5S552.2,389.9,552.2,413.9H552.2ZM521.6,413.9c0-7.1-5.8-12.9-12.9-12.9s-12.9,5.8-12.9,12.9h0c0,7.1,5.8,12.8,12.9,12.8S521.6,421,521.6,413.9H521.6Z" fill="url(#buttonFill)" fill-rule="evenodd"/>
+      <path id="button-2-shadow" d="M552.2,561.1c0,24-19.5,43.5-43.5,43.5s-43.5-19.5-43.5-43.5h0c0-24,19.5-43.5,43.5-43.5S552.2,537.1,552.2,561.1H552.2ZM521.6,561.1c0-7.1-5.8-12.8-12.9-12.8s-12.9,5.7-12.9,12.8h0c0,7.1,5.8,12.9,12.9,12.9S521.6,568.2,521.6,561.1H521.6Z" fill="#1D303D" fill-rule="evenodd" filter="url(#buttonShadow)"/>
+      <path id="button-2" d="M552.2,561.1c0,24-19.5,43.5-43.5,43.5s-43.5-19.5-43.5-43.5h0c0-24,19.5-43.5,43.5-43.5S552.2,537.1,552.2,561.1H552.2ZM521.6,561.1c0-7.1-5.8-12.8-12.9-12.8s-12.9,5.7-12.9,12.8h0c0,7.1,5.8,12.9,12.9,12.9S521.6,568.2,521.6,561.1H521.6Z" fill="url(#buttonFill)" fill-rule="evenodd"/>
+      </g>
+  </g>
+</svg>

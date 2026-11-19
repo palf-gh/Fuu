@@ -32,8 +32,16 @@ open = "5"
 arboard = { version = "3.7", default-features = false }
 png = "0.18"
 
+[dev-dependencies]
+# examples/make_icons.rs (same version Slint already builds).
+resvg = "0.49"
+
 [build-dependencies]
 slint-build = "1.19"
+
+[target.'cfg(windows)'.build-dependencies]
+# Embeds icons/app/fuu.ico in fuu.exe (Explorer, taskbar, shortcuts).
+winresource = "0.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # A unified (empty) toolbar centres the native traffic lights in the title bar.
@@ -54,6 +62,8 @@ licenseFile = "../../LICENSE"
 beforePackagingCommand = "cargo build -p fuu-app --release --locked"
 outDir = "../../dist"
 binaries = [{ path = "fuu", main = true }]
+# Regenerate with `cargo run -p fuu-app --example make_icons`.
+icons = ["icons/app/fuu.icns", "icons/app/fuu.ico", "icons/app/fuu-32.png", "icons/app/fuu-128.png", "icons/app/fuu-256.png"]
 resources = ["../../README.md", "../../LICENSE"]
 
 [package.metadata.packager.nsis]

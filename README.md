@@ -54,6 +54,9 @@ cargo packager --release --formats app,dmg    # macOS: Fuu.app と .dmg（Mac �
 Windows のインストーラーは管理者権限なしで、ユーザーごとに `%LOCALAPPDATA%\Fuu` へ
 入れます。アンインストールしてもアカウント設定・キャッシュ・キーチェーンの内容は残します。
 
+アイコンの元データは `crates/fuu-app/icons/app/fuu.svg` です。差し替えたら
+`cargo run -p fuu-app --example make_icons` で `.ico`・`.icns`・PNG を作り直します。
+
 ファズテスト（nightly と cargo-fuzz が必要。シードは `fuzz/corpus/`）:
 
 ```sh
@@ -199,6 +202,10 @@ cargo packager --release --formats app,dmg    # macOS: Fuu.app and a .dmg (run o
 The Windows installer installs per user into `%LOCALAPPDATA%\Fuu` without
 administrator rights. Uninstalling keeps account settings, the cache and
 keychain entries.
+
+The icon source is `crates/fuu-app/icons/app/fuu.svg`. After changing it, run
+`cargo run -p fuu-app --example make_icons` to regenerate the `.ico`, `.icns`
+and PNGs.
 
 Fuzzing (needs nightly and cargo-fuzz; seeds live in `fuzz/corpus/`):
 
