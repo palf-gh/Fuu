@@ -41,9 +41,14 @@ cargo test -p fuu-core -- --ignored keychain   # 実際の OS キーチェーン
 配布用パッケージ（`dist/` に出力。署名・公証はまだです）:
 
 ```sh
-pwsh scripts/package-windows.ps1   # Fuu-<版>-windows-x64.zip
+pwsh scripts/package-windows.ps1   # Fuu-<版>-windows-x64-setup.exe と .zip
 sh scripts/package-macos.sh        # Fuu.app と Fuu-<版>-macos-<arch>.zip（Mac で実行）
 ```
+
+Windows のインストーラーは Inno Setup 6 で作ります（`packaging/windows/fuu.iss`）。
+既定では管理者権限なしでユーザーごとに `%LOCALAPPDATA%\Programs\Fuu` へ入れ、
+全ユーザー向けのインストールも選べます。アンインストールしてもアカウント設定・
+キャッシュ・キーチェーンの内容は残します。
 
 ファズテスト（nightly と cargo-fuzz が必要。シードは `fuzz/corpus/`）:
 
@@ -176,9 +181,14 @@ cargo test -p fuu-core -- --ignored keychain   # real OS keychain round trip
 Packages (written to `dist/`; not signed or notarised yet):
 
 ```sh
-pwsh scripts/package-windows.ps1   # Fuu-<version>-windows-x64.zip
+pwsh scripts/package-windows.ps1   # Fuu-<version>-windows-x64-setup.exe and .zip
 sh scripts/package-macos.sh        # Fuu.app and Fuu-<version>-macos-<arch>.zip (run on a Mac)
 ```
+
+The Windows installer is built with Inno Setup 6 (`packaging/windows/fuu.iss`).
+By default it installs per user into `%LOCALAPPDATA%\Programs\Fuu` without
+administrator rights; an all-users install can be chosen instead. Uninstalling
+keeps account settings, the cache and keychain entries.
 
 Fuzzing (needs nightly and cargo-fuzz; seeds live in `fuzz/corpus/`):
 
