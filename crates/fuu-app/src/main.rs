@@ -1112,7 +1112,6 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(ui) = weak.upgrade() else { return };
             let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) else { return };
             let own: Vec<String> = mail::account_by_id(&r.account_id).map(|a| vec![a.email]).unwrap_or_default();
-            let name = if r.from_name.is_empty() { r.from_email.clone() } else { r.from_name.clone() };
             let mut draft = Draft {
                 title: if all { "全員に返信" } else { "返信" }.into(),
                 subject: fuu_core::compose::reply_subject(&r.subject),

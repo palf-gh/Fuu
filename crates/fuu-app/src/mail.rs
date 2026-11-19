@@ -691,19 +691,6 @@ pub fn row_of(r: &MessageRef) -> Option<usize> {
     })
 }
 
-/// Body placeholder until M2 fetches and renders the real body.
-pub fn placeholder_document(r: &MessageRef) -> SafeDocument {
-    let text = format!(
-        "本文の取得と表示は M2 で実装します。\n\n差出人: {} <{}>\n件名: {}\nUID: {}",
-        r.from_name, r.from_email, r.subject, r.uid
-    );
-    let html = format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"><style>body{{font:14px/1.7 system-ui,'Segoe UI','Hiragino Sans','Yu Gothic UI',sans-serif;margin:6px 40px 48px;color:#8a877f}}</style></head><body><p>{}</p></body></html>",
-        escape_html(&text).replace('\n', "<br>")
-    );
-    SafeDocument { html, text, resources: ResourceManifest { entries: Vec::<ManifestEntry>::new() }, flags: Default::default(), remote_images: Vec::new() }
-}
-
 // ───────────── Account setup form
 
 fn security_index(s: Security) -> i32 {
