@@ -1,0 +1,1 @@
+color: red; background: url(http://x/a.png); position: fixed; z-index: 99999; font-family: "Noto Sans JP", serif; width: expression(alert(1))

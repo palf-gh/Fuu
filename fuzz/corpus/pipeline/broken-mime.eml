@@ -1,0 +1,24 @@
+From: broken
+Subject: =?UTF-8?B?not-base64!!?=
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="b1"
+
+--b1
+Content-Type: multipart/mixed; boundary="b2"
+
+--b2
+Content-Type: text/plain; charset=x-unknown
+Content-Transfer-Encoding: base64
+
+@@@@not base64====
+
+--b2
+Content-Type: application/octet-stream; name="..\..\CON .exe "
+Content-Disposition: attachment; filename*=UTF-8''%E2%80%AEtxt.exe
+
+MZ
+--b1
+Content-Type: text/html
+Content-Transfer-Encoding: quoted-printable
+
+<p>=E3=81=82=ZZ unterminated

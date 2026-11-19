@@ -1,0 +1,12 @@
+From: "‮evil‬" <x@example.com>
+To: test@example.jp
+Subject: hostile
+MIME-Version: 1.0
+Content-Type: text/html; charset=UTF-8
+
+<script>alert(1)</script><img src=x onerror=alert(1)><a href="javascript:alert(1)">paypal.com</a>
+<a href="https://xn--pypal-4ve.com/">https://paypal.com/</a><iframe src="http://x"></iframe>
+<form action="http://x"><input name=p></form><meta http-equiv="refresh" content="0;url=http://x"><base href="http://x/">
+<div style="position:fixed;top:0;behavior:url(x.htc);background:url(javascript:1)">over</div>
+<svg><script>alert(1)</script></svg><style>@import url(http://x/a.css);@font-face{src:url(http://x/f)}</style>
+<img src="cid:../../etc/passwd"><img src="data:image/svg+xml;base64,PHN2Zz4=">

@@ -1,0 +1,1 @@
+@import "a.css"; @media screen { p { color: #fff !important; } } @font-face { src: url(x) } a::before { content: "1"; } td { padding: 0 4px; border: 1px solid #ccc }

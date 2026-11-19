@@ -1,0 +1,28 @@
+From: News <news@example.com>
+To: test@example.jp
+Subject: =?UTF-8?Q?caf=C3=A9_news?=
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="alt"
+
+--alt
+Content-Type: text/plain; charset=UTF-8
+
+plain part
+
+--alt
+Content-Type: multipart/related; boundary="rel"
+
+--rel
+Content-Type: text/html; charset=UTF-8
+
+<html><head><style>p{color:#333;background:url(http://t.example/p.gif)}</style></head><body><p>Hello</p><img src="cid:logo@x" width="1" height="1"><img src="http://t.example/pixel.gif"></body></html>
+
+--rel
+Content-Type: image/png
+Content-ID: <logo@x>
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==
+
+--rel--
+--alt--

@@ -1,0 +1,47 @@
+# Fuzz targets for the parser and the sanitiser (cargo-fuzz / libFuzzer).
+#
+#   rustup toolchain install nightly
+#   cargo install cargo-fuzz
+#   cargo +nightly fuzz run pipeline fuzz/corpus/pipeline
+#
+# Not a workspace member: it needs nightly, while the workspace builds on
+# stable. `crates/fuu-core/tests/fuzz_replay.rs` replays the same seeds (plus
+# deterministic mutations) on stable in every `cargo test`.
+
+[package]
+name = "fuu-fuzz"
+version = "0.0.0"
+edition = "2021"
+license = "GPL-3.0-only"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+fuu-parser = { path = "../crates/fuu-parser" }
+fuu-sanitiser = { path = "../crates/fuu-sanitiser" }
+
+[workspace]
+
+[[bin]]
+name = "pipeline"
+path = "fuzz_targets/pipeline.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "css"
+path = "fuzz_targets/css.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "headers"
+path = "fuzz_targets/headers.rs"
+test = false
+doc = false
+bench = false

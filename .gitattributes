@@ -1,0 +1,2 @@
+# Fuzz seeds are raw bytes (CRLF, escapes): never convert line endings.
+fuzz/corpus/** -text

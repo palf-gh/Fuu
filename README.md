@@ -37,6 +37,15 @@ FUU_GREENMAIL=1 cargo test -p fuu-core --features insecure-test-transport --test
 cargo test -p fuu-core -- --ignored keychain   # 実際の OS キーチェーンでの読み書き
 ```
 
+ファズテスト（nightly と cargo-fuzz が必要。シードは `fuzz/corpus/`）:
+
+```sh
+cargo +nightly fuzz run pipeline fuzz/corpus/pipeline   # css / headers も同様
+```
+
+同じシードとその決まった変異は、通常の `cargo test` でも毎回流しています
+（`crates/fuu-core/tests/fuzz_replay.rs`）。見つかったクラッシュの入力はコーパスに加えてください。
+
 Skia レンダラー（既定の femtovg と CJK の表示を比べる場合）:
 
 ```sh
@@ -155,6 +164,15 @@ docker run -d --name fuu-greenmail -p 127.0.0.1:3025:3025 -p 127.0.0.1:3143:3143
 FUU_GREENMAIL=1 cargo test -p fuu-core --features insecure-test-transport --test greenmail
 cargo test -p fuu-core -- --ignored keychain   # real OS keychain round trip
 ```
+
+Fuzzing (needs nightly and cargo-fuzz; seeds live in `fuzz/corpus/`):
+
+```sh
+cargo +nightly fuzz run pipeline fuzz/corpus/pipeline   # likewise css / headers
+```
+
+The same seeds, plus fixed mutations of them, run in every `cargo test`
+(`crates/fuu-core/tests/fuzz_replay.rs`). Add crash reproducers to the corpus.
 
 Optional Skia renderer (for comparing CJK rendering against the default femtovg):
 

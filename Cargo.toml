@@ -9,6 +9,8 @@ members = [
     "crates/fuu-editor",
     "crates/fuu-app",
 ]
+# Needs nightly (cargo-fuzz); see fuzz/Cargo.toml.
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.1.0"
