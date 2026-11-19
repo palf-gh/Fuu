@@ -43,6 +43,8 @@ pub struct AppData {
     /// Documents with remote images the user allowed (per message, this session).
     allowed: HashMap<(String, String, u32), Rc<SafeDocument>>,
     remote_pending: Vec<(String, String, u32)>,
+    /// The account list has been loaded (drafts can pick a sender).
+    accounts_loaded: bool,
     /// Account whose OAuth sign-in must be renewed, and whether a renewal runs.
     reauth: Option<String>,
     reauth_running: bool,
@@ -263,6 +265,11 @@ fn send(command: Command) {
     }
 }
 
+/// Whether the account list is known (a new draft can pick its sender).
+pub fn accounts_ready() -> bool {
+    DATA.with(|d| d.borrow().accounts_loaded)
+}
+
 /// Start the engine (or the spike data source) and load the accounts.
 pub fn start(ui: &AppWindow, spike: bool) {
     if spike {
@@ -281,6 +288,7 @@ pub fn start(ui: &AppWindow, spike: bool) {
             }];
             d.active = Some("spike".into());
             d.folder = "INBOX".into();
+            d.accounts_loaded = true;
         });
         render_accounts(ui);
         return;
@@ -317,6 +325,7 @@ fn handle(ui: &AppWindow, event: Event) {
                 let mut d = d.borrow_mut();
                 d.accounts = list;
                 d.active = active.clone();
+                d.accounts_loaded = true;
             });
             render_accounts(ui);
             match active {

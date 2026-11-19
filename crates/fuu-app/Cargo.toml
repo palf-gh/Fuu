@@ -47,6 +47,12 @@ winresource = "0.1"
 # A unified (empty) toolbar centres the native traffic lights in the title bar.
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSToolbar", "NSWindow", "NSView", "NSResponder", "NSButton", "NSControl"] }
+# mailto: URLs arrive as Apple Events; the bundle id names the default handler.
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSAppleEventManager", "NSAppleEventDescriptor", "NSBundle", "NSString", "NSObject"] }
+
+[target.'cfg(windows)'.dependencies]
+# Single instance (named pipe) and registering as a mail app (HKCU).
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Pipes", "Win32_System_Registry", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 # Installers and app bundles: `cargo packager --release` (see README). The
 # packaging tools (NSIS, …) are fetched at pinned versions and verified by hash,
@@ -75,3 +81,5 @@ languages = ["Japanese", "English"]
 
 [package.metadata.packager.macos]
 minimumSystemVersion = "11.0"
+# Declares the mailto: scheme (merged into the generated Info.plist).
+infoPlistPath = "packaging/macos-Info.plist"

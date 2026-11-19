@@ -4,6 +4,7 @@
 
 mod editor;
 mod mail;
+mod os_mail;
 mod preview;
 mod samples;
 mod sections;
@@ -207,10 +208,8 @@ fn link_handler(ui: &AppWindow, pending_link: Rc<RefCell<Option<String>>>) -> Li
                 ui.set_link_url(url.into());
                 ui.set_link_dialog_open(true);
             }
-            LinkRequest::Mailto(url) => {
-                let addr = url["mailto:".len()..].split('?').next().unwrap_or_default().to_owned();
-                ui.invoke_compose_to_address(addr.into());
-            }
+            // Same path as mailto: URLs from the system (see open_mailto).
+            LinkRequest::Mailto(url) => os_mail::deliver(url),
         }
     })
 }
@@ -552,6 +551,55 @@ fn human_size(bytes: u64) -> String {
 const ATTACHMENT_LIMIT: usize = 20 * 1024 * 1024;
 
 /// Open a draft in a new tab.
+/// Settings: whether Fuu handles mailto: links.
+fn refresh_default_mail_status(ui: &AppWindow) {
+    let (text, is_default) = match os_mail::is_default() {
+        Some(true) => ("Fuu が既定のメールアプリです。", true),
+        Some(false) => ("メールアドレスのリンクを開くと、ほかのアプリが起動します。", false),
+        None => ("アプリとして（Fuu.app から）起動すると設定できます。", false),
+    };
+    ui.set_default_mail_status(text.into());
+    ui.set_is_default_mail_app(is_default);
+}
+
+/// Bring the window forward (a mailto: request from the system).
+fn raise_window(ui: &AppWindow) {
+    use slint::winit_030::WinitWindowAccessor;
+    ui.window().with_winit_window(|w| {
+        w.set_minimized(false);
+        w.focus_window();
+    });
+}
+
+/// A new message from a `mailto:` URL (a link in a mail, or the system). The
+/// URL is untrusted: fuu_core::mailto keeps only addresses, subject and body.
+/// Waits (briefly) for the account list so the draft gets its sender.
+fn open_mailto(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, url: String, attempt: u32) {
+    if !mail::accounts_ready() && attempt < 50 {
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        slint::Timer::single_shot(Duration::from_millis(200), move || {
+            if let Some(ui) = weak.upgrade() {
+                open_mailto(&ui, &state, &tabs, url, attempt + 1);
+            }
+        });
+        return;
+    }
+    let Some(m) = fuu_core::mailto::parse(&url) else {
+        notify(ui, "メールのリンクを開けませんでした", true);
+        return;
+    };
+    let draft = Draft {
+        title: "新規メッセージ".into(),
+        to: m.to,
+        cc: m.cc,
+        bcc: m.bcc,
+        subject: m.subject,
+        doc: fuu_editor::model::RichDoc::from_plain(&format!("{}{}", m.body, signature(ui))),
+        ..Draft::default()
+    };
+    open_draft(ui, state, tabs, draft);
+}
+
 fn open_draft(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, mut draft: Draft) {
     save_draft(ui, tabs);
     let account = if draft.account_id.is_empty() { mail::active_account() } else { mail::account_by_id(&draft.account_id) };
@@ -788,6 +836,16 @@ pub(crate) fn notify(ui: &AppWindow, text: impl Into<SharedString>, error: bool)
 }
 
 fn main() -> Result<(), slint::PlatformError> {
+    // One Fuu per user: a second launch (a mailto: click on Windows, or
+    // starting it again) hands its URL to the running Fuu and exits. Dummy-data
+    // and snapshot runs stay independent of an installed Fuu.
+    // (FUU_SINGLE_INSTANCE=1 turns the check on for such runs, for testing.)
+    let dev_run = (std::env::var_os("FUU_SPIKE_FEED").is_some() || std::env::var_os("FUU_SNAPSHOT").is_some())
+        && std::env::var_os("FUU_SINGLE_INSTANCE").is_none();
+    let launch_url = os_mail::mailto_argument();
+    if !dev_run && !os_mail::claim_instance(launch_url.as_deref()) {
+        return Ok(());
+    }
     select_backend()?;
     let ui = AppWindow::new()?;
     install_window_chrome(&ui);
@@ -1212,6 +1270,43 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(ui) = weak.upgrade() {
                 let draft = Draft { title: "新規メッセージ".into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(&ui)), ..Draft::default() };
                 open_draft(&ui, &state, &tabs, draft);
+            }
+        });
+    }
+    {
+        // mailto: requests: links in mails, the system (Windows: a second
+        // launch; macOS: Apple Events), or "" to just show the window.
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        os_mail::set_sink(move |request| {
+            let Some(ui) = weak.upgrade() else { return };
+            raise_window(&ui);
+            if !request.is_empty() {
+                open_mailto(&ui, &state, &tabs, request, 0);
+            }
+        });
+        #[cfg(target_os = "macos")]
+        if let Some(mtm) = objc2::MainThreadMarker::new() {
+            os_mail::install_url_handler(mtm);
+        }
+        if let Some(url) = launch_url.clone() {
+            os_mail::deliver(url);
+        }
+        let weak = ui.as_weak();
+        ui.on_make_default_mail_app(move || {
+            let Some(ui) = weak.upgrade() else { return };
+            match os_mail::make_default() {
+                Ok(()) => {
+                    #[cfg(windows)]
+                    notify(&ui, "「既定のアプリ」で Fuu を選ぶと設定されます", false);
+                }
+                Err(e) => notify(&ui, e, true),
+            }
+            refresh_default_mail_status(&ui);
+        });
+        let weak = ui.as_weak();
+        ui.on_refresh_default_mail(move || {
+            if let Some(ui) = weak.upgrade() {
+                refresh_default_mail_status(&ui);
             }
         });
     }

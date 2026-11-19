@@ -106,6 +106,14 @@ SLINT_BACKEND=winit-skia cargo run -p fuu-app --features skia
 
 詳しくは `ARCHITECTURE.md` と `SECURITY.md` を参照してください。
 
+### 既定のメールアプリ
+
+設定 →「一般」→「Fuu を既定にする」で、メールアドレスのリンク（`mailto:`）を Fuu で
+開けるようにできます。Windows では Fuu をメールアプリとして登録し、「既定のアプリ」の
+画面を開くので、そこで Fuu を選んでください（Windows ではアプリが自分で既定にはなれません）。
+macOS では `Fuu.app` から起動したときに設定できます。リンクからは宛先・CC・BCC・件名・本文
+だけを取り込み、添付ファイルの指定は無視します。送信は必ず手動です。
+
 ### OAuth でのログイン（Gmail、Outlook.com）
 
 Fuu には OAuth クライアント ID が含まれていません。ご自身で登録し、
@@ -256,6 +264,14 @@ so new mail appears on its own (servers without IDLE are checked every 5 minutes
 | `fuu-app` | Slint UI and wiring |
 
 See `ARCHITECTURE.md` and `SECURITY.md`.
+
+### Default mail app
+
+Settings → 一般 → 「Fuu を既定にする」 lets `mailto:` links open in Fuu. On
+Windows this registers Fuu as a mail app and opens the Default apps page, where
+you pick Fuu (Windows does not let apps make themselves the default). On macOS it
+works when Fuu runs as `Fuu.app`. Links only fill in the recipients, subject and
+body; attachment requests are ignored, and nothing is sent without you.
 
 ### OAuth sign-in (Gmail, Outlook.com)
 

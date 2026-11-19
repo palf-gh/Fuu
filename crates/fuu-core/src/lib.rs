@@ -6,6 +6,7 @@ pub mod compose;
 pub mod config;
 pub mod engine;
 pub mod imap;
+pub mod mailto;
 pub mod oauth;
 pub mod remote;
 pub mod secrets;

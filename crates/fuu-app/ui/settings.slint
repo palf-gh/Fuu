@@ -2,7 +2,7 @@
 
 import { TextEdit } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { Divider, Icon, Avatar, MenuRow } from "components.slint";
+import { Divider, Icon, Avatar, MenuRow, SecondaryButton } from "components.slint";
 import { AccountItem } from "models.slint";
 
 /// iOS-style switch with an animated knob.
@@ -126,6 +126,10 @@ export component SettingsView inherits Rectangle {
     in-out property <int> page;
     in-out property <int> theme-mode;   // 0 system, 1 light, 2 dark
     in-out property <bool> compose-html: true;
+    // Default mail app (mailto: links): status line and whether Fuu is it.
+    in property <string> default-mail-status;
+    in property <bool> is-default-mail-app;
+    callback make-default-mail-app();
     in-out property <string> signature-text;
     in-out property <bool> signature-enabled;
     in property <[AccountItem]> accounts;
@@ -174,6 +178,15 @@ export component SettingsView inherits Rectangle {
                     title: "HTML メールで送信";
                     description: "本文から HTML 版を作り、テキスト版と一緒に送ります（引用・署名・リンクを整えて表示）。オフにするとテキストのみで送ります。";
                     Toggle { checked <=> root.compose-html; }
+                }
+                Divider { height: 1px; }
+                SettingRow {
+                    title: "既定のメールアプリ";
+                    description: root.default-mail-status;
+                    if !root.is-default-mail-app: SecondaryButton {
+                        text: "Fuu を既定にする";
+                        clicked => { root.make-default-mail-app(); }
+                    }
                 }
             }
 

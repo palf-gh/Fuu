@@ -347,6 +347,12 @@ export component AppWindow inherits Window {
     in-out property <string> signature-text: "Fuu spike";
     in-out property <bool> signature-enabled: true;
     in-out property <bool> compose-html: true;
+    // Default mail app (settings → 一般); refreshed when settings open.
+    in property <string> default-mail-status;
+    in property <bool> is-default-mail-app;
+    callback make-default-mail-app();
+    callback refresh-default-mail();
+    changed settings-open => { if (self.settings-open) { self.refresh-default-mail(); } }
     // 0 system, 1 light, 2 dark
     in-out property <int> theme-mode;
     property <ColorScheme> system-scheme;
@@ -811,7 +817,19 @@ callback setup-oauth-cancel();
                     }
                     HorizontalLayout {
                         spacing: 8px;
-                        Text { text: root.reader-name; font-size: Theme.font-m; font-weight: 600; color: Theme.text; vertical-alignment: center; }
+                        // The sender: click to write to them.
+                        sender-name := Text {
+                            text: root.reader-name;
+                            font-size: Theme.font-m;
+                            font-weight: 600;
+                            color: sender-area.has-hover && root.reader-address != "" ? Theme.accent : Theme.text;
+                            vertical-alignment: center;
+                            sender-area := TouchArea {
+                                enabled: root.reader-address != "" && !root.viewing-attachment;
+                                mouse-cursor: pointer;
+                                clicked => { root.compose-to-address(root.reader-address); }
+                            }
+                        }
                         Text { text: root.reader-date; font-size: Theme.font-s; color: Theme.text-faint; overflow: elide; horizontal-stretch: 1; vertical-alignment: center; }
                         if root.viewing-attachment: HorizontalLayout {
                             SecondaryButton { text: "保存"; clicked => { root.save-attachment(0, false); } }
@@ -1177,6 +1195,9 @@ callback setup-oauth-cancel();
                     page <=> root.settings-page;
                     theme-mode <=> root.theme-mode;
                     compose-html <=> root.compose-html;
+                    default-mail-status: root.default-mail-status;
+                    is-default-mail-app: root.is-default-mail-app;
+                    make-default-mail-app => { root.make-default-mail-app(); }
                     signature-text <=> root.signature-text;
                     signature-enabled <=> root.signature-enabled;
                     accounts: root.accounts;

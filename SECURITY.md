@@ -107,3 +107,36 @@ shared-string count, a docx with a `javascript:` link and an external picture, a
 with an external picture), the `preview` fuzz target, and its stable replay
 (`crates/fuu-preview/tests/fuzz_replay.rs`), which also checks that no `<script>`
 tag or `javascript:` URL survives sanitising.
+
+## mailto: links and the system mail handler
+
+`mailto:` URLs reach the composer from three places: links in a displayed mail,
+a second launch of Fuu (Windows passes the URL on the command line), and Apple
+Events on macOS. All three are untrusted (any web page or program can produce
+one) and go through `fuu_core::mailto::parse` only.
+
+- **Fields taken.** Addresses (path and `to`), `cc`, `bcc`, `subject` and `body`.
+  Every other header is ignored, in particular `attach`/`attachment` (a known way
+  to make mail clients attach local files) and `from`/`in-reply-to`.
+- **No header injection.** Control and bidirectional-override characters are
+  removed from address and subject fields; each field is capped (whole URL 64 KiB,
+  body 32 KiB). Decoding is URL percent-decoding, not form decoding (`+` stays a
+  plus, as in `user+tag@example.com`).
+- **Never sends.** The result is an ordinary draft; sending needs the user.
+- **Single instance (Windows).** A second `fuu.exe` hands its request to the
+  running one over a named pipe scoped to the user and session
+  (`PIPE_REJECT_REMOTE_CLIENTS`, first instance owns it). The receiver accepts one
+  message of at most 64 KiB that is empty (show the window) or starts with
+  `mailto:`; anything else is dropped.
+- **Registration.** Settings → 一般 → 「Fuu を既定にする」 writes, for the current
+  user only, `Software\Classes\Fuu.mailto`, `Software\Clients\Mail\Fuu` and a
+  `Software\RegisteredApplications` value, then opens Windows' Default apps page:
+  Windows lets only the user pick the default. Fuu never writes
+  `Software\Classes\mailto` or `UserChoice`. The uninstaller does not remove these
+  keys; they point at the installed `fuu.exe` and are ignored once it is gone. On
+  macOS the bundle declares `mailto` (`CFBundleURLTypes`) and the button calls
+  `LSSetDefaultHandlerForURLScheme`.
+
+Tests: `fuu_core::mailto` unit tests (percent-decoding, `+`, CR/LF injection,
+`attach`, broken escapes, caps) and a registry round trip in a scratch key.
+
