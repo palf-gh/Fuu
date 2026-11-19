@@ -172,6 +172,7 @@ component MessageItem inherits Rectangle {
                     height: 13px;
                     y: (parent.height - self.height) / 2;
                     tint: Theme.text-faint;
+                    opacity: area.has-hover ? 0 : 1;
                 }
                 Text {
                     text: root.message.date;
