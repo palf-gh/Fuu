@@ -1203,10 +1203,6 @@ callback setup-oauth-cancel();
                     accounts: root.accounts;
                     add-account => { root.open-account-setup(); }
                     remove-account(id) => { root.remove-account(id); }
-                    status-text: root.status-text;
-                    load-security-sample => { root.load-security-sample(); }
-                    load-cjk-sample => { root.load-cjk-sample(); }
-                    overlap-test => { root.info-dialog-open = true; }
                 }
             }
             }

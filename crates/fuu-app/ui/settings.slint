@@ -135,10 +135,6 @@ export component SettingsView inherits Rectangle {
     in property <[AccountItem]> accounts;
     callback add-account();
     callback remove-account(string);
-    in property <string> status-text;
-    callback load-security-sample();
-    callback load-cjk-sample();
-    callback overlap-test();
 
     HorizontalLayout {
         padding-left: 32px;
@@ -154,8 +150,7 @@ export component SettingsView inherits Rectangle {
             NavLink { label: "アカウント"; selected: root.page == 1; clicked => { root.page = 1; } }
             NavLink { label: "署名"; selected: root.page == 2; clicked => { root.page = 2; } }
             NavLink { label: "プライバシー"; selected: root.page == 3; clicked => { root.page = 3; } }
-            NavLink { label: "開発"; selected: root.page == 4; clicked => { root.page = 4; } }
-            NavLink { label: "このアプリについて"; selected: root.page == 5; clicked => { root.page = 5; } }
+            NavLink { label: "このアプリについて"; selected: root.page == 4; clicked => { root.page = 4; } }
         }
 
         VerticalLayout {
@@ -267,17 +262,6 @@ export component SettingsView inherits Rectangle {
             }
 
             if root.page == 4: VerticalLayout {
-                spacing: 2px;
-                PageTitle { text: "開発"; }
-                Rectangle { height: 14px; }
-                MenuRow { icon: @image-url("icons/shield.svg"); label: "セキュリティ検査文書を開く"; clicked => { root.load-security-sample(); } }
-                MenuRow { icon: @image-url("icons/type.svg"); label: "CJK 表示サンプルを開く"; clicked => { root.load-cjk-sample(); } }
-                MenuRow { icon: @image-url("icons/overlap.svg"); label: "重なり検査"; clicked => { root.overlap-test(); } }
-                Rectangle { height: 12px; }
-                Text { text: root.status-text; font-size: Theme.font-s; color: Theme.text-faint; wrap: word-wrap; }
-            }
-
-            if root.page == 5: VerticalLayout {
                 spacing: 8px;
                 Image {
                     source: @image-url("../icons/app/fuu.svg");
