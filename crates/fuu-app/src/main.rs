@@ -165,9 +165,12 @@ fn spawn_mail_feed(ui: slint::Weak<AppWindow>) {
                     let Some(ui) = ui.upgrade() else { return };
                     let model = ui.get_messages();
                     let Some(vec) = model.as_any().downcast_ref::<VecModel<MessageRow>>() else { return };
+                    let offset = vec.row_count();
                     let mut rows: Vec<MessageRow> = rows
                         .into_iter()
-                        .map(|(sender, subject, preview, date, unread, section)| MessageRow {
+                        .enumerate()
+                        .map(|(k, (sender, subject, preview, date, unread, section))| MessageRow {
+                            index: (offset + k) as i32,
                             initials: initials(&sender).into(),
                             avatar: avatar_index(&sender),
                             sender: sender.into(),
@@ -324,6 +327,15 @@ fn render_tabs(ui: &AppWindow, tabs: &Tabs) {
         _ => l,
     };
     ui.set_active_tab(tabs.active_index().map_or(-1, |i| to_model(i) as i32));
+}
+
+/// Install the message list: `messages` holds every row (indexed like the
+/// summaries); `list-rows` is the view without rows of closed sections.
+pub fn set_message_model(ui: &AppWindow, rows: Vec<MessageRow>) {
+    let model = Rc::new(VecModel::from(rows));
+    ui.set_messages(ModelRc::from(model.clone()));
+    let visible = slint::FilterModel::new(model, |r: &MessageRow| r.header || !r.collapsed);
+    ui.set_list_rows(ModelRc::new(visible));
 }
 
 /// Minimal edit from the current rows to `want`: keep the common prefix and suffix,
@@ -749,7 +761,7 @@ fn main() -> Result<(), slint::PlatformError> {
     select_backend()?;
     let ui = AppWindow::new()?;
     install_window_chrome(&ui);
-    ui.set_messages(ModelRc::new(VecModel::<MessageRow>::default()));
+    set_message_model(&ui, Vec::new());
     ui.set_feed_summary("読み込み中…".into());
 
     let state: SharedState = Rc::new(RefCell::new(ReaderState::default()));
@@ -1634,8 +1646,16 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     "empty" => {}
                     "sections" => {
-                        ui.invoke_row_selected(7);
-                        ui.invoke_toggle_section("今日".into());
+                        // Close every section but today's, as a user tidying up would.
+                        let model = ui.get_messages();
+                        let mut names: Vec<SharedString> = model.iter().filter(|r| r.header).map(|r| r.section).collect();
+                        names.dedup();
+                        let started = Instant::now();
+                        for name in names.iter().filter(|n| n.as_str() != "今日") {
+                            ui.invoke_toggle_section(name.clone());
+                        }
+                        eprintln!("snapshot: closed {} sections in {:?}", names.len() - 1, started.elapsed());
+                        ui.invoke_row_selected(1);
                     }
                     _ => ui.invoke_row_selected(1),
                 },

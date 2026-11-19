@@ -419,7 +419,7 @@ fn handle(ui: &AppWindow, event: Event) {
                 let model = ui.get_messages();
                 match model.as_any().downcast_ref::<VecModel<MessageRow>>() {
                     Some(vec) => crate::sync_rows(vec, &rows),
-                    None => ui.set_messages(ModelRc::new(VecModel::from(rows))),
+                    None => crate::set_message_model(&ui, rows),
                 }
                 let row = selected.and_then(|uid| page.messages.iter().position(|m| m.uid == uid));
                 ui.set_current_row(row.map_or(-1, |i| i as i32));
@@ -435,7 +435,7 @@ fn handle(ui: &AppWindow, event: Event) {
             ui.set_current_folder(path.clone().into());
             let rows = list_rows(&page.messages);
             let empty = rows.is_empty();
-            ui.set_messages(ModelRc::new(VecModel::from(rows)));
+            crate::set_message_model(&ui, rows);
             ui.set_current_row(-1);
             DATA.with(|d| {
                 let mut d = d.borrow_mut();
@@ -499,6 +499,7 @@ fn handle(ui: &AppWindow, event: Event) {
                     let was_header = vec.row_data(row).is_some_and(|r| r.header);
                     vec.remove(row);
                     crate::sections::removed(vec, row, was_header);
+                    crate::sections::renumber(vec, row);
                 }
             }
             let what = if target == MoveTarget::Trash { "ゴミ箱に移動しました" } else { "アーカイブしました" };
@@ -526,7 +527,7 @@ fn handle(ui: &AppWindow, event: Event) {
 }
 
 fn clear_mailbox(ui: &AppWindow) {
-    ui.set_messages(ModelRc::new(VecModel::<MessageRow>::default()));
+    crate::set_message_model(ui, Vec::new());
     ui.set_folders(ModelRc::new(VecModel::<FolderItem>::default()));
     ui.set_mailbox("受信トレイ".into());
     ui.set_current_folder(SharedString::default());
@@ -639,7 +640,12 @@ fn list_rows(messages: &[MessageSummary]) -> Vec<MessageRow> {
     let today = crate::sections::today();
     let mut rows: Vec<MessageRow> = messages
         .iter()
-        .map(|m| MessageRow { section: crate::sections::date_section(m.date, today).into(), ..row_from_summary(m) })
+        .enumerate()
+        .map(|(i, m)| MessageRow {
+            section: crate::sections::date_section(m.date, today).into(),
+            index: i as i32,
+            ..row_from_summary(m)
+        })
         .collect();
     crate::sections::mark(&mut rows, None);
     rows

@@ -95,6 +95,17 @@ pub fn removed(model: &VecModel<MessageRow>, index: usize, was_header: bool) {
     }
 }
 
+/// After a removal at `from`: rows from there on move up one place.
+pub fn renumber(model: &VecModel<MessageRow>, from: usize) {
+    for i in from..model.row_count() {
+        if let Some(row) = model.row_data(i) {
+            if row.index != i as i32 {
+                model.set_row_data(i, MessageRow { index: i as i32, ..row });
+            }
+        }
+    }
+}
+
 /// The nearest visible row from `from` in direction `dir` (±1), or `from`.
 pub fn step(model: &impl Model<Data = MessageRow>, from: i32, dir: i32) -> i32 {
     let count = model.row_count() as i32;

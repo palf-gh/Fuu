@@ -30,6 +30,8 @@ export struct MessageRow {
     section: string,
     header: bool,
     collapsed: bool,
+    // Position in `messages` (the full list), for rows shown via `list-rows`.
+    index: int,
 }
 
 export struct AttachmentItem {
@@ -208,6 +210,9 @@ export component AppWindow inherits Window {
     no-frame: !root.is-mac;
 
     in property <[MessageRow]> messages;
+    // What the list view shows: `messages` without the rows of closed sections
+    // (their headers stay). Hidden rows must not reach the ListView at all.
+    in property <[MessageRow]> list-rows;
     in-out property <int> current-row: -1;
     // Open or close a date section of the list; the next visible row from a
     // row in a direction (±1), skipping closed sections.
@@ -692,14 +697,14 @@ callback setup-oauth-cancel();
                 }
               }
               if root.messages.length > 0: ListView {
-                for row[i] in root.messages: MessageItem {
+                for row in root.list-rows: MessageItem {
                     message: row;
-                    selected: i == root.current-row;
+                    selected: row.index == root.current-row;
                     clicked => {
-                        root.current-row = i;
-                        root.row-selected(i);
+                        root.current-row = row.index;
+                        root.row-selected(row.index);
                     }
-                    open-in-background => { root.row-open-in-tab(i); }
+                    open-in-background => { root.row-open-in-tab(row.index); }
                     toggle-section => { root.toggle-section(row.section); }
                 }
               }
