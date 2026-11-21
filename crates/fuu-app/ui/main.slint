@@ -17,6 +17,13 @@ import {
     SearchField, ComposeField, Dialog, MenuRow, CaptionButton, Tab, TooltipLayer, NoticeLayer,
 } from "components.slint";
 
+export struct ConversationRow {
+    sender: string,
+    subject: string,
+    date: string,
+    sent: bool,
+}
+
 export struct MessageRow {
     sender: string,
     subject: string,
@@ -33,6 +40,9 @@ export struct MessageRow {
     // Position in `messages` (the full list), for rows shown via `list-rows`.
     index: int,
     attachment: bool,
+    conversation-open: bool,
+    conversation-loading: bool,
+    conversation: [ConversationRow],
 }
 
 export struct AttachmentItem {
@@ -90,13 +100,15 @@ component MessageItem inherits Rectangle {
     callback clicked;
     callback open-in-background;
     callback toggle-section();
+    callback toggle-conversation();
+    callback conversation-selected(int);
     // Quick actions shown on hover: 0 delete, 1 archive, 2 restore.
     callback quick-action(int);
     // Role of the shown folder (0 inbox … 4 junk, 5 trash, 6 other).
     in property <int> folder-role;
     property <bool> restorable: root.folder-role == 4 || root.folder-role == 5;
     property <length> header-height: root.message.header ? 34px : 0px;
-    height: root.header-height + (root.message.collapsed ? 0px : 80px);
+    height: root.header-height + (root.message.collapsed ? 0px : 80px + (root.message.conversation-open ? (root.message.conversation.length > 0 ? root.message.conversation.length * 60px : 30px) : 0px));
     clip: true;
     if root.message.header: Rectangle {
         x: 10px;
@@ -151,7 +163,7 @@ component MessageItem inherits Rectangle {
             background: Theme.accent;
         }
         VerticalLayout {
-            padding-left: 22px;
+            padding-left: 32px;
             padding-right: 16px;
             padding-top: 13px;
             padding-bottom: 12px;
@@ -230,6 +242,42 @@ component MessageItem inherits Rectangle {
                 }
             }
         }
+        Rectangle {
+            x: 4px; y: 28px; width: 24px; height: 24px;
+            background: conversation-toggle.has-hover ? Theme.hover : transparent;
+            border-radius: Theme.radius-s;
+            Icon {
+                x: 5px; y: 5px; width: 14px; height: 14px;
+                source: @image-url("icons/chevron-down.svg");
+                transform-rotation: root.message.conversation-open ? 0deg : -90deg;
+                tint: Theme.text-faint;
+            }
+            conversation-toggle := TouchArea { clicked => { root.toggle-conversation(); } }
+        }
+    }
+    if !root.message.collapsed && root.message.conversation-open: VerticalLayout {
+        x: 32px; y: root.header-height + 80px; width: parent.width - 42px;
+        spacing: 0px;
+        if root.message.conversation.length == 0: Text {
+            height: 30px; text: root.message.conversation-loading ? "…" : "—";
+            color: Theme.text-faint; font-size: Theme.font-m;
+        }
+        for child[i] in root.message.conversation: Rectangle {
+            height: 60px;
+            border-radius: Theme.radius-s;
+            background: child-area.has-hover ? Theme.hover : transparent;
+            HorizontalLayout {
+                padding-left: 12px; padding-right: 12px; spacing: 8px;
+                if child.sent: Icon { source: @image-url("icons/send.svg"); width: 14px; height: 14px; tint: Theme.text-faint; }
+                VerticalLayout {
+                    alignment: center; spacing: 3px;
+                    Text { text: child.sender; font-size: Theme.font-m; color: Theme.text; overflow: elide; }
+                    Text { text: child.subject; font-size: Theme.font-s; color: Theme.text-muted; overflow: elide; }
+                }
+                Text { text: child.date; font-size: Theme.font-xs; color: Theme.text-faint; vertical-alignment: center; }
+            }
+            child-area := TouchArea { clicked => { root.conversation-selected(i); } }
+        }
     }
 }
 
@@ -265,6 +313,8 @@ export component AppWindow inherits Window {
     // Open or close a date section of the list; the next visible row from a
     // row in a direction (±1), skipping closed sections.
     callback toggle-section(string);
+    callback toggle-conversation(int);
+    callback conversation-selected(int, int);
     // A hover action on a list row (index into `messages`; 0 delete,
     // 1 archive, 2 restore to the inbox).
     callback row-action(int, int);
@@ -833,6 +883,8 @@ callback setup-oauth-cancel();
                     }
                     open-in-background => { root.row-open-in-tab(row.index); }
                     toggle-section => { root.toggle-section(row.section); }
+                    toggle-conversation => { root.toggle-conversation(row.index); }
+                    conversation-selected(i) => { root.conversation-selected(row.index, i); }
                     folder-role: root.folder-role;
                     quick-action(action) => { root.row-action(row.index, action); }
                 }

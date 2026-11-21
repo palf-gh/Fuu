@@ -299,6 +299,86 @@ pub struct FolderPage {
     pub messages: Vec<MessageSummary>,
 }
 
+/// A conversation member, identified by both folder and UID.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConversationMessage {
+    pub folder: String,
+    pub summary: MessageSummary,
+}
+
+#[derive(Debug)]
+struct ConversationCandidate {
+    message: ConversationMessage,
+    ids: Vec<String>,
+}
+
+fn conversation_ids(raw: &[u8]) -> Vec<String> {
+    use fuu_parser::MessageParser;
+    let Ok(parsed) = fuu_parser::mailparser::MailParserEngine.parse(raw, &fuu_parser::ParseLimits::default()) else {
+        return Vec::new();
+    };
+    let headers = parsed.headers;
+    headers.message_id.into_iter().chain(headers.in_reply_to).chain(headers.references)
+        .map(|id| id.trim().trim_start_matches('<').trim_end_matches('>').to_owned())
+        // Only valid, bounded ASCII Message-IDs are sent as IMAP search keys.
+        .filter(|id| !id.is_empty() && id.len() <= 998 && id.bytes().all(|b| (33..=126).contains(&b)))
+        .collect()
+}
+
+fn candidate(folder: &str, fetch: &Fetch) -> Option<ConversationCandidate> {
+    Some(ConversationCandidate {
+        message: ConversationMessage { folder: folder.to_owned(), summary: summary_from_fetch(fetch)? },
+        ids: fetch.header().map(conversation_ids).unwrap_or_default(),
+    })
+}
+
+/// Find messages connected by RFC 5322 threading headers in the current and
+/// Sent folders. Searches are read-only; message bodies are not downloaded.
+pub async fn fetch_conversation(
+    session: &mut ImapSession, folder: &str, sent: Option<&str>, uid: u32,
+) -> Result<Vec<ConversationMessage>, ImapError> {
+    use std::collections::{HashSet, VecDeque};
+    timed(COMMAND_TIMEOUT, async {
+        session.examine(folder).await.map_err(protocol)?;
+        let seed: Vec<Fetch> = session.uid_fetch(uid.to_string(), "(UID FLAGS INTERNALDATE ENVELOPE BODYSTRUCTURE BODY.PEEK[HEADER])")
+            .await.map_err(protocol)?.try_collect().await.map_err(protocol)?;
+        let first = seed.iter().find(|f| f.uid == Some(uid)).and_then(|f| candidate(folder, f))
+            .ok_or_else(|| ImapError::Protocol(tr!("Message UID {0} not found", uid)))?;
+        let mut ids = HashSet::new();
+        let mut pending = VecDeque::new();
+        for id in &first.ids { if ids.insert(id.clone()) { pending.push_back(id.clone()); } }
+        let mut seen = HashSet::new();
+        seen.insert((folder.to_owned(), uid));
+        let mut messages = vec![first.message];
+        let mut folders = vec![folder];
+        if let Some(sent) = sent.filter(|s| *s != folder) { folders.push(sent); }
+        while let Some(id) = pending.pop_front() {
+            // IMAP quoted strings require escaping, even for a valid Message-ID.
+            let quoted = id.replace('\\', "\\\\").replace('"', "\\\"");
+            let query = format!("OR OR HEADER Message-ID \"{quoted}\" HEADER In-Reply-To \"{quoted}\" HEADER References \"{quoted}\"");
+            for path in &folders {
+                session.examine(*path).await.map_err(protocol)?;
+                let found = session.uid_search(&query).await.map_err(protocol)?;
+                let sequence = found.into_iter().filter(|u| !seen.contains(&(path.to_string(), *u)))
+                    .map(|u| u.to_string()).collect::<Vec<_>>().join(",");
+                if sequence.is_empty() { continue; }
+                let fetches: Vec<Fetch> = session.uid_fetch(sequence, "(UID FLAGS INTERNALDATE ENVELOPE BODYSTRUCTURE BODY.PEEK[HEADER])")
+                    .await.map_err(protocol)?.try_collect().await.map_err(protocol)?;
+                for fetch in &fetches {
+                    let Some(item) = candidate(path, fetch) else { continue };
+                    // SEARCH HEADER is a substring search, so verify exact IDs.
+                    if !item.ids.iter().any(|other| other == &id) { continue; }
+                    if !seen.insert((path.to_string(), item.message.summary.uid)) { continue; }
+                    for other in item.ids { if ids.insert(other.clone()) { pending.push_back(other); } }
+                    messages.push(item.message);
+                }
+            }
+        }
+        messages.sort_by(|a, b| b.summary.date.cmp(&a.summary.date).then_with(|| b.summary.uid.cmp(&a.summary.uid)));
+        Ok(messages)
+    }).await
+}
+
 /// Decode a header value (lenient RFC 2047, see `fuu_parser::headers`).
 pub fn decode_header(raw: &[u8]) -> String {
     fuu_parser::headers::decode_header(raw)
@@ -531,6 +611,17 @@ pub fn saves_sent_automatically(imap_host: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn conversation_ids_use_thread_headers_and_unfold_references() {
+        let raw = b"Message-ID: <reply@example.org>\r\nIn-Reply-To: <previous@example.org>\r\nReferences: <root@example.org>\r\n <previous@example.org>\r\nSubject: Re: hello\r\n\r\n";
+        assert_eq!(super::conversation_ids(raw), vec!["reply@example.org", "previous@example.org", "root@example.org", "previous@example.org"]);
+    }
+
+    #[test]
+    fn conversation_ids_do_not_infer_threads_from_subjects() {
+        let raw = b"Subject: Re: hello\r\nFrom: sender@example.org\r\n\r\n";
+        assert!(super::conversation_ids(raw).is_empty());
+    }
     use super::*;
 
     fn structure(response: &str) -> bool {

@@ -38,6 +38,17 @@ quick-xml, zip, image); like `fuu-parser` it may know file formats and MIME type
 and it never sees UI or renderer types. The app converts on a worker thread and
 keeps a few previews in memory. Limits and threats: `SECURITY.md`.
 
+## Localisation and updates
+
+`fuu-i18n` holds the UI language: `tr!("English text")` in Rust looks the string
+up in the gettext catalogues `lang/<lang>/LC_MESSAGES/fuu-app.po`, which its build
+script compiles in; Slint bundles the same catalogues for `@tr()`. It depends on
+nothing else in the workspace, so `fuu-core`, `fuu-parser` and `fuu-preview` may
+use it without seeing UI types. The app picks the language from preferences or the
+OS locale and switches both sides together.
+
+The updater lives in `fuu-app` only (`src/update.rs`); see `SECURITY.md`.
+
 ## Threads
 
 - Main thread: Slint event loop and the Blitz renderer.
