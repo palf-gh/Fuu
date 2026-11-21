@@ -357,6 +357,21 @@ export component AppWindow inherits Window {
     changed signature-enabled => { self.signature-edited(); }
     changed signature-account => { self.signature-account-picked(); }
     in-out property <bool> compose-html: true;
+    // Updates (src/update.rs). state: 0 none, 1 available, 2 downloading,
+    // 3 installed (restart), 4 checking.
+    in property <int> update-state;
+    in property <string> update-version;
+    in property <float> update-progress;
+    in property <string> update-status;
+    in-out property <bool> check-updates: true;
+    in property <string> app-version;
+    callback update-install();
+    callback update-restart();
+    callback check-update-now();
+    // Theme, HTML sending or the update check changed: save preferences.
+    callback prefs-changed();
+    changed compose-html => { self.prefs-changed(); }
+    changed check-updates => { self.prefs-changed(); }
     // Default mail app (settings → 一般); refreshed when settings open.
     in property <string> default-mail-status;
     in property <bool> is-default-mail-app;
@@ -373,6 +388,7 @@ export component AppWindow inherits Window {
     changed pane-version => { self.pane-fresh = true; }
     changed theme-mode => {
         Palette.color-scheme = self.theme-mode == 1 ? ColorScheme.light : self.theme-mode == 2 ? ColorScheme.dark : self.system-scheme;
+        self.prefs-changed();
     }
     in property <string> mailbox: "受信トレイ";
     in property <string> account-name: "アカウントなし";
@@ -669,6 +685,30 @@ callback setup-oauth-cancel();
                     icon: @image-url("icons/settings.svg");
                     y: (parent.height - self.height) / 2;
                     clicked => { root.open-settings(); }
+                }
+                // A new version: install it (or restart into it).
+                if root.update-state == 1 || root.update-state == 2 || root.update-state == 3: Rectangle {
+                    width: update-label.preferred-width + 24px;
+                    height: 28px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 14px;
+                    background: update-area.pressed ? Theme.accent.darker(0.15) : update-area.has-hover ? Theme.accent.darker(0.08) : Theme.accent;
+                    update-area := TouchArea {
+                        clicked => {
+                            if (root.update-state == 1) { root.update-install(); }
+                            else if (root.update-state == 3) { root.update-restart(); }
+                        }
+                    }
+                    update-label := Text {
+                        text: root.update-state == 1 ? "更新 " + root.update-version
+                            : root.update-state == 2 ? "更新中 " + round(root.update-progress * 100) + "%"
+                            : "再起動して更新";
+                        color: #ffffff;
+                        font-size: Theme.font-s;
+                        font-weight: 600;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
                 }
                 if !root.is-mac: Rectangle { width: 6px; }
                 if !root.is-mac: CaptionButton {
@@ -1217,6 +1257,11 @@ callback setup-oauth-cancel();
                     theme-mode <=> root.theme-mode;
                     compose-html <=> root.compose-html;
                     default-mail-status: root.default-mail-status;
+                    update-status: root.update-status;
+                    check-updates <=> root.check-updates;
+                    update-checking: root.update-state == 4;
+                    app-version: root.app-version;
+                    check-update-now => { root.check-update-now(); }
                     is-default-mail-app: root.is-default-mail-app;
                     make-default-mail-app => { root.make-default-mail-app(); }
                     signature-text <=> root.signature-text;

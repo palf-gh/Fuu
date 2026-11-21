@@ -127,6 +127,12 @@ export component SettingsView inherits Rectangle {
     in-out property <bool> compose-html: true;
     // Default mail app (mailto: links): status line and whether Fuu is it.
     in property <string> default-mail-status;
+    // Updates (src/update.rs): status line, start-up check, manual check.
+    in property <string> update-status;
+    in-out property <bool> check-updates: true;
+    in property <bool> update-checking;
+    in property <string> app-version;
+    callback check-update-now();
     in property <bool> is-default-mail-app;
     callback make-default-mail-app();
     in-out property <string> signature-text;
@@ -184,6 +190,21 @@ export component SettingsView inherits Rectangle {
                     if !root.is-default-mail-app: SecondaryButton {
                         text: "Fuu を既定にする";
                         clicked => { root.make-default-mail-app(); }
+                    }
+                }
+                Divider { height: 1px; }
+                SettingRow {
+                    title: "起動時に更新を確認";
+                    description: root.update-status != "" ? root.update-status
+                        : "GitHub のリリースを確かめ、新しいバージョンがあればお知らせします。更新ファイルは署名を確かめてから使います。";
+                    Toggle { checked <=> root.check-updates; }
+                }
+                HorizontalLayout {
+                    alignment: start;
+                    padding-top: 4px;
+                    SecondaryButton {
+                        text: root.update-checking ? "確認しています…" : "今すぐ確認";
+                        clicked => { if (!root.update-checking) { root.check-update-now(); } }
                     }
                 }
             }
@@ -352,7 +373,7 @@ export component SettingsView inherits Rectangle {
                     image-rendering: smooth;
                 }
                 PageTitle { text: "Fuu (封)"; }
-                Text { text: "バージョン 0.1.0-alpha.2（アルファ版）"; font-size: Theme.font-m; color: Theme.text-muted; }
+                Text { text: "バージョン " + root.app-version; font-size: Theme.font-m; color: Theme.text-muted; }
                 Rectangle { height: 8px; }
                 Text { text: "最小限の機能に絞った、ミニマルなメールクライアント。"; font-size: Theme.font-m; color: Theme.text; wrap: word-wrap; }
                 Text { text: "GNU General Public License v3.0 で配布しています。"; font-size: Theme.font-s; color: Theme.text-faint; wrap: word-wrap; }

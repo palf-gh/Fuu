@@ -9,6 +9,7 @@ mod preview;
 mod samples;
 mod sections;
 mod tabs;
+mod update;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -864,6 +865,52 @@ pub(crate) fn notify(ui: &AppWindow, text: impl Into<SharedString>, error: bool)
     });
 }
 
+/// Preferences (prefs.toml) and updates. Dummy-data and snapshot runs keep the
+/// defaults, never save and never check for updates.
+fn install_preferences_and_updates(ui: &AppWindow) {
+    let dummy = std::env::var_os("FUU_SPIKE_FEED").is_some() || std::env::var_os("FUU_SNAPSHOT").is_some();
+    let path = (!dummy).then(|| fuu_core::config::prefs_path().ok()).flatten();
+    let prefs = path.as_deref().map(fuu_core::config::load_prefs).unwrap_or_default();
+    ui.set_theme_mode(i32::from(prefs.theme.min(2)));
+    ui.set_compose_html(prefs.compose_html);
+    ui.set_check_updates(prefs.check_updates);
+    ui.set_app_version(update::current_version().into());
+
+    let weak = ui.as_weak();
+    ui.on_prefs_changed(move || {
+        let (Some(ui), Some(path)) = (weak.upgrade(), path.as_deref()) else { return };
+        let prefs = fuu_core::config::Preferences {
+            check_updates: ui.get_check_updates(),
+            theme: u8::try_from(ui.get_theme_mode().clamp(0, 2)).unwrap_or(0),
+            compose_html: ui.get_compose_html(),
+        };
+        if let Err(e) = fuu_core::config::save_prefs(path, &prefs) {
+            notify(&ui, format!("設定を保存できませんでした: {e}"), true);
+        }
+    });
+    let weak = ui.as_weak();
+    ui.on_update_install(move || {
+        if let Some(ui) = weak.upgrade() {
+            update::install(&ui);
+        }
+    });
+    ui.on_update_restart(update::restart);
+    let weak = ui.as_weak();
+    ui.on_check_update_now(move || {
+        if let Some(ui) = weak.upgrade() {
+            update::check(&ui, true);
+        }
+    });
+    if !dummy && prefs.check_updates {
+        let weak = ui.as_weak();
+        slint::Timer::single_shot(Duration::from_secs(5), move || {
+            if let Some(ui) = weak.upgrade() {
+                update::check(&ui, false);
+            }
+        });
+    }
+}
+
 fn main() -> Result<(), slint::PlatformError> {
     // One Fuu per user: a second launch (a mailto: click on Windows, or
     // starting it again) hands its URL to the running Fuu and exits. Dummy-data
@@ -872,6 +919,10 @@ fn main() -> Result<(), slint::PlatformError> {
     let dev_run = (std::env::var_os("FUU_SPIKE_FEED").is_some() || std::env::var_os("FUU_SNAPSHOT").is_some())
         && std::env::var_os("FUU_SINGLE_INSTANCE").is_none();
     let launch_url = os_mail::mailto_argument();
+    if std::env::var_os("FUU_RELAUNCHED").is_some() {
+        // Restarted after an update: let the old process release the instance lock.
+        std::thread::sleep(Duration::from_millis(1200));
+    }
     if !dev_run && !os_mail::claim_instance(launch_url.as_deref()) {
         return Ok(());
     }
@@ -880,6 +931,7 @@ fn main() -> Result<(), slint::PlatformError> {
     install_window_chrome(&ui);
     set_message_model(&ui, Vec::new());
     ui.set_feed_summary("読み込み中…".into());
+    install_preferences_and_updates(&ui);
 
     let state: SharedState = Rc::new(RefCell::new(ReaderState::default()));
     let pending_link: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
@@ -1825,6 +1877,14 @@ fn main() -> Result<(), slint::PlatformError> {
                     "settings" => {
                         ui.invoke_row_selected(1);
                         ui.invoke_open_settings();
+                    }
+                    "update" => {
+                        ui.invoke_row_selected(1);
+                        ui.invoke_open_settings();
+                        ui.set_settings_page(0);
+                        ui.set_update_version("0.1.0-alpha.3".into());
+                        ui.set_update_state(update::state::AVAILABLE);
+                        ui.set_update_status("新しいバージョン 0.1.0-alpha.3 があります。".into());
                     }
                     "accounts" => {
                         ui.invoke_row_selected(1);

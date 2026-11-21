@@ -47,7 +47,42 @@ pub fn load(path: &Path) -> Result<AccountsFile, ConfigError> {
 /// Write atomically (temporary file, then rename) so a crash never leaves a
 /// half-written configuration.
 pub fn save(path: &Path, file: &AccountsFile) -> Result<(), ConfigError> {
-    let text = toml::to_string_pretty(file).map_err(|e| ConfigError::Parse(e.to_string()))?;
+    write_atomic(path, &toml::to_string_pretty(file).map_err(|e| ConfigError::Parse(e.to_string()))?)
+}
+
+/// App preferences, `<config dir>/Fuu/prefs.toml` (never secrets). Missing or
+/// unknown keys take their defaults.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Preferences {
+    /// Look for a new version at start-up (GitHub Releases).
+    pub check_updates: bool,
+    /// 0 follow the system, 1 light, 2 dark.
+    pub theme: u8,
+    /// Send an HTML part alongside the plain text.
+    pub compose_html: bool,
+}
+
+impl Default for Preferences {
+    fn default() -> Self {
+        Preferences { check_updates: true, theme: 0, compose_html: true }
+    }
+}
+
+pub fn prefs_path() -> Result<PathBuf, ConfigError> {
+    Ok(dirs::config_dir().ok_or(ConfigError::NoConfigDir)?.join("Fuu").join("prefs.toml"))
+}
+
+/// The saved preferences; defaults when the file is missing or unreadable.
+pub fn load_prefs(path: &Path) -> Preferences {
+    std::fs::read_to_string(path).ok().and_then(|t| toml::from_str(&t).ok()).unwrap_or_default()
+}
+
+pub fn save_prefs(path: &Path, prefs: &Preferences) -> Result<(), ConfigError> {
+    write_atomic(path, &toml::to_string_pretty(prefs).map_err(|e| ConfigError::Parse(e.to_string()))?)
+}
+
+fn write_atomic(path: &Path, text: &str) -> Result<(), ConfigError> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(ConfigError::Io)?;
     }
@@ -112,6 +147,20 @@ mod tests {
         assert!(!text.contains("signature"), "defaults are not written: {text}");
         plain.accounts[0].signature_enabled = true;
         assert_eq!(load(&path).unwrap(), plain);
+    }
+
+    #[test]
+    fn preferences_default_and_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("prefs.toml");
+        assert_eq!(load_prefs(&path), Preferences::default());
+        std::fs::write(&path, "theme = 2\nfuture_key = 1\n").unwrap();
+        assert_eq!(load_prefs(&path), Preferences { theme: 2, ..Preferences::default() });
+        let prefs = Preferences { check_updates: false, theme: 1, compose_html: false };
+        save_prefs(&path, &prefs).unwrap();
+        assert_eq!(load_prefs(&path), prefs);
+        std::fs::write(&path, "theme = \"broken").unwrap();
+        assert_eq!(load_prefs(&path), Preferences::default());
     }
 
     #[test]

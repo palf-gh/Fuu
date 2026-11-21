@@ -1,0 +1,131 @@
+name: Release
+
+# Push a tag `v<version>` (matching the workspace version in Cargo.toml) with
+# release notes in docs/release-notes/v<version>.md. Each platform is built
+# and signed for the updater; the release job publishes the packages, the
+# checksums and latest.json (what Fuu's updater reads).
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, platform: windows-x86_64, formats: nsis }
+          - { os: macos-14, target: aarch64-apple-darwin, platform: macos-aarch64, formats: app }
+          - { os: macos-14, target: x86_64-apple-darwin, platform: macos-x86_64, formats: app }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, platform: linux-x86_64, formats: 'deb,appimage' }
+    runs-on: ${{ matrix.os }}
+    env:
+      # The packaging command builds for this target too (beforePackagingCommand).
+      CARGO_BUILD_TARGET: ${{ matrix.target }}
+      CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.UPDATER_PRIVATE_KEY }}
+      CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.UPDATER_PRIVATE_KEY_PASSWORD }}
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config clang libfontconfig1-dev libfreetype-dev \
+            libxkbcommon-dev libwayland-dev libx11-dev libgl1-mesa-dev
+      - name: Version must match the tag
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Cargo.toml has $version, tag is $GITHUB_REF_NAME"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Signing key present
+        run: test -n "$CARGO_PACKAGER_SIGN_PRIVATE_KEY" || { echo "UPDATER_PRIVATE_KEY secret is missing"; exit 1; }
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --version 0.11.8 --locked
+      - name: Package and sign
+        working-directory: crates/fuu-app
+        run: cargo packager --release --target "${{ matrix.target }}" --formats "${{ matrix.formats }}"
+      - name: Stage files
+        run: |
+          set -euo pipefail
+          repo="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          mkdir -p out
+          fragment() { # <asset> <format>
+            printf '{"url":"%s/%s","signature":"%s","format":"%s"}' "$repo" "$1" "$(cat "out/$1.sig")" "$2" > "out/${{ matrix.platform }}.json"
+          }
+          case "${{ matrix.platform }}" in
+            windows-x86_64)
+              exe="fuu_${VERSION}_x64-setup.exe"
+              cp "dist/$exe" "dist/$exe.sig" out/
+              fragment "$exe" nsis ;;
+            macos-*)
+              arch="${{ matrix.platform }}"; arch="${arch#macos-}"
+              tgz="Fuu_${VERSION}_${arch}.app.tar.gz"
+              cp dist/Fuu.app.tar.gz "out/$tgz"
+              cp dist/Fuu.app.tar.gz.sig "out/$tgz.sig"
+              fragment "$tgz" app
+              # A plain dmg (create-dmg's Finder styling needs a GUI session).
+              mkdir -p dmgroot && cp -R dist/Fuu.app dmgroot/ && ln -s /Applications dmgroot/Applications
+              hdiutil create -quiet -volname Fuu -srcfolder dmgroot -ov -format UDZO "out/Fuu_${VERSION}_${arch}.dmg" ;;
+            linux-x86_64)
+              img="fuu_${VERSION}_x86_64.AppImage"
+              cp "dist/$img" "dist/$img.sig" "dist/fuu_${VERSION}_amd64.deb" out/
+              fragment "$img" appimage ;;
+          esac
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: out/
+          if-no-files-found: error
+
+  release:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: latest.json and checksums
+        run: |
+          set -euo pipefail
+          notes="docs/release-notes/${GITHUB_REF_NAME}.md"
+          test -f "$notes" || { echo "missing $notes"; exit 1; }
+          cd out
+          jq -n --arg version "${GITHUB_REF_NAME#v}" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg notes "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}" \
+            '{version: $version, pub_date: $date, notes: $notes, platforms: {}}' > latest.json
+          for f in *-*.json; do
+            key="${f%.json}"
+            jq --arg key "$key" --slurpfile p "$f" '.platforms[$key] = $p[0]' latest.json > tmp.json && mv tmp.json latest.json
+            rm "$f"
+          done
+          rm -f *.sig
+          sha256sum * > SHA256SUMS.txt
+          cat latest.json
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --latest \
+            --title "Fuu $GITHUB_REF_NAME" --notes-file "docs/release-notes/${GITHUB_REF_NAME}.md" out/*
