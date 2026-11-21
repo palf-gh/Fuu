@@ -47,6 +47,9 @@ pub struct AppData {
     accounts_loaded: bool,
     /// The setup form edits this account instead of adding one.
     editing: Option<String>,
+    /// The saved password shown in the edit form (None: could not be read),
+    /// to tell whether the user changed it.
+    editing_password: Option<String>,
     /// Account whose OAuth sign-in must be renewed, and whether a renewal runs.
     reauth: Option<String>,
     reauth_running: bool,
@@ -912,6 +915,7 @@ pub fn reset_setup(ui: &AppWindow) {
         let mut d = d.borrow_mut();
         d.setup_auto = true;
         d.editing = None;
+        d.editing_password = None;
     });
 }
 
@@ -933,6 +937,10 @@ pub fn edit_account(ui: &AppWindow, id: &str) {
         ui.set_setup_provider(p.provider.into());
     }
     let oauth = a.auth == AuthKind::OAuth2;
+    // The saved password, masked in the form (the eye button shows it).
+    let saved = (!oauth && !is_spike()).then(|| fuu_core::secrets::get_long(&KeychainStore, &a.id).ok()).flatten();
+    ui.set_setup_password(saved.clone().unwrap_or_default().into());
+    DATA.with(|d| d.borrow_mut().editing_password = saved);
     ui.set_setup_password_login(!oauth);
     ui.set_setup_email_locked(oauth);
     ui.set_setup_advanced(true);
@@ -952,7 +960,7 @@ pub fn setup_submit(ui: &AppWindow) {
     let editing = DATA.with(|d| d.borrow().editing.clone()).and_then(|id| account_by_id(&id));
     let error = if !email.contains('@') {
         Some("メールアドレスを入力してください")
-    } else if password.is_empty() && editing.is_none() {
+    } else if password.is_empty() && editing.as_ref().is_none_or(|a| a.auth == AuthKind::Password) {
         Some("パスワードを入力してください")
     } else if ui.get_setup_imap_host().trim().is_empty() || ui.get_setup_smtp_host().trim().is_empty() {
         ui.set_setup_advanced(true);
@@ -985,7 +993,9 @@ pub fn setup_submit(ui: &AppWindow) {
             if account.auth == AuthKind::OAuth2 {
                 account.email = old.email;
             }
-            let password = (account.auth == AuthKind::Password && !password.is_empty()).then_some(password);
+            // Send the password only when it differs from the saved one.
+            let saved = DATA.with(|d| d.borrow().editing_password.clone());
+            let password = (account.auth == AuthKind::Password && saved.as_deref() != Some(password.as_str())).then_some(password);
             send(Command::UpdateAccount { account, password });
         }
         None => send(Command::AddAccount { account, password }),
