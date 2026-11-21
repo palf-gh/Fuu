@@ -366,19 +366,27 @@ impl Inner {
     }
 
     async fn save_new_account(self: Arc<Self>, mut account: Account, session: ImapSession) {
-        let saved = {
+        let (saved, existed) = {
             let mut file = self.accounts.lock().await;
             // Signing in again replaces the account in place (keeps its position
             // and its signature).
-            match file.accounts.iter_mut().find(|a| a.id == account.id) {
+            let existed = match file.accounts.iter_mut().find(|a| a.id == account.id) {
                 Some(existing) => {
-                    account.signature = std::mem::take(&mut existing.signature);
+                    account.signature = existing.signature.clone();
                     account.signature_enabled = existing.signature_enabled;
                     *existing = account.clone();
+                    true
                 }
-                None => file.accounts.push(account.clone()),
+                None => {
+                    file.accounts.push(account.clone());
+                    false
+                }
+            };
+            let saved = config::save(&self.config_path, &file).map(|_| file.accounts.clone());
+            if saved.is_err() && !existed {
+                file.accounts.retain(|a| a.id != account.id);
             }
-            config::save(&self.config_path, &file).map(|_| file.accounts.clone())
+            (saved, existed)
         };
         match saved {
             Ok(list) => {
@@ -390,7 +398,11 @@ impl Inner {
                 self.open_account(&account.id, None).await;
             }
             Err(e) => {
-                let _ = secrets::delete_long(self.secrets.as_ref(), &account.id);
+                // Only a brand-new account's secret goes; an existing account
+                // (signing in again, edited settings) keeps its sign-in.
+                if !existed {
+                    let _ = secrets::delete_long(self.secrets.as_ref(), &account.id);
+                }
                 self.emit(Event::AccountAddFailed(e.to_string()));
             }
         }
