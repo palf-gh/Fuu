@@ -10,7 +10,7 @@ use std::sync::Arc;
 use chrono::{Datelike, Local, TimeZone};
 use fuu_core::account::{self, Account, AuthKind, Security, ServerConfig};
 use fuu_core::engine::{Command, Engine, Event, MoveTarget};
-use fuu_core::imap::{Folder, FolderRole, MessageSummary};
+use fuu_core::imap::{ConversationMessage, Folder, FolderRole, MessageSummary};
 use fuu_core::secrets::KeychainStore;
 use fuu_model::{Address, Attachment, ResourceManifest, SafeDocument};
 use fuu_parser::mailparser::{self, MailParserEngine};
@@ -20,7 +20,7 @@ use fuu_sanitiser::escape_html;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use crate::tabs::MessageRef;
-use crate::{avatar_index, AccountItem, AppWindow, AttachmentItem, FolderItem, MessageRow};
+use crate::{avatar_index, AccountItem, AppWindow, AttachmentItem, ConversationRow, FolderItem, MessageRow};
 use fuu_i18n::tr;
 
 #[derive(Default)]
@@ -33,6 +33,7 @@ pub struct AppData {
     pub folders: Vec<Folder>,
     pub folder: String,
     pub summaries: Vec<MessageSummary>,
+    conversations: HashMap<(String, String, u32), Vec<ConversationMessage>>,
     /// Whether the setup form's server fields were filled automatically.
     setup_auto: bool,
     /// Parsed and sanitised bodies by (account, folder, uid).
@@ -513,6 +514,7 @@ fn handle(ui: &AppWindow, event: Event) {
             }
         }
         Event::Messages { account_id, path, page, refresh } => {
+            DATA.with(|d| d.borrow_mut().conversations.retain(|(id, _, _), _| id != &account_id));
             let (active, same_folder) = DATA.with(|d| {
                 let d = d.borrow();
                 (d.active.as_deref() == Some(account_id.as_str()), d.folder == path)
@@ -560,6 +562,37 @@ fn handle(ui: &AppWindow, event: Event) {
             ui.set_list_message(if empty { tr!("No messages").into() } else { SharedString::default() });
                 ui.set_list_failed(false);
         }
+        Event::Conversation { account_id, folder, uid, messages } => {
+            let key = (account_id.clone(), folder.clone(), uid);
+            let messages: Vec<_> = messages.into_iter().filter(|m| m.folder != folder || m.summary.uid != uid).collect();
+            let row = DATA.with(|d| {
+                let mut d = d.borrow_mut();
+                d.conversations.insert(key, messages.clone());
+                if d.active.as_deref() == Some(&account_id) && d.folder == folder {
+                    d.summaries.iter().position(|m| m.uid == uid)
+                } else { None }
+            });
+            if let Some(row) = row {
+                set_conversation_rows(&ui, row, &messages);
+            }
+        }
+        Event::ConversationFailed { account_id, folder, uid, message } => {
+            let row = DATA.with(|d| {
+                let d = d.borrow();
+                if d.active.as_deref() == Some(&account_id) && d.folder == folder {
+                    d.summaries.iter().position(|m| m.uid == uid)
+                } else { None }
+            });
+            if let Some(row) = row {
+                let model = ui.get_messages();
+                if let Some(vec) = model.as_any().downcast_ref::<VecModel<MessageRow>>() {
+                    if let Some(data) = vec.row_data(row) {
+                        vec.set_row_data(row, MessageRow { conversation_open: false, conversation_loading: false, ..data });
+                    }
+                }
+                crate::notify(&ui, message, false);
+            }
+        }
         Event::Body { account_id, folder, uid, raw } => {
             let k = (account_id, folder, uid);
             let body = Rc::new(process(raw));
@@ -595,6 +628,7 @@ fn handle(ui: &AppWindow, event: Event) {
             ui.invoke_body_ready();
         }
         Event::Moved { account_id, folder, uid, target } => {
+            DATA.with(|d| d.borrow_mut().conversations.retain(|(id, _, _), _| id != &account_id));
             let removed_row = DATA.with(|d| {
                 let mut d = d.borrow_mut();
                 d.bodies.remove(&(account_id.clone(), folder.clone(), uid));
@@ -625,6 +659,7 @@ fn handle(ui: &AppWindow, event: Event) {
             ui.invoke_message_moved(account_id.into(), folder.into(), uid as i32);
         }
         Event::Sent { draft_id, warning, .. } => {
+            DATA.with(|d| d.borrow_mut().conversations.clear());
             crate::notify(&ui, match warning {
                 Some(w) => SharedString::from(tr!("Sent ({0})", w)),
                 None => SharedString::from(tr!("Sent")),
@@ -783,6 +818,50 @@ fn row_from_summary(m: &MessageSummary) -> MessageRow {
         attachment: m.attachment,
         ..Default::default()
     }
+}
+
+fn set_conversation_rows(ui: &AppWindow, row: usize, messages: &[ConversationMessage]) {
+    let sent = DATA.with(|d| d.borrow().folders.iter().find(|f| f.role == FolderRole::Sent).map(|f| f.path.clone()));
+    let rows: Vec<ConversationRow> = messages.iter().map(|m| ConversationRow {
+        sender: strip_bidi(if m.summary.from_name.is_empty() { &m.summary.from_email } else { &m.summary.from_name }).into(),
+        subject: strip_bidi(&m.summary.subject).into(),
+        date: format_date(m.summary.date).into(),
+        sent: sent.as_deref() == Some(m.folder.as_str()),
+    }).collect();
+    let model = ui.get_messages();
+    if let Some(vec) = model.as_any().downcast_ref::<VecModel<MessageRow>>() {
+        if let Some(data) = vec.row_data(row) {
+            vec.set_row_data(row, MessageRow { conversation: ModelRc::new(VecModel::from(rows)), conversation_loading: false, ..data });
+        }
+    }
+}
+
+pub fn toggle_conversation(ui: &AppWindow, row: usize) {
+    let Some(reference) = message_ref(ui, row) else { return };
+    let model = ui.get_messages();
+    let Some(vec) = model.as_any().downcast_ref::<VecModel<MessageRow>>() else { return };
+    let Some(data) = vec.row_data(row) else { return };
+    let open = !data.conversation_open;
+    vec.set_row_data(row, MessageRow { conversation_open: open, conversation_loading: open && !is_spike(), conversation: ModelRc::default(), ..data });
+    if !open || is_spike() { return; }
+    let key = (reference.account_id.clone(), reference.folder.clone(), reference.uid);
+    if let Some(messages) = DATA.with(|d| d.borrow().conversations.get(&key).cloned()) {
+        set_conversation_rows(ui, row, &messages);
+    } else {
+        send(Command::LoadConversation { account_id: reference.account_id, folder: reference.folder, uid: reference.uid });
+    }
+}
+
+pub fn conversation_ref(ui: &AppWindow, row: usize, child: usize) -> Option<MessageRef> {
+    let parent = message_ref(ui, row)?;
+    let key = (parent.account_id.clone(), parent.folder.clone(), parent.uid);
+    let item = DATA.with(|d| d.borrow().conversations.get(&key).and_then(|items| items.get(child)).cloned())?;
+    let m = item.summary;
+    Some(MessageRef {
+        account_id: parent.account_id, folder: item.folder, uid: m.uid, row,
+        subject: strip_bidi(&m.subject), from_name: strip_bidi(&m.from_name),
+        from_email: strip_bidi(&m.from_email), date_text: long_date(m.date),
+    })
 }
 
 /// Snapshot of list row `row` for a tab.

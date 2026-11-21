@@ -979,8 +979,24 @@ fn main() -> Result<(), slint::PlatformError> {
             sections::toggle(vec, &section);
         });
         let weak = ui.as_weak();
+        ui.on_toggle_conversation(move |row| {
+            if let (Some(ui), Ok(row)) = (weak.upgrade(), usize::try_from(row)) {
+                mail::toggle_conversation(&ui, row);
+            }
+        });
+        let weak = ui.as_weak();
         ui.on_step_row(move |from, dir| {
             weak.upgrade().map_or(from, |ui| sections::step(&ui.get_messages(), from, dir))
+        });
+    }
+    {
+        let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
+        ui.on_conversation_selected(move |row, child| {
+            let Some(ui) = weak.upgrade() else { return };
+            let (Ok(row), Ok(child)) = (usize::try_from(row), usize::try_from(child)) else { return };
+            if let Some(r) = mail::conversation_ref(&ui, row, child) {
+                show_viewer(&ui, &state, &tabs, TabContent::Message(r));
+            }
         });
     }
     {
@@ -1883,6 +1899,18 @@ fn main() -> Result<(), slint::PlatformError> {
             match ticks {
                 3 => match step.as_str() {
                     "security" => ui.invoke_load_security_sample(),
+                    "conversation" => {
+                        let model = ui.get_messages();
+                        if let Some(vec) = model.as_any().downcast_ref::<VecModel<MessageRow>>() {
+                            if let Some(row) = vec.row_data(0) {
+                                let children = vec![
+                                    ConversationRow { sender: "Alex Morgan".into(), subject: "Re: Project".into(), date: "11/17".into(), sent: false },
+                                    ConversationRow { sender: "me@example.com".into(), subject: "Re: Project".into(), date: "11/12".into(), sent: true },
+                                ];
+                                vec.set_row_data(0, MessageRow { conversation_open: true, conversation: ModelRc::new(VecModel::from(children)), ..row });
+                            }
+                        }
+                    }
                     "compose" => {
                         ui.invoke_row_selected(1);
                         ui.invoke_start_compose();

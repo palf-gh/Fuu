@@ -56,6 +56,8 @@ pub enum Command {
     RefreshFolder { account_id: String, path: String },
     /// Load a message body (cache first), marking it as read on the server.
     FetchBody { account_id: String, folder: String, uid: u32 },
+    /// Retrieve the messages in a conversation across the current and Sent folders.
+    LoadConversation { account_id: String, folder: String, uid: u32 },
     /// Fetch remote images the user allowed for one message.
     FetchRemoteImages { account_id: String, folder: String, uid: u32, urls: Vec<String> },
     /// Send a message; `answered` marks the replied-to message.
@@ -86,6 +88,8 @@ pub enum Event {
     FolderChanged { account_id: String, path: String },
     Body { account_id: String, folder: String, uid: u32, raw: Arc<Vec<u8>> },
     BodyFailed { account_id: String, folder: String, uid: u32, message: String },
+    Conversation { account_id: String, folder: String, uid: u32, messages: Vec<imap::ConversationMessage> },
+    ConversationFailed { account_id: String, folder: String, uid: u32, message: String },
     Moved { account_id: String, folder: String, uid: u32, target: MoveTarget },
     Sent { account_id: String, draft_id: u64, warning: Option<String> },
     SendFailed { draft_id: u64, message: String },
@@ -199,6 +203,7 @@ impl Inner {
             Command::OpenFolder { account_id, path } => self.open_folder(&account_id, &path).await,
             Command::RefreshFolder { account_id, path } => self.load_folder(&account_id, &path, true).await,
             Command::FetchBody { account_id, folder, uid } => self.fetch_body(&account_id, &folder, uid).await,
+            Command::LoadConversation { account_id, folder, uid } => self.load_conversation(&account_id, &folder, uid).await,
             Command::Move { account_id, folder, uid, target } => self.move_message(&account_id, &folder, uid, target).await,
             Command::Send { account_id, outgoing, answered, draft_id } => self.send(&account_id, outgoing, answered, draft_id).await,
             Command::FetchRemoteImages { account_id, folder, uid, urls } => {
@@ -603,6 +608,22 @@ impl Inner {
             // A failed background reload stays quiet; the watcher retries.
             Err(e) if refresh => eprintln!("fuu: refreshing {path}: {e}"),
             Err(e) => self.emit(Event::Error(e)),
+        }
+    }
+
+    async fn load_conversation(&self, account_id: &str, folder: &str, uid: u32) {
+        let Some(account) = self.account(account_id).await else { return };
+        let sent = self.folders.lock().await.get(&account.id)
+            .and_then(|folders| folders.iter().find(|f| f.role == FolderRole::Sent).map(|f| f.path.clone()));
+        let folder_owned = folder.to_owned();
+        let result = self.with_session(&account, move |session| {
+            let folder = folder_owned.clone();
+            let sent = sent.clone();
+            Box::pin(async move { imap::fetch_conversation(session, &folder, sent.as_deref(), uid).await })
+        }).await;
+        match result {
+            Ok(messages) => self.emit(Event::Conversation { account_id: account.id, folder: folder.to_owned(), uid, messages }),
+            Err(message) => self.emit(Event::ConversationFailed { account_id: account.id, folder: folder.to_owned(), uid, message }),
         }
     }
 

@@ -130,7 +130,7 @@ one) and go through `fuu_core::mailto::parse` only.
   uid and made 0600). The receiver accepts one
   message of at most 64 KiB that is empty (show the window) or starts with
   `mailto:`; anything else is dropped.
-- **Registration.** Settings → 一般 → 「Fuu を既定にする」 writes, for the current
+- **Registration.** Settings → General → “Make Fuu the default” writes, for the current
   user only, `Software\Classes\Fuu.mailto`, `Software\Clients\Mail\Fuu` and a
   `Software\RegisteredApplications` value, then opens Windows' Default apps page:
   Windows lets only the user pick the default. Fuu never writes
@@ -145,3 +145,33 @@ one) and go through `fuu_core::mailto::parse` only.
 Tests: `fuu_core::mailto` unit tests (percent-decoding, `+`, CR/LF injection,
 `attach`, broken escapes, caps) and a registry round trip in a scratch key.
 
+## Updates
+
+Fuu checks for new versions and can replace itself (`crates/fuu-app/src/update.rs`,
+cargo-packager-updater).
+
+- **One request, no identifiers.** A check is a single HTTPS GET of
+  `https://github.com/palf-gh/Fuu/releases/latest/download/latest.json` (30 s
+  timeout), shortly after start-up or when the user presses “Check now”. It sends
+  no account, usage or machine data beyond what any HTTPS request carries. The
+  check can be turned off under Settings → General; dummy-data and snapshot runs
+  never check.
+- **Signed payloads.** Every update payload (the Windows installer, the macOS
+  `.app.tar.gz`, the AppImage) is signed with minisign in the release workflow.
+  Fuu verifies the signature against the public key compiled into the binary
+  before installing anything; a payload whose signature does not match is
+  discarded. `latest.json` itself is not trusted beyond pointing at a payload and
+  its signature, and only versions newer than the running one are offered.
+- **The user decides.** Nothing is downloaded or installed until the user presses
+  the update button. On Windows the signed installer runs in passive mode for the
+  current user (no administrator rights); on macOS and with the AppImage the app
+  is swapped in place and the user restarts it. A `.deb` install is managed by the
+  system package manager, so Fuu only opens the releases page.
+- **Key handling.** The private signing key and its password live only in the
+  repository secrets `UPDATER_PRIVATE_KEY` / `UPDATER_PRIVATE_KEY_PASSWORD`, used by
+  the release job; they are never committed. Replacing the key requires first
+  shipping a release that embeds the new public key.
+
+What this does not cover yet: the packages are not code-signed or notarised by
+Microsoft or Apple, and a compromise of the GitHub account and the signing secret
+together would allow a malicious update.
