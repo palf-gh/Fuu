@@ -1,0 +1,11 @@
+[package]
+name = "fuu-i18n"
+description = "UI language selection and string translation (gettext .po files compiled in)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[dependencies]

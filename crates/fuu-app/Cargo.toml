@@ -24,6 +24,7 @@ fuu-core.workspace = true
 fuu-parser.workspace = true
 fuu-editor.workspace = true
 fuu-preview.workspace = true
+fuu-i18n.workspace = true
 rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "tokio"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 slint = { version = "1.19", features = ["raw-window-handle-06", "unstable-winit-030"] }
@@ -34,6 +35,8 @@ png = "0.18"
 # Signed self-updates from GitHub Releases (latest.json + minisign).
 cargo-packager-updater = "0.2.3"
 semver = "1"
+# The OS language, to pick the UI translation.
+sys-locale = "0.3"
 
 [dev-dependencies]
 # examples/make_icons.rs (same version Slint already builds).

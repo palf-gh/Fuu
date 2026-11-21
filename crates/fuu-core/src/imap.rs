@@ -16,6 +16,7 @@ use tokio_rustls::client::TlsStream;
 use tokio_rustls::TlsConnector;
 
 use crate::account::{Security, ServerConfig};
+use fuu_i18n::tr;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(45);
@@ -32,11 +33,11 @@ pub enum ImapError {
 impl std::fmt::Display for ImapError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Connect(e) => write!(f, "サーバーに接続できません: {e}"),
-            Self::Tls(e) => write!(f, "暗号化接続を確立できません: {e}"),
-            Self::Auth(e) => write!(f, "ログインできません（ユーザー名かパスワードを確認してください）: {e}"),
-            Self::Protocol(e) => write!(f, "IMAP サーバーとの通信に失敗しました: {e}"),
-            Self::Timeout => f.write_str("サーバーの応答がありません（タイムアウト）"),
+            Self::Connect(e) => f.write_str(&tr!("Cannot connect to the server: {0}", e)),
+            Self::Tls(e) => f.write_str(&tr!("Cannot set up an encrypted connection: {0}", e)),
+            Self::Auth(e) => f.write_str(&tr!("Cannot sign in (check the user name and password): {0}", e)),
+            Self::Protocol(e) => f.write_str(&tr!("Talking to the IMAP server failed: {0}", e)),
+            Self::Timeout => f.write_str(tr!("The server did not answer (timed out)")),
         }
     }
 }
@@ -418,7 +419,7 @@ pub async fn fetch_body(session: &mut ImapSession, path: &str, uid: u32) -> Resu
             .or(fetches.first())
             .and_then(|f| f.body())
             .map(<[u8]>::to_vec)
-            .ok_or_else(|| ImapError::Protocol(format!("UID {uid} のメールが見つかりません")))?;
+            .ok_or_else(|| ImapError::Protocol(tr!("Message UID {0} not found", uid)))?;
         let _: Vec<Fetch> = session
             .uid_store(uid.to_string(), "+FLAGS.SILENT (\\Seen)")
             .await

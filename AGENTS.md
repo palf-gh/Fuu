@@ -16,5 +16,6 @@
   it first, polish it with the yomiyasu skill, then translate it into English
   and every other language. Translations are AI-made and say so, inviting
   corrections.
-- UI strings are English in the source (`@tr()` in Slint, `tr!` in Rust);
-  translations live in `crates/fuu-app/lang/<lang>/LC_MESSAGES/fuu.po`.
+- UI strings are English in the source (`@tr()` in Slint, `fuu_i18n::tr!` in
+  Rust); translations live in `lang/<lang>/LC_MESSAGES/fuu-app.po`. After
+  changing strings run `python scripts/i18n.py` to update the catalogues.

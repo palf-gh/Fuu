@@ -10,6 +10,7 @@ use chrono::{Datelike, Local, NaiveDate, TimeZone};
 use slint::{Model, VecModel};
 
 use crate::MessageRow;
+use fuu_i18n::tr;
 
 /// Months before this one that get a section of their own.
 const MONTHS: i32 = 12;
@@ -22,7 +23,7 @@ thread_local! {
 /// The section for a message dated `timestamp`, seen from `today` (local).
 pub fn date_section(timestamp: i64, today: NaiveDate) -> String {
     let Some(date) = Local.timestamp_opt(timestamp, 0).single().map(|d| d.date_naive()) else {
-        return "さらに前".into();
+        return tr!("Older").into();
     };
     section_for(date, today)
 }
@@ -30,17 +31,18 @@ pub fn date_section(timestamp: i64, today: NaiveDate) -> String {
 /// The section for `date`; future dates (clock skew) count as today.
 pub fn section_for(date: NaiveDate, today: NaiveDate) -> String {
     match (today - date).num_days() {
-        ..=0 => return "今日".into(),
-        1 => return "昨日".into(),
-        2 => return "一昨日".into(),
+        ..=0 => return tr!("Today").into(),
+        1 => return tr!("Yesterday").into(),
+        2 => return tr!("Two days ago").into(),
         _ => {}
     }
     let months_back = (today.year() * 12 + today.month0() as i32) - (date.year() * 12 + date.month0() as i32);
     match months_back {
-        0 => "今月".into(),
-        1..=MONTHS if date.year() == today.year() => format!("{}月", date.month()),
-        1..=MONTHS => format!("{}年{}月", date.year(), date.month()),
-        _ => "さらに前".into(),
+        0 => tr!("This month").into(),
+        1..=MONTHS if date.year() == today.year() => fuu_core::compose::month_name(date.month()).into(),
+        // {0} the month's name, {1} the year.
+        1..=MONTHS => tr!("{0} {1}", fuu_core::compose::month_name(date.month()), date.year()),
+        _ => tr!("Older").into(),
     }
 }
 
@@ -130,30 +132,30 @@ mod tests {
     #[test]
     fn recent_days() {
         let today = d(2026, 11, 19);
-        assert_eq!(section_for(d(2026, 11, 19), today), "今日");
-        assert_eq!(section_for(d(2026, 11, 20), today), "今日");
-        assert_eq!(section_for(d(2026, 11, 18), today), "昨日");
-        assert_eq!(section_for(d(2026, 11, 17), today), "一昨日");
-        assert_eq!(section_for(d(2026, 11, 16), today), "今月");
-        assert_eq!(section_for(d(2026, 11, 1), today), "今月");
+        assert_eq!(section_for(d(2026, 11, 19), today), "Today");
+        assert_eq!(section_for(d(2026, 11, 20), today), "Today");
+        assert_eq!(section_for(d(2026, 11, 18), today), "Yesterday");
+        assert_eq!(section_for(d(2026, 11, 17), today), "Two days ago");
+        assert_eq!(section_for(d(2026, 11, 16), today), "This month");
+        assert_eq!(section_for(d(2026, 11, 1), today), "This month");
     }
 
     #[test]
     fn months_and_older() {
         let today = d(2026, 11, 19);
-        assert_eq!(section_for(d(2026, 10, 31), today), "10月");
-        assert_eq!(section_for(d(2026, 1, 5), today), "1月");
-        assert_eq!(section_for(d(2025, 12, 5), today), "2025年12月");
-        assert_eq!(section_for(d(2025, 11, 30), today), "2025年11月");
-        assert_eq!(section_for(d(2025, 10, 31), today), "さらに前");
+        assert_eq!(section_for(d(2026, 10, 31), today), "October");
+        assert_eq!(section_for(d(2026, 1, 5), today), "January");
+        assert_eq!(section_for(d(2025, 12, 5), today), "December 2025");
+        assert_eq!(section_for(d(2025, 11, 30), today), "November 2025");
+        assert_eq!(section_for(d(2025, 10, 31), today), "Older");
     }
 
     #[test]
     fn yesterday_wins_over_last_month() {
         let today = d(2026, 12, 1);
-        assert_eq!(section_for(d(2026, 11, 30), today), "昨日");
-        assert_eq!(section_for(d(2026, 11, 29), today), "一昨日");
-        assert_eq!(section_for(d(2026, 11, 28), today), "11月");
+        assert_eq!(section_for(d(2026, 11, 30), today), "Yesterday");
+        assert_eq!(section_for(d(2026, 11, 29), today), "Two days ago");
+        assert_eq!(section_for(d(2026, 11, 28), today), "November");
     }
 
     fn row(section: &str) -> MessageRow {
@@ -162,31 +164,31 @@ mod tests {
 
     #[test]
     fn headers_follow_runs() {
-        let mut rows = vec![row("今日"), row("今日"), row("昨日"), row("10月")];
+        let mut rows = vec![row("Today"), row("Today"), row("Yesterday"), row("October")];
         mark(&mut rows, None);
         assert_eq!(rows.iter().map(|r| r.header).collect::<Vec<_>>(), [true, false, true, true]);
-        let mut more = vec![row("10月"), row("9月")];
-        mark(&mut more, Some("10月"));
+        let mut more = vec![row("October"), row("September")];
+        mark(&mut more, Some("October"));
         assert_eq!(more.iter().map(|r| r.header).collect::<Vec<_>>(), [false, true]);
     }
 
     #[test]
     fn collapsing_hides_rows_and_steps_skip_them() {
-        let mut rows = vec![row("今日"), row("昨日"), row("昨日"), row("10月")];
+        let mut rows = vec![row("Today"), row("Yesterday"), row("Yesterday"), row("October")];
         mark(&mut rows, None);
         let model = VecModel::from(rows);
-        assert!(toggle(&model, "昨日"));
+        assert!(toggle(&model, "Yesterday"));
         assert!(model.row_data(1).unwrap().collapsed && model.row_data(2).unwrap().collapsed);
         assert_eq!(step(&model, 0, 1), 3);
         assert_eq!(step(&model, 3, -1), 0);
         assert_eq!(step(&model, 3, 1), 3);
-        assert!(!toggle(&model, "昨日"));
+        assert!(!toggle(&model, "Yesterday"));
         assert_eq!(step(&model, 0, 1), 1);
     }
 
     #[test]
     fn removing_a_header_promotes_the_next_row() {
-        let mut rows = vec![row("今日"), row("昨日"), row("昨日")];
+        let mut rows = vec![row("Today"), row("Yesterday"), row("Yesterday")];
         mark(&mut rows, None);
         let model = VecModel::from(rows);
         model.remove(1);

@@ -2187,6 +2187,7 @@ dependencies = [
  "chrono",
  "fuu-core",
  "fuu-editor",
+ "fuu-i18n",
  "fuu-model",
  "fuu-parser",
  "fuu-preview",
@@ -2202,6 +2203,7 @@ dependencies = [
  "semver",
  "slint",
  "slint-build",
+ "sys-locale",
  "tokio",
  "windows-sys 0.61.2",
  "winresource",
@@ -2216,6 +2218,7 @@ dependencies = [
  "chrono",
  "dirs 7.0.0",
  "futures",
+ "fuu-i18n",
  "fuu-model",
  "fuu-parser",
  "fuu-sanitiser",
@@ -2248,6 +2251,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "fuu-i18n"
+version = "0.1.0"
+
+[[package]]
 name = "fuu-model"
 version = "0.1.0"
 
@@ -2257,6 +2264,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "encoding_rs",
+ "fuu-i18n",
  "fuu-model",
  "mail-parser",
 ]
@@ -2267,6 +2275,7 @@ version = "0.1.0"
 dependencies = [
  "calamine",
  "chrono",
+ "fuu-i18n",
  "fuu-model",
  "fuu-sanitiser",
  "hayro",

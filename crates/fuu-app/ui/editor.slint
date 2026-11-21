@@ -273,7 +273,7 @@ export component RichEditor inherits Rectangle {
             VerticalLayout {
                 padding: 10px;
                 spacing: 8px;
-                Text { text: "リンク（選択した文字に設定）"; font-size: Theme.font-xs; color: Theme.text-faint; }
+                Text { text: @tr("Link (applies to the selected text)"); font-size: Theme.font-xs; color: Theme.text-faint; }
                 link-edit := LineEdit {
                     placeholder-text: "https://";
                     text <=> root.link-text;
@@ -282,8 +282,8 @@ export component RichEditor inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     alignment: end;
-                    MenuRow { has-icon: false; label: "解除"; width: 64px; clicked => { root.command("unlink"); link-popup.close(); input.focus(); } }
-                    MenuRow { has-icon: false; label: "設定"; width: 64px; clicked => { root.command("link:" + root.link-text); link-popup.close(); input.focus(); } }
+                    MenuRow { has-icon: false; label: @tr("Remove"); width: 64px; clicked => { root.command("unlink"); link-popup.close(); input.focus(); } }
+                    MenuRow { has-icon: false; label: @tr("Set"); width: 64px; clicked => { root.command("link:" + root.link-text); link-popup.close(); input.focus(); } }
                 }
             }
         }
@@ -327,10 +327,10 @@ export component RichEditor inherits Rectangle {
             border-color: Theme.hairline;
             VerticalLayout {
                 padding: 6px;
-                MenuRow { has-icon: false; label: "小"; clicked => { root.command("size:small"); input.focus(); } }
-                MenuRow { has-icon: false; label: "標準"; clicked => { root.command("size:normal"); input.focus(); } }
-                MenuRow { has-icon: false; label: "大"; clicked => { root.command("size:large"); input.focus(); } }
-                MenuRow { has-icon: false; label: "特大"; clicked => { root.command("size:huge"); input.focus(); } }
+                MenuRow { has-icon: false; label: @tr("Small"); clicked => { root.command("size:small"); input.focus(); } }
+                MenuRow { has-icon: false; label: @tr("Normal"); clicked => { root.command("size:normal"); input.focus(); } }
+                MenuRow { has-icon: false; label: @tr("Large"); clicked => { root.command("size:large"); input.focus(); } }
+                MenuRow { has-icon: false; label: @tr("Huge"); clicked => { root.command("size:huge"); input.focus(); } }
             }
         }
     }

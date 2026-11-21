@@ -14,6 +14,7 @@ use cargo_packager_updater::{Config, Update, UpdaterBuilder, WindowsConfig, Wind
 use slint::ComponentHandle;
 
 use crate::AppWindow;
+use fuu_i18n::tr;
 
 const ENDPOINT: &str = "https://github.com/palf-gh/Fuu/releases/latest/download/latest.json";
 const RELEASES: &str = "https://github.com/palf-gh/Fuu/releases/latest";
@@ -58,7 +59,7 @@ pub fn check(ui: &AppWindow, manual: bool) {
     }
     if manual {
         ui.set_update_state(state::CHECKING);
-        ui.set_update_status("確認しています…".into());
+        ui.set_update_status(tr!("Checking…").into());
     }
     let weak = ui.as_weak();
     std::thread::spawn(move || {
@@ -73,17 +74,17 @@ pub fn check(ui: &AppWindow, manual: bool) {
                 Ok(Some(update)) => {
                     ui.set_update_version(update.version.clone().into());
                     ui.set_update_state(state::AVAILABLE);
-                    ui.set_update_status(format!("新しいバージョン {} があります。", update.version).into());
+                    ui.set_update_status(tr!("Version {0} is available.", update.version).into());
                     *PENDING.lock().unwrap() = Some(update);
                 }
                 Ok(None) => {
                     ui.set_update_state(state::IDLE);
-                    ui.set_update_status(format!("最新のバージョン（{}）です。", current_version()).into());
+                    ui.set_update_status(tr!("You have the latest version ({0}).", current_version()).into());
                 }
                 Err(e) => {
                     ui.set_update_state(state::IDLE);
                     if manual {
-                        ui.set_update_status(format!("確認できませんでした: {e}").into());
+                        ui.set_update_status(tr!("Could not check: {0}", e).into());
                     }
                 }
             }
@@ -128,16 +129,16 @@ pub fn install(ui: &AppWindow) {
             let Some(ui) = weak.upgrade() else { return };
             let bytes = match downloaded {
                 Ok(b) => b,
-                Err(e) => return failed(&ui, update, format!("ダウンロードできませんでした: {e}")),
+                Err(e) => return failed(&ui, update, tr!("Could not download: {0}", e)),
             };
             // Windows: the installer takes over and this process exits here.
             crate::mail::flush_signatures_on_quit();
             match update.install(bytes) {
                 Ok(()) => {
                     ui.set_update_state(state::READY);
-                    ui.set_update_status(format!("バージョン {} を入れました。再起動すると使えます。", update.version).into());
+                    ui.set_update_status(tr!("Version {0} is installed. Restart to use it.", update.version).into());
                 }
-                Err(e) => failed(&ui, update, format!("更新できませんでした: {e}")),
+                Err(e) => failed(&ui, update, tr!("Could not update: {0}", e)),
             }
         });
     });

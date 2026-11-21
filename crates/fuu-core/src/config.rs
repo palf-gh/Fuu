@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::account::Account;
+use fuu_i18n::tr;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AccountsFile {
@@ -22,9 +23,9 @@ pub enum ConfigError {
 impl std::fmt::Display for ConfigError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NoConfigDir => f.write_str("設定フォルダーが見つかりません"),
-            Self::Io(e) => write!(f, "設定ファイルの読み書きに失敗しました: {e}"),
-            Self::Parse(e) => write!(f, "設定ファイルを解釈できません: {e}"),
+            Self::NoConfigDir => f.write_str(tr!("The settings folder was not found")),
+            Self::Io(e) => f.write_str(&tr!("Could not read or write the settings file: {0}", e)),
+            Self::Parse(e) => f.write_str(&tr!("Could not understand the settings file: {0}", e)),
         }
     }
 }
@@ -61,11 +62,13 @@ pub struct Preferences {
     pub theme: u8,
     /// Send an HTML part alongside the plain text.
     pub compose_html: bool,
+    /// UI language code (see fuu-i18n); empty follows the system.
+    pub language: String,
 }
 
 impl Default for Preferences {
     fn default() -> Self {
-        Preferences { check_updates: true, theme: 0, compose_html: true }
+        Preferences { check_updates: true, theme: 0, compose_html: true, language: String::new() }
     }
 }
 
@@ -156,7 +159,7 @@ mod tests {
         assert_eq!(load_prefs(&path), Preferences::default());
         std::fs::write(&path, "theme = 2\nfuture_key = 1\n").unwrap();
         assert_eq!(load_prefs(&path), Preferences { theme: 2, ..Preferences::default() });
-        let prefs = Preferences { check_updates: false, theme: 1, compose_html: false };
+        let prefs = Preferences { check_updates: false, theme: 1, compose_html: false, language: "de".into() };
         save_prefs(&path, &prefs).unwrap();
         assert_eq!(load_prefs(&path), prefs);
         std::fs::write(&path, "theme = \"broken").unwrap();

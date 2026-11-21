@@ -7,6 +7,7 @@ use fuu_model::{Address, Attachment, BodyPart, Headers, InlineResource, ParsedMe
 use mail_parser::{HeaderValue, Message, MessageParser as MpParser, MimeHeaders, PartType};
 
 use crate::{headers, MessageParser, ParseError, ParseLimits};
+use fuu_i18n::tr;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct MailParserEngine;
@@ -138,8 +139,8 @@ fn parse_inner(raw: &[u8], limits: &ParseLimits) -> Result<ParsedMessage, ParseE
         }
         let name: Cow<'_, str> = match part.attachment_name() {
             Some(name) => Cow::Owned(strip_bidi(name)),
-            None if matches!(part.body, PartType::Message(_)) => Cow::Owned(format!("転送メール{}.eml", n + 1)),
-            None => Cow::Owned(format!("添付ファイル{}", n + 1)),
+            None if matches!(part.body, PartType::Message(_)) => Cow::Owned(tr!("Forwarded message {0}.eml", n + 1)),
+            None => Cow::Owned(tr!("Attachment {0}", n + 1)),
         };
         attachments.push(Attachment { file_name: name.into_owned(), mime, size: part.contents().len() as u64, part_index: id as usize });
     }

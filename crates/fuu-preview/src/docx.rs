@@ -14,6 +14,7 @@ use quick_xml::Reader;
 use crate::html::{colour, escape, note};
 use crate::ooxml::{attr, dir_of, rels_path, relationships, Package, Target};
 use crate::{Output, PreviewError};
+use fuu_i18n::tr;
 
 /// Longest side of an embedded picture.
 const IMAGE_SIDE: u32 = 1600;
@@ -319,7 +320,7 @@ impl Converter<'_> {
                         let size = width.map_or(String::new(), |w| format!(" width=\"{w}\""));
                         self.push_html(&format!("<img src=\"{src}\"{size} style=\"max-width: 100%; height: auto;\" alt=\"\">"));
                     }
-                    None => self.push_html("<span style=\"color: #a3a19b;\">[図]</span>"),
+                    None => self.push_html(&format!("<span style=\"color: #a3a19b;\">{}</span>", tr!("[Picture]"))),
                 }
             }
             _ => {}
@@ -644,7 +645,7 @@ impl Converter<'_> {
 pub(crate) fn preview(data: &[u8]) -> Result<Output, PreviewError> {
     let mut package = Package::open(data)?;
     let document = "word/document.xml";
-    let xml = package.read_text(document)?.ok_or_else(|| PreviewError::Unreadable("Word 文書として読み取れません".into()))?;
+    let xml = package.read_text(document)?.ok_or_else(|| PreviewError::Unreadable(tr!("Not readable as a Word document").into()))?;
     let rels = package.read_text(&rels_path(document))?.map(|r| relationships(&r, dir_of(document))).unwrap_or_default();
     let numbering = package.read_text("word/numbering.xml")?.map(|x| numbering(&x)).unwrap_or_default();
     let headings = package.read_text("word/styles.xml")?.map(|x| headings(&x)).unwrap_or_default();
@@ -679,7 +680,7 @@ pub(crate) fn preview(data: &[u8]) -> Result<Output, PreviewError> {
                 }
             }
             Ok(Event::Eof) => break,
-            Err(_) => return Err(PreviewError::Unreadable("Word 文書の内容が壊れています".into())),
+            Err(_) => return Err(PreviewError::Unreadable(tr!("The Word document is damaged").into())),
             _ => {}
         }
     }
@@ -688,10 +689,10 @@ pub(crate) fn preview(data: &[u8]) -> Result<Output, PreviewError> {
     }
     let mut notes = String::new();
     if c.truncated {
-        notes.push_str(&note("長い文書のため、途中までを表示しています"));
+        notes.push_str(&note(tr!("A long document: only the beginning is shown")));
     }
     if c.dropped_external > 0 {
-        notes.push_str(&note(&format!("外部から読み込む画像 {} 件は表示していません", c.dropped_external)));
+        notes.push_str(&note(&tr!("Pictures loaded from elsewhere, not shown: {0}", c.dropped_external)));
     }
     let mut out = c.out;
     out.html = format!("{notes}<div class=\"fuu-doc\">{}</div>", out.html);
@@ -751,7 +752,7 @@ pub(crate) mod tests {
         assert!(h.contains("危険"), "the link text is kept: {h}");
         assert_eq!(out.images.len(), 1, "embedded picture only");
         assert!(h.contains("width=\"100\""), "{h}");
-        assert!(h.contains("外部から読み込む画像 1 件"), "{h}");
+        assert!(h.contains("not shown: 1"), "{h}");
         assert!(h.contains("表") && !h.contains("二重") && !h.contains("削除済み"), "{h}");
         assert!(h.contains("colspan=\"2\"") && h.contains("background-color: #d9e2f3"), "{h}");
     }

@@ -12,6 +12,7 @@ use hayro::vello_cpu::color::palette::css::WHITE;
 use hayro::{render, PixmapSettings, RenderCache, RenderSettings};
 
 use crate::{html, Output, PreviewError};
+use fuu_i18n::tr;
 
 /// Pages rendered; longer documents show a note.
 const MAX_PAGES: usize = 15;
@@ -133,23 +134,23 @@ fn settings() -> InterpreterSettings {
 pub(crate) fn preview(data: &[u8]) -> Result<Output, PreviewError> {
     let pdf = Pdf::new(data.to_vec()).map_err(|e| {
         PreviewError::Unreadable(match e {
-            hayro::hayro_syntax::LoadPdfError::Decryption(_) => "パスワードで保護されています".into(),
-            _ => "PDF として読み取れません".into(),
+            hayro::hayro_syntax::LoadPdfError::Decryption(_) => tr!("Protected by a password").into(),
+            _ => tr!("Not readable as a PDF").into(),
         })
     })?;
     let pages = pdf.pages();
     let total = pages.len();
     if total == 0 {
-        return Err(PreviewError::Unreadable("ページがありません".into()));
+        return Err(PreviewError::Unreadable(tr!("There are no pages").into()));
     }
     let settings = settings();
     let cache = RenderCache::new();
     let mut out = Output::default();
     let shown = total.min(MAX_PAGES);
     out.html.push_str(&html::note(&if total > shown {
-        format!("全 {total} ページのうち、最初の {shown} ページを表示しています")
+        tr!("Showing the first {1} of {0} pages", total, shown)
     } else {
-        format!("{total} ページ")
+        tr!("Pages: {0}", total)
     }));
     for page in pages.iter().take(shown) {
         let (w, h) = page.render_dimensions();
@@ -222,7 +223,7 @@ pub(crate) mod tests {
     fn renders_pages_as_images() {
         let out = preview(&sample_pdf(false)).unwrap();
         assert_eq!(out.images.len(), 1);
-        assert!(out.html.contains("1 ページ"));
+        assert!(out.html.contains("Pages: 1"));
         let page = image::load_from_memory(&out.images[0].data).unwrap();
         assert_eq!(page.width(), 1200);
         assert!(ink(&out.images[0].data) > 0.005, "text drawn");

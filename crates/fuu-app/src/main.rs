@@ -22,6 +22,7 @@ use fuu_render::blitz::{BlitzRenderer, RenderedPage};
 use fuu_render::{BodyRenderer, LinkHandler, LinkRequest, PointerPhase, RenderStats};
 use slint::{ComponentHandle, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
 use tabs::{AttachmentRef, Draft, DraftAttachment, MessageRef, Tab, TabContent, Tabs};
+use fuu_i18n::tr;
 
 slint::include_modules!();
 
@@ -246,7 +247,9 @@ fn create_reader(ui: &AppWindow, pending_link: Rc<RefCell<Option<String>>>) -> R
 
 type SharedTabs = Rc<RefCell<Tabs>>;
 
-const TAB_LIMIT_MESSAGE: &str = "タブは最大 32 個までです";
+fn tab_limit_message() -> &'static str {
+    tr!("You can have up to 32 tabs")
+}
 
 /// The signature block for a new draft from `account` (the active account
 /// when None): that account's signature after a blank line, if it has one.
@@ -263,13 +266,13 @@ fn signature(account: Option<&str>) -> String {
 
 fn tab_title(tab: &Tab) -> String {
     match &tab.content {
-        TabContent::Message(r) => if r.subject.trim().is_empty() { "（件名なし）".into() } else { r.subject.clone() },
+        TabContent::Message(r) => if r.subject.trim().is_empty() { tr!("(no subject)").into() } else { r.subject.clone() },
         TabContent::Attachment(a) => a.name.clone(),
         TabContent::SecuritySample => "セキュリティ検査文書".into(),
         TabContent::CjkSample => "CJK 表示サンプル".into(),
         TabContent::Draft(d) => if d.subject.trim().is_empty() { d.title.clone() } else { d.subject.clone() },
-        TabContent::Settings => "設定".into(),
-        TabContent::AccountSetup => if mail::is_editing_account() { "アカウントを編集" } else { "アカウントを追加" }.into(),
+        TabContent::Settings => tr!("Settings").into(),
+        TabContent::AccountSetup => if mail::is_editing_account() { tr!("Edit account") } else { tr!("Add account") }.into(),
     }
 }
 
@@ -439,8 +442,8 @@ fn apply_active(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs) {
         None => None,
         Some(TabContent::Message(r)) => Some(show_message(ui, &r)),
         Some(TabContent::Attachment(a)) => {
-            let subject = if a.message.subject.trim().is_empty() { "（件名なし）" } else { a.message.subject.as_str() };
-            set_reader_header(ui, &a.name, &preview::describe(&a), "", &format!("「{subject}」の添付ファイル"));
+            let subject = if a.message.subject.trim().is_empty() { tr!("(no subject)") } else { a.message.subject.as_str() };
+            set_reader_header(ui, &a.name, &preview::describe(&a), "", &tr!("Attachment of “{0}”", subject));
             ui.set_viewing_attachment(true);
             Some(preview::document(ui, &a))
         }
@@ -498,7 +501,7 @@ fn show_message(ui: &AppWindow, r: &MessageRef) -> SafeDocument {
         }
     }
     let name = if r.from_name.is_empty() { r.from_email.as_str() } else { r.from_name.as_str() };
-    let subject = if r.subject.trim().is_empty() { "（件名なし）" } else { r.subject.as_str() };
+    let subject = if r.subject.trim().is_empty() { tr!("(no subject)") } else { r.subject.as_str() };
     set_reader_header(ui, subject, name, &r.from_email, &r.date_text);
     if mail::is_spike() {
         return samples::message_document(r.row, &r.subject);
@@ -522,7 +525,7 @@ fn show_message(ui: &AppWindow, r: &MessageRef) -> SafeDocument {
 fn show_viewer(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, content: TabContent) {
     save_draft(ui, tabs);
     if tabs.borrow_mut().show(content).is_err() {
-        crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
+        crate::notify(&ui, tab_limit_message(), false);
         return;
     }
     apply_active(ui, state, tabs);
@@ -558,9 +561,9 @@ const ATTACHMENT_LIMIT: usize = 20 * 1024 * 1024;
 /// Settings: whether Fuu handles mailto: links.
 fn refresh_default_mail_status(ui: &AppWindow) {
     let (text, is_default) = match os_mail::is_default() {
-        Some(true) => ("Fuu が既定のメールアプリです。", true),
-        Some(false) => ("メールアドレスのリンクを開くと、ほかのアプリが起動します。", false),
-        None => ("アプリとして（Fuu.app から）起動すると設定できます。", false),
+        Some(true) => (tr!("Fuu is your default mail app."), true),
+        Some(false) => (tr!("Email links currently open another app."), false),
+        None => (tr!("Available when Fuu runs as an app (Fuu.app)."), false),
     };
     ui.set_default_mail_status(text.into());
     ui.set_is_default_mail_app(is_default);
@@ -589,11 +592,11 @@ fn open_mailto(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, url: Stri
         return;
     }
     let Some(m) = fuu_core::mailto::parse(&url) else {
-        notify(ui, "メールのリンクを開けませんでした", true);
+        notify(ui, tr!("Could not open the email link"), true);
         return;
     };
     let draft = Draft {
-        title: "新規メッセージ".into(),
+        title: tr!("New message").into(),
         to: m.to,
         cc: m.cc,
         bcc: m.bcc,
@@ -610,7 +613,7 @@ fn open_draft(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, mut draft:
     draft.from = match &account {
         Some(a) if a.display_name.is_empty() => a.email.clone(),
         Some(a) => format!("{} <{}>", a.display_name, a.email),
-        None => "（アカウント未設定）".into(),
+        None => tr!("(no account set up)").into(),
     };
     draft.account_id = account.map(|a| a.id).unwrap_or_default();
     draft.id = NEXT_DRAFT_ID.with(|c| {
@@ -620,7 +623,7 @@ fn open_draft(ui: &AppWindow, state: &SharedState, tabs: &SharedTabs, mut draft:
     });
     draft.show_cc_bcc = draft.show_cc_bcc || !draft.cc.is_empty() || !draft.bcc.is_empty();
     if tabs.borrow_mut().open(TabContent::Draft(draft), true).is_err() {
-        crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
+        crate::notify(&ui, tab_limit_message(), false);
         return;
     }
     apply_active(ui, state, tabs);
@@ -865,6 +868,18 @@ pub(crate) fn notify(ui: &AppWindow, text: impl Into<SharedString>, error: bool)
     });
 }
 
+/// Switch the UI language (`""` follows the system): Slint's bundled
+/// translations and fuu-i18n for strings built in Rust.
+fn apply_language(choice: &str) {
+    let code = if choice.is_empty() {
+        fuu_i18n::language_for_locale(&sys_locale::get_locale().unwrap_or_default())
+    } else {
+        choice
+    };
+    let used = fuu_i18n::set_language(code);
+    let _ = slint::select_bundled_translation(if used == "en" { "" } else { used });
+}
+
 /// Preferences (prefs.toml) and updates. Dummy-data and snapshot runs keep the
 /// defaults, never save and never check for updates.
 fn install_preferences_and_updates(ui: &AppWindow) {
@@ -875,17 +890,32 @@ fn install_preferences_and_updates(ui: &AppWindow) {
     ui.set_compose_html(prefs.compose_html);
     ui.set_check_updates(prefs.check_updates);
     ui.set_app_version(update::current_version().into());
+    // Language: the saved choice, else the system's (FUU_LANG for dummy runs).
+    let names: Vec<slint::SharedString> = std::iter::once(slint::SharedString::from(fuu_i18n::tr!("System default")))
+        .chain(fuu_i18n::LANGUAGES.iter().map(|(_, name)| (*name).into()))
+        .collect();
+    ui.set_language_names(ModelRc::new(VecModel::from(names)));
+    let chosen = if dummy { std::env::var("FUU_LANG").unwrap_or_default() } else { prefs.language.clone() };
+    let index = fuu_i18n::LANGUAGES.iter().position(|(code, _)| *code == chosen).map_or(0, |i| i + 1);
+    apply_language(&chosen);
+    ui.set_language_index(index as i32);
 
     let weak = ui.as_weak();
     ui.on_prefs_changed(move || {
         let (Some(ui), Some(path)) = (weak.upgrade(), path.as_deref()) else { return };
+        let language = usize::try_from(ui.get_language_index() - 1)
+            .ok()
+            .and_then(|i| fuu_i18n::LANGUAGES.get(i))
+            .map_or(String::new(), |(code, _)| (*code).to_owned());
+        apply_language(&language);
         let prefs = fuu_core::config::Preferences {
             check_updates: ui.get_check_updates(),
             theme: u8::try_from(ui.get_theme_mode().clamp(0, 2)).unwrap_or(0),
             compose_html: ui.get_compose_html(),
+            language,
         };
         if let Err(e) = fuu_core::config::save_prefs(path, &prefs) {
-            notify(&ui, format!("設定を保存できませんでした: {e}"), true);
+            notify(&ui, tr!("Could not save settings: {0}", e), true);
         }
     });
     let weak = ui.as_weak();
@@ -930,7 +960,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let ui = AppWindow::new()?;
     install_window_chrome(&ui);
     set_message_model(&ui, Vec::new());
-    ui.set_feed_summary("読み込み中…".into());
+    ui.set_feed_summary(tr!("Loading…").into());
     install_preferences_and_updates(&ui);
 
     let state: SharedState = Rc::new(RefCell::new(ReaderState::default()));
@@ -969,7 +999,7 @@ fn main() -> Result<(), slint::PlatformError> {
             save_draft(&ui, &tabs);
             let Some(r) = mail::message_ref(&ui, i as usize) else { return };
             if tabs.borrow_mut().open(TabContent::Message(r), false).is_err() {
-                crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
+                crate::notify(&ui, tab_limit_message(), false);
             }
             render_tabs(&ui, &tabs.borrow());
         });
@@ -996,7 +1026,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(ui) = weak.upgrade() else { return };
             save_draft(&ui, &tabs);
             if tabs.borrow_mut().show_single(TabContent::Settings).is_err() {
-                crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
+                crate::notify(&ui, tab_limit_message(), false);
                 return;
             }
             apply_active(&ui, &state, &tabs);
@@ -1013,7 +1043,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 mail::reset_setup(&ui);
             }
             if tabs.borrow_mut().show_single(TabContent::AccountSetup).is_err() {
-                crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
+                crate::notify(&ui, tab_limit_message(), false);
                 return;
             }
             apply_active(&ui, &state, &tabs);
@@ -1165,7 +1195,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 _ => return,
             };
             match mail::save_attachment(&r, index) {
-                Ok(Some(path)) => crate::notify(&ui, format!("保存しました: {path}"), false),
+                Ok(Some(path)) => crate::notify(&ui, tr!("Saved: {0}", path), false),
                 Ok(None) => {}
                 Err(e) => crate::notify(&ui, e, true),
             }
@@ -1189,7 +1219,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let content = TabContent::Attachment(AttachmentRef { message: r, index: index as usize, name, mime: attachment.mime.clone(), size });
             save_draft(&ui, &tabs);
             if tabs.borrow_mut().show_single(content).is_err() {
-                crate::notify(&ui, TAB_LIMIT_MESSAGE, false);
+                crate::notify(&ui, tab_limit_message(), false);
                 return;
             }
             apply_active(&ui, &state, &tabs);
@@ -1323,7 +1353,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let text = state.borrow().reader.as_ref().and_then(|r| r.renderer.selected_text());
             let Some(text) = text else { return };
             match arboard::Clipboard::new().and_then(|mut c| c.set_text(text.clone())) {
-                Ok(()) => crate::notify(&ui, format!("{} 文字をコピー", text.chars().count()), false),
+                Ok(()) => crate::notify(&ui, tr!("Copied {0} characters", text.chars().count()), false),
                 Err(e) => eprintln!("clipboard: {e}"),
             }
         });
@@ -1359,7 +1389,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_start_compose(move || {
             if let Some(ui) = weak.upgrade() {
-                let draft = Draft { title: "新規メッセージ".into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(None)), ..Draft::default() };
+                let draft = Draft { title: tr!("New message").into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(None)), ..Draft::default() };
                 open_draft(&ui, &state, &tabs, draft);
             }
         });
@@ -1388,7 +1418,7 @@ fn main() -> Result<(), slint::PlatformError> {
             match os_mail::make_default() {
                 Ok(()) => {
                     #[cfg(windows)]
-                    notify(&ui, "「既定のアプリ」で Fuu を選ぶと設定されます", false);
+                    notify(&ui, tr!("Choose Fuu in Default apps to finish"), false);
                 }
                 Err(e) => notify(&ui, e, true),
             }
@@ -1420,7 +1450,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (state, tabs, weak) = (state.clone(), tabs.clone(), ui.as_weak());
         ui.on_compose_to_address(move |address| {
             if let Some(ui) = weak.upgrade() {
-                let draft = Draft { title: "新規メッセージ".into(), to: address.into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(None)), ..Draft::default() };
+                let draft = Draft { title: tr!("New message").into(), to: address.into(), doc: fuu_editor::model::RichDoc::from_plain(&signature(None)), ..Draft::default() };
                 open_draft(&ui, &state, &tabs, draft);
             }
         });
@@ -1432,7 +1462,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) else { return };
             let own: Vec<String> = mail::account_by_id(&r.account_id).map(|a| vec![a.email]).unwrap_or_default();
             let mut draft = Draft {
-                title: if all { "全員に返信" } else { "返信" }.into(),
+                title: if all { tr!("Reply all") } else { tr!("Reply") }.into(),
                 subject: fuu_core::compose::reply_subject(&r.subject),
                 account_id: r.account_id.clone(),
                 answered: (!mail::is_spike()).then(|| (r.folder.clone(), r.uid)),
@@ -1475,7 +1505,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(ui) = weak.upgrade() else { return };
             let Some(TabContent::Message(r)) = tabs.borrow().active().map(|t| t.content.clone()) else { return };
             let mut draft = Draft {
-                title: "転送".into(),
+                title: tr!("Forward").into(),
                 subject: fuu_core::compose::forward_subject(&r.subject),
                 account_id: r.account_id.clone(),
                 doc: fuu_editor::model::RichDoc::from_plain(&format!("\n{}", signature(Some(&r.account_id)))),
@@ -1603,16 +1633,16 @@ fn main() -> Result<(), slint::PlatformError> {
                 ui.set_compose_error(message.into());
             };
             if mail::is_spike() {
-                return fail("開発用データの表示中は送信できません".into());
+                return fail(tr!("Cannot send while showing development data").into());
             }
-            let Some(account) = mail::account_by_id(&d.account_id) else { return fail("送信元のアカウントがありません".into()) };
+            let Some(account) = mail::account_by_id(&d.account_id) else { return fail(tr!("There is no account to send from").into()) };
             let parse = |field: &str| fuu_core::compose::parse_recipients(field);
             let (to, cc, bcc) = match (parse(&d.to), parse(&d.cc), parse(&d.bcc)) {
                 (Ok(a), Ok(b), Ok(c)) => (a, b, c),
                 (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => return fail(e),
             };
             if to.is_empty() && cc.is_empty() && bcc.is_empty() {
-                return fail("宛先を入力してください".into());
+                return fail(tr!("Enter a recipient").into());
             }
             let outgoing = fuu_core::compose::Outgoing {
                 from_name: account.display_name.clone(),
@@ -1693,9 +1723,9 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             let total: usize = d.attachments.iter().map(|a| a.data.len()).sum();
             d.error = if !errors.is_empty() {
-                format!("読み込めませんでした: {}", errors.join(", "))
+                tr!("Could not read: {0}", errors.join(", "))
             } else if total > ATTACHMENT_LIMIT {
-                format!("添付の合計が {} です。サーバーによっては受け付けられません", human_size(total as u64))
+                tr!("The attachments total {0}. Some servers will not accept that much", human_size(total as u64))
             } else {
                 String::new()
             };
@@ -1966,7 +1996,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
                 4 if step == "tooltip" => {
                     let tip = ui.global::<Tooltip>();
-                    tip.set_text("全員に返信".into());
+                    tip.set_text(tr!("Reply all").into());
                     tip.set_x(1000.0);
                     tip.set_y(170.0);
                     tip.set_shown(true);

@@ -10,6 +10,7 @@ use slint::ComponentHandle;
 use crate::mail;
 use crate::tabs::AttachmentRef;
 use crate::AppWindow;
+use fuu_i18n::tr;
 
 /// Converted previews kept in memory (most recent last).
 const CACHE_SIZE: usize = 6;
@@ -57,8 +58,8 @@ pub fn document(ui: &AppWindow, a: &AttachmentRef) -> SafeDocument {
     });
     match cached {
         Some(Ok(doc)) => return (*doc).clone(),
-        Some(Err(None)) => return mail::notice_document("プレビューを作成しています…"),
-        Some(Err(Some(why))) => return mail::notice_document(&format!("{why}。「保存」で保存して開いてください。")),
+        Some(Err(None)) => return mail::notice_document(tr!("Preparing the preview…")),
+        Some(Err(Some(why))) => return mail::notice_document(&tr!("{0}. Use Save to save the file and open it.", why)),
         None => {}
     }
     // The message body holds the bytes; it may still be loading.
@@ -67,7 +68,7 @@ pub fn document(ui: &AppWindow, a: &AttachmentRef) -> SafeDocument {
         Err(notice) => return notice,
     };
     let Some((name, mime, data)) = mail::attachment_data(&body, a.index) else {
-        return mail::notice_document("添付ファイルを取り出せませんでした。");
+        return mail::notice_document(tr!("Could not read the attachment."));
     };
     store(k.clone(), Entry::Loading);
     let weak = ui.as_weak();
@@ -76,7 +77,7 @@ pub fn document(ui: &AppWindow, a: &AttachmentRef) -> SafeDocument {
         let entry = match result {
             Ok(Ok(doc)) => Ok(doc),
             Ok(Err(e)) => Err(e.to_string()),
-            Err(_) => Err("プレビューの作成中に問題が起きました".to_owned()),
+            Err(_) => Err(tr!("Something went wrong while preparing the preview").to_owned()),
         };
         let _ = slint::invoke_from_event_loop(move || {
             store(k, match entry {
@@ -90,9 +91,9 @@ pub fn document(ui: &AppWindow, a: &AttachmentRef) -> SafeDocument {
         });
     });
     if spawned.is_err() {
-        return mail::notice_document("プレビューを作成できませんでした。");
+        return mail::notice_document(tr!("Could not prepare a preview."));
     }
-    mail::notice_document("プレビューを作成しています…")
+    mail::notice_document(tr!("Preparing the preview…"))
 }
 
 fn store(k: Key, entry: Entry) {

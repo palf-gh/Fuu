@@ -1,6 +1,7 @@
 //! Account model and provider presets.
 
 use serde::{Deserialize, Serialize};
+use fuu_i18n::tr;
 
 /// Transport security. Plain-text connections are not offered: Fuu always uses
 /// implicit TLS or enforced STARTTLS, with certificate verification.
@@ -120,7 +121,7 @@ pub fn preset_for(email: &str) -> Option<Preset> {
             provider: "Gmail",
             imap: server("imap.gmail.com", 993, Security::Tls),
             smtp: server("smtp.gmail.com", 465, Security::Tls),
-            note: Some("Google でログインするか、2 段階認証を有効にしてアプリ パスワードを使ってください。"),
+            note: Some(tr!("Sign in with Google, or turn on 2-Step Verification and use an app password.")),
             oauth: Some(crate::oauth::Provider::Google),
             password_login: true,
         }),
@@ -129,7 +130,7 @@ pub fn preset_for(email: &str) -> Option<Preset> {
                 provider: "Outlook.com",
                 imap: server("outlook.office365.com", 993, Security::Tls),
                 smtp: server("smtp-mail.outlook.com", 587, Security::StartTls),
-                note: Some("Outlook.com は Microsoft アカウントでのログインのみ受け付けます。"),
+                note: Some(tr!("Outlook.com only accepts signing in with a Microsoft account.")),
                 oauth: Some(crate::oauth::Provider::Microsoft),
                 password_login: false,
             })
@@ -138,15 +139,15 @@ pub fn preset_for(email: &str) -> Option<Preset> {
             provider: "iCloud",
             imap: server("imap.mail.me.com", 993, Security::Tls),
             smtp: server("smtp.mail.me.com", 587, Security::StartTls),
-            note: Some("Apple アカウントでアプリ用パスワードを作成して使ってください。"),
+            note: Some(tr!("Create an app-specific password for your Apple Account and use it here.")),
             oauth: None,
             password_login: true,
         }),
         "yahoo.co.jp" => Some(Preset {
-            provider: "Yahoo!メール",
+            provider: tr!("Yahoo Mail"),
             imap: server("imap.mail.yahoo.co.jp", 993, Security::Tls),
             smtp: server("smtp.mail.yahoo.co.jp", 465, Security::Tls),
-            note: Some("Yahoo!メールの設定で IMAP / SMTP のアクセスを有効にしてください。"),
+            note: Some(tr!("Turn on IMAP / SMTP access in your Yahoo Mail settings.")),
             oauth: None,
             password_login: true,
         }),

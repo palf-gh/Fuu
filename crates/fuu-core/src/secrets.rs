@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+use fuu_i18n::tr;
 
 /// Service name of every Fuu keychain entry.
 pub const SERVICE: &str = "Fuu";
@@ -18,9 +19,9 @@ pub enum SecretError {
 impl std::fmt::Display for SecretError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unavailable(e) => write!(f, "OS のキーチェーンを利用できません: {e}"),
-            Self::NotFound => f.write_str("パスワードが保存されていません"),
-            Self::Store(e) => write!(f, "キーチェーンの操作に失敗しました: {e}"),
+            Self::Unavailable(e) => f.write_str(&tr!("The system keychain is not available: {0}", e)),
+            Self::NotFound => f.write_str(tr!("No password is saved")),
+            Self::Store(e) => f.write_str(&tr!("Keychain operation failed: {0}", e)),
         }
     }
 }
@@ -149,7 +150,7 @@ pub fn get_long(store: &dyn SecretStore, id: &str) -> Result<String, SecretError
     if !first.starts_with(LEGACY_MARK) && !first.starts_with(CHUNK_MARK) {
         return Ok(first);
     }
-    let (names, head) = layout(id, &first).ok_or_else(|| SecretError::Store("壊れたエントリです".into()))?;
+    let (names, head) = layout(id, &first).ok_or_else(|| SecretError::Store("broken entry".into()))?;
     let mut value = head.to_owned();
     for name in names {
         value.push_str(&store.get(&name)?);

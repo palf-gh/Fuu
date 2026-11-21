@@ -11,6 +11,7 @@ use quick_xml::Reader;
 use crate::html::{colour, escape, note};
 use crate::ooxml::{attr, dir_of, rels_path, relationships, Package, Target};
 use crate::{Output, PreviewError};
+use fuu_i18n::tr;
 
 const MAX_SLIDES: usize = 60;
 const MAX_IMAGES: usize = 80;
@@ -258,7 +259,7 @@ impl Slide<'_> {
                         let size = width.map_or(String::new(), |w| format!(" width=\"{w}\""));
                         format!("<p><img src=\"{src}\"{size} alt=\"\"></p>")
                     }
-                    None => "<p style=\"color: #a3a19b;\">[図]</p>".into(),
+                    None => format!("<p style=\"color: #a3a19b;\">{}</p>", tr!("[Picture]")),
                 }
             }
             _ => String::new(),
@@ -278,7 +279,7 @@ impl Slide<'_> {
 /// Slide part paths in presentation order.
 fn slide_paths(package: &mut Package) -> Result<Vec<String>, PreviewError> {
     let main = "ppt/presentation.xml";
-    let xml = package.read_text(main)?.ok_or_else(|| PreviewError::Unreadable("PowerPoint ファイルとして読み取れません".into()))?;
+    let xml = package.read_text(main)?.ok_or_else(|| PreviewError::Unreadable(tr!("Not readable as a PowerPoint file").into()))?;
     let rels = package.read_text(&rels_path(main))?.map(|r| relationships(&r, dir_of(main))).unwrap_or_default();
     let mut paths = Vec::new();
     let mut reader = Reader::from_str(&xml);
@@ -306,7 +307,7 @@ pub(crate) fn preview(data: &[u8]) -> Result<Output, PreviewError> {
     let mut package = Package::open(data)?;
     let paths = slide_paths(&mut package)?;
     if paths.is_empty() {
-        return Err(PreviewError::Unreadable("スライドがありません".into()));
+        return Err(PreviewError::Unreadable(tr!("There are no slides").into()));
     }
     let mut out = Output::default();
     let mut images = 0;
@@ -370,17 +371,17 @@ pub(crate) fn preview(data: &[u8]) -> Result<Output, PreviewError> {
         blocks.sort_by_key(|b| (!b.title, b.y / 180_000, b.x));
         let body: String = blocks.into_iter().map(|b| b.html).collect();
         cards.push_str(&format!(
-            "<div class=\"fuu-slide\"><p class=\"fuu-slide-no\">スライド {}</p>{body}</div>",
-            n + 1
+            "<div class=\"fuu-slide\"><p class=\"fuu-slide-no\">{}</p>{body}</div>",
+            tr!("Slide {}", n + 1)
         ));
     }
     if paths.len() > MAX_SLIDES {
-        out.html.push_str(&note(&format!("全 {} 枚のうち、最初の {MAX_SLIDES} 枚を表示しています", paths.len())));
+        out.html.push_str(&note(&tr!("Showing the first {1} of {0} slides", paths.len(), MAX_SLIDES)));
     } else {
-        out.html.push_str(&note(&format!("{} 枚のスライド", paths.len())));
+        out.html.push_str(&note(&tr!("Slides: {0}", paths.len())));
     }
     if dropped > 0 {
-        out.html.push_str(&note(&format!("外部から読み込む画像 {dropped} 件は表示していません")));
+        out.html.push_str(&note(&tr!("Pictures loaded from elsewhere, not shown: {0}", dropped)));
     }
     out.html.push_str(&cards);
     Ok(out)
@@ -429,7 +430,7 @@ pub(crate) mod tests {
         }
         let out = preview(&sample_pptx()).unwrap();
         let h = &out.html;
-        assert!(h.contains("2 枚のスライド"), "{h}");
+        assert!(h.contains("Slides: 2"), "{h}");
         let title = h.find("<h2>新メール基盤の提案</h2>").expect(h);
         let body = h.find("背景").expect(h);
         assert!(title < body, "title first: {h}");
@@ -437,7 +438,7 @@ pub(crate) mod tests {
         assert!(h.contains("margin-left: 26px;\">•\u{2002}現行システムの課題 &lt;x&gt;"), "{h}");
         assert_eq!(out.images.len(), 1);
         assert!(h.contains("width=\"300\""), "{h}");
-        assert!(h.contains("外部から読み込む画像 1 件"), "{h}");
+        assert!(h.contains("not shown: 1"), "{h}");
         assert!(h.contains("<td colspan=\"2\"><p>費用</p></td>") && !h.contains(">x<"), "{h}");
         assert!(h.contains("¥1,200,000"));
     }

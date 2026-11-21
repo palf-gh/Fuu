@@ -21,6 +21,7 @@ use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use crate::tabs::MessageRef;
 use crate::{avatar_index, AccountItem, AppWindow, AttachmentItem, FolderItem, MessageRow};
+use fuu_i18n::tr;
 
 #[derive(Default)]
 pub struct AppData {
@@ -128,7 +129,7 @@ fn process(raw: Arc<Vec<u8>>) -> Body {
         },
         Err(e) => Body {
             headers: fuu_model::Headers::default(),
-            doc: notice_document(&format!("このメールは表示できません（{e}）。")),
+            doc: notice_document(&tr!("This message cannot be shown ({0}).", e)),
             attachments: Vec::new(),
             to: String::new(),
             cc: String::new(),
@@ -160,7 +161,7 @@ pub fn body_or_request(r: &MessageRef) -> Result<Rc<Body>, SafeDocument> {
         DATA.with(|d| d.borrow_mut().pending.push(k.clone()));
         send(Command::FetchBody { account_id: k.0, folder: k.1, uid: k.2 });
     }
-    Err(notice_document("読み込み中…"))
+    Err(notice_document(tr!("Loading…")))
 }
 
 pub fn attachment_items(body: &Body) -> Vec<AttachmentItem> {
@@ -189,8 +190,8 @@ pub fn save_attachment(r: &MessageRef, index: usize) -> Result<Option<String>, S
     let Some(attachment) = body.attachments.get(index) else { return Ok(None) };
     let name = filename::sanitise_file_name(&attachment.file_name);
     let Some(path) = rfd::FileDialog::new().set_file_name(&name).save_file() else { return Ok(None) };
-    let bytes = mailparser::attachment_bytes(&body.raw, attachment.part_index).ok_or("添付ファイルを取り出せませんでした")?;
-    std::fs::write(&path, bytes).map_err(|e| format!("保存できませんでした: {e}"))?;
+    let bytes = mailparser::attachment_bytes(&body.raw, attachment.part_index).ok_or(tr!("Could not read the attachment"))?;
+    std::fs::write(&path, bytes).map_err(|e| tr!("Could not save: {0}", e))?;
     mark_downloaded(&path);
     Ok(Some(path.display().to_string()))
 }
@@ -410,7 +411,7 @@ pub fn start(ui: &AppWindow, spike: bool) {
     DATA.with(|d| d.borrow_mut().engine = Some(Arc::new(engine)));
     ui.set_list_busy(true);
     ui.set_list_failed(false);
-    ui.set_list_message("読み込み中…".into());
+    ui.set_list_message(tr!("Loading…").into());
     send(Command::LoadAccounts);
 }
 
@@ -430,7 +431,7 @@ fn handle(ui: &AppWindow, event: Event) {
                 None => {
                     clear_mailbox(ui);
                     ui.set_list_busy(false);
-                    ui.set_list_message("アカウントを追加すると、ここにメールが表示されます".into());
+                    ui.set_list_message(tr!("Add an account and your mail appears here").into());
                 }
                 Some(id) if previous.as_ref() != Some(&id) => open_account(ui, &id),
                 _ => {}
@@ -464,7 +465,7 @@ fn handle(ui: &AppWindow, event: Event) {
             ui.set_setup_password(SharedString::default());
             if DATA.with(|d| d.borrow_mut().editing.take()).is_some() {
                 ui.set_setup_editing(false);
-                crate::notify(ui, "アカウントの設定を保存しました", false);
+                crate::notify(ui, tr!("Account settings saved"), false);
             }
             ui.invoke_setup_finished();
         }
@@ -481,7 +482,7 @@ fn handle(ui: &AppWindow, event: Event) {
             if url.starts_with("https://accounts.google.com/") || url.starts_with("https://login.microsoftonline.com/") {
                 ui.set_setup_oauth_waiting(true);
                 if let Err(e) = open::that_detached(&url) {
-                    ui.set_setup_error(format!("ブラウザを開けませんでした: {e}").into());
+                    ui.set_setup_error(tr!("Could not open the browser: {0}", e).into());
                 }
             }
         }
@@ -537,7 +538,7 @@ fn handle(ui: &AppWindow, event: Event) {
                 let empty = page.messages.is_empty();
                 DATA.with(|d| d.borrow_mut().summaries = page.messages);
                 ui.set_list_busy(false);
-                ui.set_list_message(if empty { "メールはありません".into() } else { SharedString::default() });
+                ui.set_list_message(if empty { tr!("No messages").into() } else { SharedString::default() });
                 ui.set_list_failed(false);
                 return;
             }
@@ -556,7 +557,7 @@ fn handle(ui: &AppWindow, event: Event) {
                 d.summaries = page.messages;
             });
             ui.set_list_busy(false);
-            ui.set_list_message(if empty { "メールはありません".into() } else { SharedString::default() });
+            ui.set_list_message(if empty { tr!("No messages").into() } else { SharedString::default() });
                 ui.set_list_failed(false);
         }
         Event::Body { account_id, folder, uid, raw } => {
@@ -575,7 +576,7 @@ fn handle(ui: &AppWindow, event: Event) {
             DATA.with(|d| {
                 let mut d = d.borrow_mut();
                 d.pending.retain(|p| p != &k);
-                d.failures.insert(k, format!("本文を読み込めませんでした: {message}"));
+                d.failures.insert(k, tr!("Could not load the message: {0}", message));
             });
             ui.invoke_body_ready();
         }
@@ -590,7 +591,7 @@ fn handle(ui: &AppWindow, event: Event) {
                     d.allowed.insert(k, Rc::new(doc));
                 }
             });
-            crate::notify(&ui, format!("外部画像を {fetched} / {} 件読み込みました", images.len()), false);
+            crate::notify(&ui, tr!("Loaded {0} of {1} remote images", fetched, images.len()), false);
             ui.invoke_body_ready();
         }
         Event::Moved { account_id, folder, uid, target } => {
@@ -616,17 +617,17 @@ fn handle(ui: &AppWindow, event: Event) {
                 }
             }
             let what = match target {
-                MoveTarget::Trash => "ゴミ箱に移動しました",
-                MoveTarget::Archive => "アーカイブしました",
-                MoveTarget::Inbox => "受信トレイに戻しました",
+                MoveTarget::Trash => tr!("Moved to Trash"),
+                MoveTarget::Archive => tr!("Archived"),
+                MoveTarget::Inbox => tr!("Moved back to Inbox"),
             };
             crate::notify(&ui, what, false);
             ui.invoke_message_moved(account_id.into(), folder.into(), uid as i32);
         }
         Event::Sent { draft_id, warning, .. } => {
             crate::notify(&ui, match warning {
-                Some(w) => SharedString::from(format!("送信しました（{w}）")),
-                None => SharedString::from("送信しました"),
+                Some(w) => SharedString::from(tr!("Sent ({0})", w)),
+                None => SharedString::from(tr!("Sent")),
             }, false);
             ui.invoke_draft_sent(draft_id as i32);
         }
@@ -646,7 +647,7 @@ fn handle(ui: &AppWindow, event: Event) {
 fn clear_mailbox(ui: &AppWindow) {
     crate::set_message_model(ui, Vec::new());
     ui.set_folders(ModelRc::new(VecModel::<FolderItem>::default()));
-    ui.set_mailbox("受信トレイ".into());
+    ui.set_mailbox(tr!("Inbox").into());
     ui.set_current_folder(SharedString::default());
     ui.set_folder_role(0);
     DATA.with(|d| {
@@ -661,7 +662,7 @@ fn open_account(ui: &AppWindow, account_id: &str) {
     clear_mailbox(ui);
     ui.set_list_busy(true);
     ui.set_list_failed(false);
-    ui.set_list_message("読み込み中…".into());
+    ui.set_list_message(tr!("Loading…").into());
     send(Command::OpenAccount { account_id: account_id.to_owned(), folder: None });
 }
 
@@ -694,8 +695,8 @@ pub fn render_accounts(ui: &AppWindow) {
             ui.set_account_hue(item.hue);
         }
         None => {
-            ui.set_account_name("アカウントなし".into());
-            ui.set_account_email("追加して始めましょう".into());
+            ui.set_account_name(tr!("No account").into());
+            ui.set_account_email(tr!("Add one to get started").into());
             ui.set_account_initial("+".into());
             ui.set_account_hue(0);
         }
@@ -717,12 +718,12 @@ fn role_index(role: FolderRole) -> i32 {
 /// Localised title for well-known folders, the decoded name otherwise.
 fn folder_title(f: &Folder) -> String {
     match f.role {
-        FolderRole::Inbox => "受信トレイ".into(),
-        FolderRole::Drafts => "下書き".into(),
-        FolderRole::Sent => "送信済み".into(),
-        FolderRole::Archive => "アーカイブ".into(),
-        FolderRole::Junk => "迷惑メール".into(),
-        FolderRole::Trash => "ゴミ箱".into(),
+        FolderRole::Inbox => tr!("Inbox").into(),
+        FolderRole::Drafts => tr!("Drafts").into(),
+        FolderRole::Sent => tr!("Sent").into(),
+        FolderRole::Archive => tr!("Archive").into(),
+        FolderRole::Junk => tr!("Junk").into(),
+        FolderRole::Trash => tr!("Trash").into(),
         FolderRole::Other => f.display.clone(),
     }
 }
@@ -775,7 +776,7 @@ fn row_from_summary(m: &MessageSummary) -> MessageRow {
         initials: crate::initials(&sender).into(),
         avatar: avatar_index(&m.from_email),
         sender: sender.into(),
-        subject: if m.subject.trim().is_empty() { "（件名なし）".into() } else { strip_bidi(&m.subject).into() },
+        subject: if m.subject.trim().is_empty() { tr!("(no subject)").into() } else { strip_bidi(&m.subject).into() },
         preview: strip_bidi(&m.from_email).into(),
         date: format_date(m.date).into(),
         unread: !m.seen,
@@ -959,15 +960,15 @@ pub fn setup_submit(ui: &AppWindow) {
     let parse_port = |s: SharedString| s.trim().parse::<u16>().ok();
     let editing = DATA.with(|d| d.borrow().editing.clone()).and_then(|id| account_by_id(&id));
     let error = if !email.contains('@') {
-        Some("メールアドレスを入力してください")
+        Some(tr!("Enter an email address"))
     } else if password.is_empty() && editing.as_ref().is_none_or(|a| a.auth == AuthKind::Password) {
-        Some("パスワードを入力してください")
+        Some(tr!("Enter a password"))
     } else if ui.get_setup_imap_host().trim().is_empty() || ui.get_setup_smtp_host().trim().is_empty() {
         ui.set_setup_advanced(true);
-        Some("サーバーの詳細設定を入力してください")
+        Some(tr!("Fill in the server settings"))
     } else if parse_port(ui.get_setup_imap_port()).is_none() || parse_port(ui.get_setup_smtp_port()).is_none() {
         ui.set_setup_advanced(true);
-        Some("ポート番号が正しくありません")
+        Some(tr!("The port number is not valid"))
     } else {
         None
     };
@@ -976,7 +977,7 @@ pub fn setup_submit(ui: &AppWindow) {
         return;
     }
     if is_spike() {
-        ui.set_setup_error("開発用データの表示中は追加できません（FUU_SPIKE_FEED を外して起動してください）".into());
+        ui.set_setup_error(tr!("Accounts cannot be added while showing development data (start without FUU_SPIKE_FEED)").into());
         return;
     }
     let mut account = form_account(ui, email);
@@ -1006,11 +1007,11 @@ pub fn setup_submit(ui: &AppWindow) {
 pub fn setup_oauth_submit(ui: &AppWindow) {
     let email = ui.get_setup_email().trim().to_owned();
     let Some(provider) = account::preset_for(&email).and_then(|p| p.oauth) else {
-        ui.set_setup_error("このアドレスはブラウザでのログインに対応していません".into());
+        ui.set_setup_error(tr!("This address does not support signing in through the browser").into());
         return;
     };
     if is_spike() {
-        ui.set_setup_error("開発用データの表示中は追加できません（FUU_SPIKE_FEED を外して起動してください）".into());
+        ui.set_setup_error(tr!("Accounts cannot be added while showing development data (start without FUU_SPIKE_FEED)").into());
         return;
     }
     let mut account = form_account(ui, email);

@@ -4,6 +4,7 @@
 use fuu_model::{Address, Headers};
 use mail_builder::headers::address::Address as MbAddress;
 use mail_builder::MessageBuilder;
+use fuu_i18n::tr;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Recipient {
@@ -108,7 +109,7 @@ pub fn parse_recipients(input: &str) -> Result<Vec<Recipient>, String> {
             _ => (None, part.to_owned()),
         };
         if !valid_email(&email) {
-            return Err(format!("メールアドレスが正しくありません: {part}"));
+            return Err(tr!("Not a valid email address: {0}", part));
         }
         out.push(Recipient { name, email });
     }
@@ -186,14 +187,10 @@ pub fn reply_recipients(original: &Headers, own: &[String], all: bool) -> (Vec<R
     (primary, cc)
 }
 
-/// The quoted original below a reply, Japanese-mail style (top-posting).
+/// The quoted original below a reply (top-posting).
 pub fn quote(original_text: &str, from: &str, date: &str) -> String {
-    let mut out = String::new();
-    if date.is_empty() {
-        out.push_str(&format!("{from} さんは書きました:\n"));
-    } else {
-        out.push_str(&format!("{date}、{from} さんは書きました:\n"));
-    }
+    let mut out = if date.is_empty() { tr!("{0} wrote:", from) } else { tr!("On {0}, {1} wrote:", date, from) };
+    out.push('\n');
     for line in original_text.trim_end().lines() {
         if line.starts_with('>') {
             out.push('>');
@@ -206,22 +203,46 @@ pub fn quote(original_text: &str, from: &str, date: &str) -> String {
     out
 }
 
-/// Labels of the original-message header block, in order (bolded by the editor).
-pub const HEADER_LABELS: [&str; 5] = ["差出人:", "送信:", "宛先:", "CC:", "件名:"];
+/// Labels of the original-message header block, in order (bolded by the
+/// editor), in the UI language.
+pub fn header_labels() -> [&'static str; 5] {
+    [tr!("From:"), tr!("Sent:"), tr!("To:"), "CC:", tr!("Subject:")]
+}
 
-/// Long Japanese date for the original-message header, in local time:
-/// `2026 年 11 月 18 日 (水曜日) 20:03`.
+/// The month's name (1 = January) in the UI language.
+pub fn month_name(month: u32) -> &'static str {
+    let names = [
+        tr!("January"),
+        tr!("February"),
+        tr!("March"),
+        tr!("April"),
+        tr!("May"),
+        tr!("June"),
+        tr!("July"),
+        tr!("August"),
+        tr!("September"),
+        tr!("October"),
+        tr!("November"),
+        tr!("December"),
+    ];
+    names[(month.clamp(1, 12) - 1) as usize]
+}
+
+/// Long date for the original-message header, in local time and the UI
+/// language: `Wednesday, 18 November 2026 20:03`, `2026 年 11 月 18 日 (水曜日) 20:03`.
 pub fn header_date(timestamp: i64) -> String {
     use chrono::{Datelike, Local, TimeZone};
     let Some(d) = Local.timestamp_opt(timestamp, 0).single() else { return String::new() };
-    const DAYS: [&str; 7] = ["月", "火", "水", "木", "金", "土", "日"];
-    format!(
-        "{} 年 {} 月 {} 日 ({}曜日) {}",
-        d.year(),
-        d.month(),
+    let days = [tr!("Monday"), tr!("Tuesday"), tr!("Wednesday"), tr!("Thursday"), tr!("Friday"), tr!("Saturday"), tr!("Sunday")];
+    // {0} weekday, {1} day, {2} month name, {3} year, {4} time, {5} month number.
+    tr!(
+        "{0}, {1} {2} {3} {4}",
+        days[d.weekday().num_days_from_monday() as usize],
         d.day(),
-        DAYS[d.weekday().num_days_from_monday() as usize],
-        d.format("%H:%M")
+        month_name(d.month()),
+        d.year(),
+        d.format("%H:%M"),
+        d.month()
     )
 }
 
@@ -233,30 +254,32 @@ pub fn original_header(original: &Headers) -> String {
         None => a.email.clone(),
     };
     let list = |v: &[Address]| v.iter().map(one).collect::<Vec<_>>().join("; ");
-    let mut out = format!("差出人: {}\n", list(&original.from));
+    let [from, sent, to, cc, subject] = header_labels();
+    let mut out = format!("{from} {}\n", list(&original.from));
     if let Some(date) = original.date.map(header_date).filter(|d| !d.is_empty()) {
-        out.push_str(&format!("送信: {date}\n"));
+        out.push_str(&format!("{sent} {date}\n"));
     }
     if !original.to.is_empty() {
-        out.push_str(&format!("宛先: {}\n", list(&original.to)));
+        out.push_str(&format!("{to} {}\n", list(&original.to)));
     }
     if !original.cc.is_empty() {
-        out.push_str(&format!("CC: {}\n", list(&original.cc)));
+        out.push_str(&format!("{cc} {}\n", list(&original.cc)));
     }
-    out.push_str(&format!("件名: {}\n", original.subject));
+    out.push_str(&format!("{subject} {}\n", original.subject));
     out
 }
 
 /// The forwarded-message block appended to a forward.
 pub fn forward_block(original: &Headers, original_text: &str, date: &str) -> String {
     let list = |v: &[Address]| v.iter().map(|a| Recipient::from(a).display()).collect::<Vec<_>>().join(", ");
-    let mut out = String::from("---------- 転送メッセージ ----------\n");
-    out.push_str(&format!("差出人: {}\n", list(&original.from)));
+    let [from, _, to, _, subject] = header_labels();
+    let mut out = format!("{}\n", tr!("---------- Forwarded message ----------"));
+    out.push_str(&format!("{from} {}\n", list(&original.from)));
     if !date.is_empty() {
-        out.push_str(&format!("日時: {date}\n"));
+        out.push_str(&format!("{} {date}\n", tr!("Date:")));
     }
-    out.push_str(&format!("件名: {}\n", original.subject));
-    out.push_str(&format!("宛先: {}\n", list(&original.to)));
+    out.push_str(&format!("{subject} {}\n", original.subject));
+    out.push_str(&format!("{to} {}\n", list(&original.to)));
     if !original.cc.is_empty() {
         out.push_str(&format!("CC: {}\n", list(&original.cc)));
     }
@@ -417,10 +440,10 @@ pub fn new_message_id(from_email: &str) -> String {
 /// Render the message (BCC is never written to the headers).
 pub fn build(outgoing: &Outgoing) -> Result<(String, Vec<u8>), String> {
     if outgoing.envelope_recipients().is_empty() {
-        return Err("宛先を入力してください".into());
+        return Err(tr!("Enter a recipient").into());
     }
     if !valid_email(&outgoing.from_email) {
-        return Err("差出人のアドレスが正しくありません".into());
+        return Err(tr!("The sender address is not valid").into());
     }
     let message_id = new_message_id(&outgoing.from_email);
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or_default();
@@ -522,15 +545,15 @@ mod tests {
             ..Headers::default()
         };
         let text = original_header(&h);
-        assert!(text.starts_with("差出人: \"エンゲージ事務局\" <news@example.jp>\n送信: "), "{text}");
-        assert!(text.contains("曜日) ") && text.contains(" 年 ") && text.contains("宛先: me@example.jp\n件名: 【重要】お知らせ\n"), "{text}");
+        assert!(text.starts_with("From: \"エンゲージ事務局\" <news@example.jp>\nSent: "), "{text}");
+        assert!(text.contains(" November 2025 ") && text.contains("To: me@example.jp\nSubject: 【重要】お知らせ\n"), "{text}");
         assert!(!text.contains("CC:"));
     }
 
     #[test]
     fn quotes_with_attribution() {
         let q = quote("こんにちは\n> 前の引用\n", "Taro", "2026/11/18 10:00");
-        assert_eq!(q, "2026/11/18 10:00、Taro さんは書きました:\n> こんにちは\n>> 前の引用\n");
+        assert_eq!(q, "On 2026/11/18 10:00, Taro wrote:\n> こんにちは\n>> 前の引用\n");
     }
 
     #[test]

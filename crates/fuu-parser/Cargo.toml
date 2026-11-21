@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+fuu-i18n.workspace = true
 fuu-model.workspace = true
 encoding_rs = "0.8"
 base64 = "0.22"

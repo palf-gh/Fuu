@@ -7,6 +7,7 @@ use std::io::Cursor;
 use image::{DynamicImage, ImageFormat, ImageReader, Limits};
 
 use crate::{Output, PreviewError};
+use fuu_i18n::tr;
 
 /// Largest image decoded (pixels). Larger headers are refused before decoding.
 const MAX_PIXELS: u64 = 50_000_000;
@@ -16,7 +17,7 @@ const MAX_SIDE: u32 = 2400;
 pub(crate) fn decode(data: &[u8]) -> Result<DynamicImage, PreviewError> {
     let mut reader = ImageReader::new(Cursor::new(data)).with_guessed_format().map_err(|e| PreviewError::Unreadable(e.to_string()))?;
     if reader.format().is_none() {
-        return Err(PreviewError::Unreadable("画像の形式を判別できません".into()));
+        return Err(PreviewError::Unreadable(tr!("Unknown image format").into()));
     }
     let mut limits = Limits::default();
     limits.max_alloc = Some(MAX_PIXELS * 4 + (16 << 20));
@@ -67,7 +68,7 @@ pub(crate) fn preview(data: &[u8]) -> Result<Output, PreviewError> {
     let src = out.add_image(mime, bytes);
     out.html = format!(
         "{}<img class=\"fuu-image\" src=\"{src}\" alt=\"\">",
-        crate::html::note(&format!("{w} × {h} ピクセル"))
+        crate::html::note(&tr!("{0} × {1} pixels", w, h))
     );
     Ok(out)
 }

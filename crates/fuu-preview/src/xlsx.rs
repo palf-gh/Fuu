@@ -18,6 +18,7 @@ use quick_xml::Reader as XmlReader;
 use crate::html::{column_name, escape, note};
 use crate::ooxml::{attr, dir_of, rels_path, relationships, Package, Target};
 use crate::{Output, PreviewError};
+use fuu_i18n::tr;
 
 const MAX_SHEETS: usize = 12;
 const MAX_ROWS: usize = 500;
@@ -155,22 +156,22 @@ pub(crate) fn preview(data: &[u8]) -> Result<Output, PreviewError> {
         .map_err(|e| PreviewError::Unreadable(short(&e.to_string())))?;
     let names = book.sheet_names().to_vec();
     if names.is_empty() {
-        return Err(PreviewError::Unreadable("シートがありません".into()));
+        return Err(PreviewError::Unreadable(tr!("There are no sheets").into()));
     }
     let mut out = Output::default();
     if names.len() > MAX_SHEETS {
-        out.html.push_str(&note(&format!("全 {} シートのうち、最初の {MAX_SHEETS} シートを表示しています", names.len())));
+        out.html.push_str(&note(&tr!("Showing the first {1} of {0} sheets", names.len(), MAX_SHEETS)));
     }
     for name in names.iter().take(MAX_SHEETS) {
         out.html.push_str(&format!("<p class=\"fuu-tabs\">{}</p>", escape(name)));
         if oversized.contains(name) {
-            out.html.push_str(&note("このシートは範囲が広すぎるため表示しません"));
+            out.html.push_str(&note(tr!("This sheet covers too large an area to show")));
             continue;
         }
         let range = match book.worksheet_range(name) {
             Ok(r) => r,
             Err(e) => {
-                out.html.push_str(&note(&format!("このシートは読み取れません（{}）", short(&e.to_string()))));
+                out.html.push_str(&note(&tr!("This sheet cannot be read ({0})", short(&e.to_string()))));
                 continue;
             }
         };
@@ -189,7 +190,7 @@ fn short(message: &str) -> String {
 
 fn sheet_table(range: &calamine::Range<Data>, merges: &[Dimensions]) -> String {
     let Some((row0, col0)) = range.start() else {
-        return note("（空のシート）");
+        return note(tr!("(empty sheet)"));
     };
     let (height, width) = range.get_size();
     let (rows, cols) = (height.min(MAX_ROWS), width.min(MAX_COLS));
@@ -240,7 +241,7 @@ fn sheet_table(range: &calamine::Range<Data>, merges: &[Dimensions]) -> String {
     }
     html.push_str("</table>");
     if height > rows || width > cols {
-        html.push_str(&note(&format!("{height} 行 × {width} 列のうち、{rows} 行 × {cols} 列を表示しています")));
+        html.push_str(&note(&tr!("Showing {2} rows × {3} columns of {0} × {1}", height, width, rows, cols)));
     }
     html
 }
@@ -321,7 +322,7 @@ mod tests {
         // One cell in A1 and one in XFD1048576: calamine would ask for ~550 GB.
         let cells = r#"<row r="1"><c r="A1"><v>1</v></c></row><row r="1048576"><c r="XFD1048576"><v>2</v></c></row>"#;
         let out = preview(&workbook(cells, "")).unwrap();
-        assert!(out.html.contains("範囲が広すぎる"), "{}", out.html);
+        assert!(out.html.contains("too large an area"), "{}", out.html);
         assert_eq!(bounding_cells(&format!("<sheetData>{cells}</sheetData>")), 1_048_576 * 16_384);
         assert_eq!(cell_ref("XFD1048576"), Some((1_048_576, 16_384)));
         assert_eq!(cell_ref("B3"), Some((3, 2)));

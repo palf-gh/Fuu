@@ -17,6 +17,7 @@ mod pptx;
 mod xlsx;
 
 use fuu_model::{BodyPart, Headers, InlineResource, ParsedMessage};
+use fuu_i18n::tr;
 
 /// Largest attachment previewed at all.
 pub const MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
@@ -35,11 +36,11 @@ impl Kind {
     /// Japanese label for the reader header.
     pub fn label(self) -> &'static str {
         match self {
-            Kind::Image => "画像",
+            Kind::Image => tr!("Image"),
             Kind::Pdf => "PDF",
-            Kind::Word => "Word 文書",
-            Kind::Spreadsheet => "表計算",
-            Kind::Slides => "プレゼンテーション",
+            Kind::Word => tr!("Word document"),
+            Kind::Spreadsheet => tr!("Spreadsheet"),
+            Kind::Slides => tr!("Presentation"),
         }
     }
 }
@@ -81,9 +82,9 @@ pub enum PreviewError {
 impl std::fmt::Display for PreviewError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unsupported => f.write_str("この形式はプレビューできません"),
-            Self::TooLarge => f.write_str("ファイルが大きすぎるためプレビューできません"),
-            Self::Unreadable(why) => write!(f, "ファイルを読み取れませんでした（{why}）"),
+            Self::Unsupported => f.write_str(tr!("This format cannot be previewed")),
+            Self::TooLarge => f.write_str(tr!("The file is too large to preview")),
+            Self::Unreadable(why) => f.write_str(&tr!("Could not read the file ({0})", why)),
         }
     }
 }

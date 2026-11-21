@@ -133,6 +133,8 @@ export component SettingsView inherits Rectangle {
     in property <bool> update-checking;
     in property <string> app-version;
     callback check-update-now();
+    in property <[string]> language-names;
+    in-out property <int> language-index;
     in property <bool> is-default-mail-app;
     callback make-default-mail-app();
     in-out property <string> signature-text;
@@ -155,11 +157,12 @@ export component SettingsView inherits Rectangle {
             width: 176px;
             spacing: 2px;
             alignment: start;
-            NavLink { label: "一般"; selected: root.page == 0; clicked => { root.page = 0; } }
-            NavLink { label: "アカウント"; selected: root.page == 1; clicked => { root.page = 1; } }
-            NavLink { label: "署名"; selected: root.page == 2; clicked => { root.page = 2; } }
-            NavLink { label: "プライバシー"; selected: root.page == 3; clicked => { root.page = 3; } }
-            NavLink { label: "このアプリについて"; selected: root.page == 4; clicked => { root.page = 4; } }
+            NavLink { label: @tr("General"); selected: root.page == 0; clicked => { root.page = 0; } }
+            NavLink { label: @tr("Accounts"); selected: root.page == 1; clicked => { root.page = 1; } }
+            NavLink { label: @tr("Signature"); selected: root.page == 2; clicked => { root.page = 2; } }
+            NavLink { label: @tr("Privacy"); selected: root.page == 3; clicked => { root.page = 3; } }
+            NavLink { label: @tr("Language"); selected: root.page == 5; clicked => { root.page = 5; } }
+            NavLink { label: @tr("About"); selected: root.page == 4; clicked => { root.page = 4; } }
         }
 
         VerticalLayout {
@@ -170,40 +173,40 @@ export component SettingsView inherits Rectangle {
 
             if root.page == 0: VerticalLayout {
                 spacing: 4px;
-                PageTitle { text: "一般"; }
+                PageTitle { text: @tr("General"); }
                 Rectangle { height: 14px; }
                 SettingRow {
-                    title: "テーマ";
-                    description: "システムに合わせるか、明るい／暗い表示に固定します。";
-                    Segmented { options: ["システム", "ライト", "ダーク"]; selected <=> root.theme-mode; }
+                    title: @tr("Theme");
+                    description: @tr("Follow the system, or always use the light or dark look.");
+                    Segmented { options: [@tr("System"), @tr("Light"), @tr("Dark")]; selected <=> root.theme-mode; }
                 }
                 Divider { height: 1px; }
                 SettingRow {
-                    title: "HTML メールで送信";
-                    description: "本文から HTML 版を作り、テキスト版と一緒に送ります（引用・署名・リンクを整えて表示）。オフにするとテキストのみで送ります。";
+                    title: @tr("Send HTML mail");
+                    description: @tr("Sends an HTML version made from the text alongside the plain text (tidier quotes, signature and links). Turn off to send plain text only.");
                     Toggle { checked <=> root.compose-html; }
                 }
                 Divider { height: 1px; }
                 SettingRow {
-                    title: "既定のメールアプリ";
+                    title: @tr("Default mail app");
                     description: root.default-mail-status;
                     if !root.is-default-mail-app: SecondaryButton {
-                        text: "Fuu を既定にする";
+                        text: @tr("Make Fuu the default");
                         clicked => { root.make-default-mail-app(); }
                     }
                 }
                 Divider { height: 1px; }
                 SettingRow {
-                    title: "起動時に更新を確認";
+                    title: @tr("Check for updates at start-up");
                     description: root.update-status != "" ? root.update-status
-                        : "GitHub のリリースを確かめ、新しいバージョンがあればお知らせします。更新ファイルは署名を確かめてから使います。";
+                        : @tr("Looks at the GitHub releases and tells you about a new version. Updates are installed only after their signature is verified.");
                     Toggle { checked <=> root.check-updates; }
                 }
                 HorizontalLayout {
                     alignment: start;
                     padding-top: 4px;
                     SecondaryButton {
-                        text: root.update-checking ? "確認しています…" : "今すぐ確認";
+                        text: root.update-checking ? @tr("Checking…") : @tr("Check now");
                         clicked => { if (!root.update-checking) { root.check-update-now(); } }
                     }
                 }
@@ -211,9 +214,9 @@ export component SettingsView inherits Rectangle {
 
             if root.page == 1: VerticalLayout {
                 spacing: 6px;
-                PageTitle { text: "アカウント"; }
+                PageTitle { text: @tr("Accounts"); }
                 Rectangle { height: 10px; }
-                if root.accounts.length == 0: Text { text: "アカウントはまだありません。"; font-size: Theme.font-m; color: Theme.text-faint; }
+                if root.accounts.length == 0: Text { text: @tr("No accounts yet."); font-size: Theme.font-m; color: Theme.text-faint; }
                 for account in root.accounts: Rectangle {
                     height: 60px;
                     border-radius: Theme.radius-l;
@@ -236,7 +239,7 @@ export component SettingsView inherits Rectangle {
                             border-radius: Theme.radius-m;
                             background: edit-area.has-hover ? Theme.hover : transparent;
                             edit-area := TouchArea { clicked => { root.edit-account(account.id); } }
-                            edit-label := Text { text: "編集"; font-size: Theme.font-s; color: edit-area.has-hover ? Theme.text : Theme.text-muted; horizontal-alignment: center; vertical-alignment: center; }
+                            edit-label := Text { text: @tr("Edit"); font-size: Theme.font-s; color: edit-area.has-hover ? Theme.text : Theme.text-muted; horizontal-alignment: center; vertical-alignment: center; }
                         }
                         Rectangle {
                             width: remove-label.preferred-width + 20px;
@@ -245,20 +248,20 @@ export component SettingsView inherits Rectangle {
                             border-radius: Theme.radius-m;
                             background: remove-area.has-hover ? Theme.hover : transparent;
                             remove-area := TouchArea { clicked => { root.remove-account(account.id); } }
-                            remove-label := Text { text: "削除"; font-size: Theme.font-s; color: remove-area.has-hover ? Theme.close-hover : Theme.text-muted; horizontal-alignment: center; vertical-alignment: center; }
+                            remove-label := Text { text: @tr("Delete"); font-size: Theme.font-s; color: remove-area.has-hover ? Theme.close-hover : Theme.text-muted; horizontal-alignment: center; vertical-alignment: center; }
                         }
                     }
                 }
                 Rectangle { height: 4px; }
-                MenuRow { icon: @image-url("icons/plus.svg"); label: "アカウントを追加"; clicked => { root.add-account(); } }
+                MenuRow { icon: @image-url("icons/plus.svg"); label: @tr("Add account"); clicked => { root.add-account(); } }
             }
 
             if root.page == 2: VerticalLayout {
                 spacing: 4px;
-                PageTitle { text: "署名"; }
+                PageTitle { text: @tr("Signature"); }
                 Rectangle { height: 14px; }
                 if root.signature-accounts.length == 0: Text {
-                    text: "アカウントを追加すると、アカウントごとに署名を設定できます。";
+                    text: @tr("Add an account to give each account its own signature.");
                     font-size: Theme.font-m;
                     color: Theme.text-faint;
                     wrap: word-wrap;
@@ -269,8 +272,8 @@ export component SettingsView inherits Rectangle {
                     if root.signature-accounts.length > 1: VerticalLayout {
                         spacing: 2px;
                         padding-bottom: 10px;
-                        Text { text: "アカウント"; font-size: Theme.font-m; color: Theme.text; }
-                        Text { text: "署名はアカウントごとに保存します。"; font-size: Theme.font-s; color: Theme.text-faint; }
+                        Text { text: @tr("Accounts"); font-size: Theme.font-m; color: Theme.text; }
+                        Text { text: @tr("Each account keeps its own signature."); font-size: Theme.font-s; color: Theme.text-faint; }
                         Rectangle { height: 6px; }
                         for label[i] in root.signature-accounts: Rectangle {
                             height: 34px;
@@ -301,8 +304,8 @@ export component SettingsView inherits Rectangle {
                         Divider { height: 1px; }
                     }
                     SettingRow {
-                        title: "新規メッセージに署名を入れる";
-                        description: "作成・返信・転送のたびに、本文の下へ挿入します。変更はすぐに保存されます。";
+                        title: @tr("Add the signature to new messages");
+                        description: @tr("Inserted below the text of every new message, reply and forward. Changes are saved straight away.");
                         Toggle { checked <=> root.signature-enabled; }
                     }
                     Rectangle { height: 8px; }
@@ -332,7 +335,7 @@ export component SettingsView inherits Rectangle {
                         if root.signature-text == "" && !signature-input.has-focus: Text {
                             x: 12px;
                             y: 10px;
-                            text: "例）山田 太郎\n株式会社サンプル";
+                            text: @tr("e.g. Alex Taylor\nExample Ltd.");
                             color: Theme.text-faint;
                             font-size: Theme.font-m;
                         }
@@ -342,24 +345,60 @@ export component SettingsView inherits Rectangle {
 
             if root.page == 3: VerticalLayout {
                 spacing: 4px;
-                PageTitle { text: "プライバシー"; }
+                PageTitle { text: @tr("Privacy"); }
                 Rectangle { height: 14px; }
                 SettingRow {
-                    title: "外部画像を読み込まない";
-                    description: "既定でブロックし、メールごとに許可したときだけ Fuu が取得します。追跡ピクセルは許可しても取得しません。";
+                    title: @tr("Do not load remote images");
+                    description: @tr("Blocked by default; Fuu fetches them only when you allow it for a message. Tracking pixels are never fetched.");
                     Toggle { checked: true; enabled: false; }
                 }
                 Divider { height: 1px; }
                 SettingRow {
-                    title: "外部 CSS とスクリプトを使わない";
-                    description: "HTML メールの CSS は安全と確認した範囲だけ適用します。JavaScript は実行しません。";
+                    title: @tr("No remote CSS or scripts");
+                    description: @tr("Only CSS known to be safe is applied to HTML mail. JavaScript never runs.");
                     Toggle { checked: true; enabled: false; }
                 }
                 Divider { height: 1px; }
                 SettingRow {
-                    title: "リンクを開く前に確認する";
-                    description: "実際の URL を表示してから、OS の標準ブラウザで開きます。";
+                    title: @tr("Confirm before opening links");
+                    description: @tr("Shows the real URL, then opens it in your default browser.");
                     Toggle { checked: true; enabled: false; }
+                }
+            }
+
+            if root.page == 5: VerticalLayout {
+                spacing: 2px;
+                PageTitle { text: @tr("Language"); }
+                Text {
+                    text: @tr("Translations other than Japanese are made by AI. Corrections are welcome on GitHub.");
+                    font-size: Theme.font-s;
+                    color: Theme.text-faint;
+                    wrap: word-wrap;
+                }
+                Rectangle { height: 10px; }
+                for name[i] in root.language-names: Rectangle {
+                    height: 34px;
+                    border-radius: Theme.radius-m;
+                    background: i == root.language-index ? Theme.selected : lang-area.has-hover ? Theme.hover : transparent;
+                    lang-area := TouchArea { clicked => { root.language-index = i; } }
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        spacing: 10px;
+                        Rectangle {
+                            width: 8px;
+                            height: 8px;
+                            y: (parent.height - self.height) / 2;
+                            border-radius: 4px;
+                            background: i == root.language-index ? Theme.accent : transparent;
+                        }
+                        Text {
+                            text: name;
+                            font-size: Theme.font-m;
+                            font-weight: i == root.language-index ? 600 : 400;
+                            color: Theme.text;
+                            vertical-alignment: center;
+                        }
+                    }
                 }
             }
 
@@ -373,11 +412,11 @@ export component SettingsView inherits Rectangle {
                     image-rendering: smooth;
                 }
                 PageTitle { text: "Fuu (封)"; }
-                Text { text: "バージョン " + root.app-version; font-size: Theme.font-m; color: Theme.text-muted; }
+                Text { text: @tr("Version {}", root.app-version); font-size: Theme.font-m; color: Theme.text-muted; }
                 Rectangle { height: 8px; }
-                Text { text: "最小限の機能に絞った、ミニマルなメールクライアント。"; font-size: Theme.font-m; color: Theme.text; wrap: word-wrap; }
-                Text { text: "GNU General Public License v3.0 で配布しています。"; font-size: Theme.font-s; color: Theme.text-faint; wrap: word-wrap; }
-                Text { text: "Slint（GPLv3）、Blitz（MIT / Apache-2.0）ほかのオープンソースソフトウェアを使用しています。"; font-size: Theme.font-s; color: Theme.text-faint; wrap: word-wrap; }
+                Text { text: @tr("A minimal mail client with just what you need."); font-size: Theme.font-m; color: Theme.text; wrap: word-wrap; }
+                Text { text: @tr("Distributed under the GNU General Public License v3.0."); font-size: Theme.font-s; color: Theme.text-faint; wrap: word-wrap; }
+                Text { text: @tr("Built with Slint (GPLv3), Blitz (MIT / Apache-2.0) and other open-source software."); font-size: Theme.font-s; color: Theme.text-faint; wrap: word-wrap; }
             }
         }
     }

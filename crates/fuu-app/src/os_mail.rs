@@ -69,7 +69,7 @@ pub fn make_default() -> Result<(), String> {
     #[cfg(all(unix, not(target_os = "macos")))]
     return linux::make_default();
     #[allow(unreachable_code)]
-    Err("この OS には対応していません".into())
+    Err(fuu_i18n::tr!("Not supported on this system").into())
 }
 
 /// Windows and Linux: become the single running instance, or pass `request`
@@ -172,7 +172,7 @@ mod linux {
 
     pub(super) fn desktop_entry(exe: &str, icon: &str) -> String {
         format!(
-            "[Desktop Entry]\nType=Application\nName=Fuu\nComment=ミニマルなメールクライアント\nExec={} %u\nIcon={icon}\nTerminal=false\nCategories=Network;Email;\nMimeType=x-scheme-handler/mailto;\nStartupWMClass=fuu\n",
+            "[Desktop Entry]\nType=Application\nName=Fuu\nComment=A minimal mail client\nExec={} %u\nIcon={icon}\nTerminal=false\nCategories=Network;Email;\nMimeType=x-scheme-handler/mailto;\nStartupWMClass=fuu\n",
             exec_quote(exe)
         )
     }
@@ -185,7 +185,7 @@ mod linux {
             Some(image) => PathBuf::from(image),
             None => std::env::current_exe().map_err(|e| e.to_string())?,
         };
-        let data = data_home().ok_or("ホームフォルダーが見つかりません")?;
+        let data = data_home().ok_or(fuu_i18n::tr!("Home folder not found"))?;
         let icon_dir = data.join("icons/hicolor/256x256/apps");
         let apps = data.join("applications");
         std::fs::create_dir_all(&icon_dir).and_then(|_| std::fs::create_dir_all(&apps)).map_err(|e| e.to_string())?;
@@ -205,8 +205,8 @@ mod linux {
         let status = Command::new("xdg-mime")
             .args(["default", DESKTOP_ID, "x-scheme-handler/mailto"])
             .status()
-            .map_err(|e| format!("xdg-mime を実行できませんでした: {e}"))?;
-        if status.success() { Ok(()) } else { Err("既定のメールアプリにできませんでした（xdg-mime）".into()) }
+            .map_err(|e| fuu_i18n::tr!("Could not run xdg-mime: {0}", e))?;
+        if status.success() { Ok(()) } else { Err(fuu_i18n::tr!("Could not make Fuu the default mail app (xdg-mime)").into()) }
     }
 
     pub fn is_default() -> Option<bool> {
@@ -381,7 +381,7 @@ mod win {
             )
         };
         if status != ERROR_SUCCESS {
-            return Err(format!("レジストリに書き込めませんでした（{path}: {status}）"));
+            return Err(fuu_i18n::tr!("Could not write to the registry ({0}: {1})", path, status));
         }
         let key = Key(key);
         let wname = name.map(wide);
@@ -398,7 +398,7 @@ mod win {
             )
         };
         if status != ERROR_SUCCESS {
-            return Err(format!("レジストリに書き込めませんでした（{path}: {status}）"));
+            return Err(fuu_i18n::tr!("Could not write to the registry ({0}: {1})", path, status));
         }
         Ok(())
     }
@@ -425,13 +425,13 @@ mod win {
         let icon = format!("\"{exe}\",0");
         let client = format!(r"{root}\Clients\Mail\{APP}");
         vec![
-            (format!(r"{root}\Classes\{PROG_ID}"), None, "Fuu メールリンク".into()),
+            (format!(r"{root}\Classes\{PROG_ID}"), None, "Fuu mail link".into()),
             (format!(r"{root}\Classes\{PROG_ID}\DefaultIcon"), None, icon.clone()),
             (format!(r"{root}\Classes\{PROG_ID}\shell\open\command"), None, open),
             (client.clone(), None, APP.into()),
             (format!(r"{client}\shell\open\command"), None, format!("\"{exe}\"")),
             (format!(r"{client}\Capabilities"), Some("ApplicationName"), APP.into()),
-            (format!(r"{client}\Capabilities"), Some("ApplicationDescription"), "ミニマルなメールクライアント".into()),
+            (format!(r"{client}\Capabilities"), Some("ApplicationDescription"), "A minimal mail client".into()),
             (format!(r"{client}\Capabilities"), Some("ApplicationIcon"), icon),
             (format!(r"{client}\Capabilities\URLAssociations"), Some("mailto"), PROG_ID.into()),
             (format!(r"{root}\RegisteredApplications"), Some(APP), format!(r"Software\Clients\Mail\{APP}\Capabilities")),
@@ -447,7 +447,7 @@ mod win {
         write(&registration("Software", &exe.to_string_lossy()))?;
         // SAFETY: plain notification, no pointers.
         unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED as i32, SHCNF_IDLIST, std::ptr::null(), std::ptr::null()) };
-        open::that(format!("ms-settings:defaultapps?registeredAppUser={APP}")).map_err(|e| format!("設定を開けませんでした: {e}"))
+        open::that(format!("ms-settings:defaultapps?registeredAppUser={APP}")).map_err(|e| fuu_i18n::tr!("Could not open Settings: {0}", e))
     }
 
     pub fn is_default() -> bool {
@@ -536,11 +536,11 @@ mod mac {
     }
 
     pub fn make_default() -> Result<(), String> {
-        let id = bundle_id().ok_or("アプリとして（Fuu.app から）起動したときだけ設定できます")?;
+        let id = bundle_id().ok_or(fuu_i18n::tr!("Only available when Fuu runs as an app (Fuu.app)"))?;
         let (scheme, bundle) = (NSString::from_str("mailto"), NSString::from_str(&id));
         // SAFETY: both arguments are live CFStrings (toll-free bridged).
         let status = unsafe { LSSetDefaultHandlerForURLScheme(Retained::as_ptr(&scheme).cast(), Retained::as_ptr(&bundle).cast()) };
-        if status == 0 { Ok(()) } else { Err(format!("既定のメールアプリにできませんでした（{status}）")) }
+        if status == 0 { Ok(()) } else { Err(fuu_i18n::tr!("Could not make Fuu the default mail app ({0})", status)) }
     }
 }
 
