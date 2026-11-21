@@ -65,3 +65,20 @@
 
 - The user authorised a new release for the CJK font fix. Prepared version
   `0.1.0-alpha.4` and release notes; alpha.3 includes the updater.
+- CI passed on Windows, macOS and Linux. Release workflow 44872670935 published
+  alpha.4; its Windows installer matched the published checksum and its
+  signature verified against the embedded key. The alpha.3 updater detected
+  alpha.4, but its download timed out twice on this slow connection.
+
+## Update download timeout
+
+- The updater library carries the metadata check's timeout into the payload
+  request; the 30-second limit applied to the entire installer download. Kept
+  the short metadata timeout and allowed 30 minutes for the signed payload.
+- Alpha.4 still contains the original timeout. Users affected by the slow
+  connection must install a fixed version manually before it can update itself
+  with the longer download allowance.
+- Retested against the published alpha.4 Windows payload with a 30-second
+  metadata timeout and 30-minute payload timeout. The update was detected,
+  downloaded over the slow connection and verified successfully. Preparing
+  alpha.5 to deliver the fix.
