@@ -868,15 +868,60 @@ pub(crate) fn notify(ui: &AppWindow, text: impl Into<SharedString>, error: bool)
     });
 }
 
+/// Supply mixed-script fallbacks where the Windows system font is incomplete.
+/// Preserve an explicit user-provided chain and register only installed fonts.
+#[cfg(target_os = "windows")]
+fn configure_font_fallbacks() {
+    if std::env::var_os("SLINT_FONT_PATH").is_some() { return; }
+    let fonts = std::path::PathBuf::from(std::env::var_os("WINDIR").unwrap_or_else(|| "C:\\Windows".into())).join("Fonts");
+    let paths: Vec<_> = ["segoeui.ttf", "yugothm.ttc", "msyh.ttc", "msjh.ttc", "malgun.ttf", "seguiemj.ttf"]
+        .iter().map(|name| fonts.join(name)).filter(|path| path.is_file()).collect();
+    if !paths.is_empty() {
+        if let Ok(value) = std::env::join_paths(paths) { std::env::set_var("SLINT_FONT_PATH", value); }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn configure_font_fallbacks() {
+    if std::env::var_os("SLINT_FONT_PATH").is_some() { return; }
+    let fonts = std::path::Path::new("/System/Library/Fonts");
+    let paths: Vec<_> = ["SFNS.ttf", "ヒラギノ角ゴシック W3.ttc", "Hiragino Sans GB.ttc", "STHeiti Medium.ttc", "AppleSDGothicNeo.ttc", "Apple Color Emoji.ttc", "Supplemental/Arial Unicode.ttf"]
+        .iter().map(|name| fonts.join(name)).filter(|path| path.is_file()).collect();
+    if !paths.is_empty() {
+        if let Ok(value) = std::env::join_paths(paths) { std::env::set_var("SLINT_FONT_PATH", value); }
+    }
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn configure_font_fallbacks() {}
+
 /// Switch the UI language (`""` follows the system): Slint's bundled
 /// translations and fuu-i18n for strings built in Rust.
-fn apply_language(choice: &str) {
+fn apply_language(ui: &AppWindow, choice: &str) {
     let code = if choice.is_empty() {
         fuu_i18n::language_for_locale(&sys_locale::get_locale().unwrap_or_default())
     } else {
         choice
     };
     let used = fuu_i18n::set_language(code);
+    #[cfg(target_os = "windows")]
+    ui.set_ui_font_family(match used {
+        "zh-Hans" => "Microsoft YaHei UI",
+        "zh-Hant" => "Microsoft JhengHei UI",
+        "ja" => "Yu Gothic UI",
+        "ko" => "Malgun Gothic",
+        _ => "",
+    }.into());
+    #[cfg(target_os = "macos")]
+    ui.set_ui_font_family(match used {
+        "zh-Hans" => "Hiragino Sans GB",
+        "zh-Hant" => "Heiti TC",
+        "ja" => "Hiragino Sans",
+        "ko" => "Apple SD Gothic Neo",
+        _ => "",
+    }.into());
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    let _ = ui;
     let _ = slint::select_bundled_translation(if used == "en" { "" } else { used });
 }
 
@@ -897,17 +942,18 @@ fn install_preferences_and_updates(ui: &AppWindow) {
     ui.set_language_names(ModelRc::new(VecModel::from(names)));
     let chosen = if dummy { std::env::var("FUU_LANG").unwrap_or_default() } else { prefs.language.clone() };
     let index = fuu_i18n::LANGUAGES.iter().position(|(code, _)| *code == chosen).map_or(0, |i| i + 1);
-    apply_language(&chosen);
+    apply_language(ui, &chosen);
     ui.set_language_index(index as i32);
 
     let weak = ui.as_weak();
     ui.on_prefs_changed(move || {
-        let (Some(ui), Some(path)) = (weak.upgrade(), path.as_deref()) else { return };
+        let Some(ui) = weak.upgrade() else { return };
         let language = usize::try_from(ui.get_language_index() - 1)
             .ok()
             .and_then(|i| fuu_i18n::LANGUAGES.get(i))
             .map_or(String::new(), |(code, _)| (*code).to_owned());
-        apply_language(&language);
+        apply_language(&ui, &language);
+        let Some(path) = path.as_deref() else { return };
         let prefs = fuu_core::config::Preferences {
             check_updates: ui.get_check_updates(),
             theme: u8::try_from(ui.get_theme_mode().clamp(0, 2)).unwrap_or(0),
@@ -956,6 +1002,7 @@ fn main() -> Result<(), slint::PlatformError> {
     if !dev_run && !os_mail::claim_instance(launch_url.as_deref()) {
         return Ok(());
     }
+    configure_font_fallbacks();
     select_backend()?;
     let ui = AppWindow::new()?;
     install_window_chrome(&ui);
@@ -1935,6 +1982,15 @@ fn main() -> Result<(), slint::PlatformError> {
                     "settings" => {
                         ui.invoke_row_selected(1);
                         ui.invoke_open_settings();
+                    }
+                    "language" => {
+                        ui.invoke_open_settings();
+                        ui.set_settings_page(5);
+                    }
+                    "language-switch" => {
+                        ui.invoke_open_settings();
+                        ui.set_settings_page(5);
+                        ui.set_language_index(3);
                     }
                     "update" => {
                         ui.invoke_row_selected(1);

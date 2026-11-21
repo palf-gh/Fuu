@@ -283,6 +283,8 @@ component MessageItem inherits Rectangle {
 
 export component AppWindow inherits Window {
     title: "Fuu";
+    in property <string> ui-font-family;
+    default-font-family: root.ui-font-family;
     // No `icon` here: Windows loads it from the exe resource (see
     // select_backend) so the taskbar gets a properly sized image; macOS takes
     // the bundle's icon.
