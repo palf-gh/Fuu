@@ -301,7 +301,10 @@ pub fn load_signature_editor(ui: &AppWindow, index: Option<usize>) {
 /// The signature editor changed: update the account now, save shortly.
 pub fn signature_edited(ui: &AppWindow) {
     let Ok(index) = usize::try_from(ui.get_signature_account()) else { return };
-    let (text, enabled) = (ui.get_signature_text().to_string(), ui.get_signature_enabled());
+    // Plain "\n" line ends: drafts place styles by byte offset, and a stray
+    // "\r" would shift them.
+    let text = ui.get_signature_text().replace("\r\n", "\n").replace('\r', "\n");
+    let enabled = ui.get_signature_enabled();
     let changed = DATA.with(|d| {
         let mut d = d.borrow_mut();
         let account = d.accounts.get_mut(index)?;
