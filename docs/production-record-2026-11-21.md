@@ -40,3 +40,28 @@
 - The user authorised the release after the conversation checks. Added the
   feature and its folder-search limits to the alpha.3 release notes. The existing
   alpha.2 build has no updater, so installing alpha.3 requires a manual download.
+- Merged the release changes through pull requests 1 and 2 after CI passed on
+  Windows, macOS and Linux. Tagged `v0.1.0-alpha.3` on `main`; release workflow
+  44862140508 built and published all four update targets successfully.
+- Downloaded the published assets: all eight SHA-256 entries matched, and each
+  of the four update payload signatures verified against the public key embedded
+  in the app. The GitHub latest release resolves to `v0.1.0-alpha.3`. An actual
+  in-app upgrade was not performed; alpha.2 does not contain the updater.
+
+## CJK font fallback
+
+- Reproduced missing Simplified Chinese glyphs on Windows and macOS. Slint's
+  default system font fallback did not include fonts containing those glyphs.
+- Registered installed system fonts as fallbacks on Windows and macOS, while
+  respecting an existing `SLINT_FONT_PATH`, and selected a region-appropriate
+  primary font when the UI language changes.
+- Inspected Windows snapshots after switching from English to Simplified Chinese,
+  and in Japanese, Traditional Chinese and Korean; inspected macOS before and
+  after switching to Simplified Chinese. These checks use sample content and
+  system fonts present on the test machines. Machines without a suitable CJK
+  font may still need one installed.
+
+## Alpha.4 release preparation
+
+- The user authorised a new release for the CJK font fix. Prepared version
+  `0.1.0-alpha.4` and release notes; alpha.3 includes the updater.
