@@ -147,6 +147,11 @@ Tests: `fuu_core::mailto` unit tests (percent-decoding, `+`, CR/LF injection,
 
 ## Updates
 
+The metadata check has a 30-second timeout. A separate 30-minute timeout for
+the selected payload allows slower downloads to finish; signature verification
+remains mandatory before installation. The updater tests check that the
+download timeout changes without changing the update identity or signature.
+
 Fuu checks for new versions and can replace itself (`crates/fuu-app/src/update.rs`,
 cargo-packager-updater).
 

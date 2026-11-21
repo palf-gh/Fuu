@@ -2180,7 +2180,7 @@ dependencies = [
 
 [[package]]
 name = "fuu-app"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "arboard",
  "cargo-packager-updater",
@@ -2211,7 +2211,7 @@ dependencies = [
 
 [[package]]
 name = "fuu-core"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "async-imap",
  "base64 0.22.1",
@@ -2241,7 +2241,7 @@ dependencies = [
 
 [[package]]
 name = "fuu-editor"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "anyrender",
  "anyrender_vello_cpu",
@@ -2252,15 +2252,15 @@ dependencies = [
 
 [[package]]
 name = "fuu-i18n"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 
 [[package]]
 name = "fuu-model"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 
 [[package]]
 name = "fuu-parser"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "base64 0.22.1",
  "encoding_rs",
@@ -2271,7 +2271,7 @@ dependencies = [
 
 [[package]]
 name = "fuu-preview"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "calamine",
  "chrono",
@@ -2286,7 +2286,7 @@ dependencies = [
 
 [[package]]
 name = "fuu-render"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "anyrender",
  "anyrender_vello_cpu",
@@ -2303,7 +2303,7 @@ dependencies = [
 
 [[package]]
 name = "fuu-sanitiser"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "ammonia",
  "fuu-model",

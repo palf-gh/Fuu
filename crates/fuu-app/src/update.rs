@@ -51,6 +51,33 @@ fn config() -> Config {
     }
 }
 
+/// Keep the short metadata check timeout, but allow a slow installer download.
+fn allow_slow_download(update: &mut Update) {
+    update.timeout = Some(Duration::from_secs(30 * 60));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cargo_packager_updater::UpdateFormat;
+
+    #[test]
+    fn slow_download_keeps_update_identity_and_signature() {
+        let mut update = Update {
+            config: config(), body: None, current_version: "0.1.0-alpha.3".into(),
+            version: "0.1.0-alpha.4".into(), date: None, target: "windows".into(),
+            extract_path: Default::default(), download_url: "https://example.com/fuu.exe".parse().unwrap(),
+            signature: "signed-payload".into(), timeout: Some(Duration::from_secs(30)),
+            headers: Default::default(), format: UpdateFormat::Nsis,
+        };
+        allow_slow_download(&mut update);
+        assert_eq!(update.timeout, Some(Duration::from_secs(1800)));
+        assert_eq!(update.version, "0.1.0-alpha.4");
+        assert_eq!(update.download_url.as_str(), "https://example.com/fuu.exe");
+        assert_eq!(update.signature, "signed-payload");
+    }
+}
+
 /// Look for a newer release in the background. `manual` reports "up to date"
 /// and errors; the start-up check stays quiet unless there is an update.
 pub fn check(ui: &AppWindow, manual: bool) {
@@ -71,7 +98,11 @@ pub fn check(ui: &AppWindow, manual: bool) {
         let _ = slint::invoke_from_event_loop(move || {
             let Some(ui) = weak.upgrade() else { return };
             match result {
-                Ok(Some(update)) => {
+                    Ok(Some(mut update)) => {
+                        // The updater library carries the metadata request's timeout
+                        // into the payload download. Allow slow connections to finish
+                        // downloading an installer while retaining a bounded request.
+                        allow_slow_download(&mut update);
                     ui.set_update_version(update.version.clone().into());
                     ui.set_update_state(state::AVAILABLE);
                     ui.set_update_status(tr!("Version {0} is available.", update.version).into());
