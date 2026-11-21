@@ -14,6 +14,7 @@ use crate::config::{self, AccountsFile};
 use crate::imap::{self, Credential, Folder, FolderPage, FolderRole, ImapError, ImapSession};
 use crate::oauth::{self, OAuthClients, OAuthError, Provider};
 use crate::secrets::{self, SecretStore};
+use fuu_i18n::tr;
 
 /// How long the browser sign-in may take.
 const OAUTH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
@@ -55,6 +56,8 @@ pub enum Command {
     RefreshFolder { account_id: String, path: String },
     /// Load a message body (cache first), marking it as read on the server.
     FetchBody { account_id: String, folder: String, uid: u32 },
+    /// Retrieve the messages in a conversation across the current and Sent folders.
+    LoadConversation { account_id: String, folder: String, uid: u32 },
     /// Fetch remote images the user allowed for one message.
     FetchRemoteImages { account_id: String, folder: String, uid: u32, urls: Vec<String> },
     /// Send a message; `answered` marks the replied-to message.
@@ -85,6 +88,8 @@ pub enum Event {
     FolderChanged { account_id: String, path: String },
     Body { account_id: String, folder: String, uid: u32, raw: Arc<Vec<u8>> },
     BodyFailed { account_id: String, folder: String, uid: u32, message: String },
+    Conversation { account_id: String, folder: String, uid: u32, messages: Vec<imap::ConversationMessage> },
+    ConversationFailed { account_id: String, folder: String, uid: u32, message: String },
     Moved { account_id: String, folder: String, uid: u32, target: MoveTarget },
     Sent { account_id: String, draft_id: u64, warning: Option<String> },
     SendFailed { draft_id: u64, message: String },
@@ -198,6 +203,7 @@ impl Inner {
             Command::OpenFolder { account_id, path } => self.open_folder(&account_id, &path).await,
             Command::RefreshFolder { account_id, path } => self.load_folder(&account_id, &path, true).await,
             Command::FetchBody { account_id, folder, uid } => self.fetch_body(&account_id, &folder, uid).await,
+            Command::LoadConversation { account_id, folder, uid } => self.load_conversation(&account_id, &folder, uid).await,
             Command::Move { account_id, folder, uid, target } => self.move_message(&account_id, &folder, uid, target).await,
             Command::Send { account_id, outgoing, answered, draft_id } => self.send(&account_id, outgoing, answered, draft_id).await,
             Command::FetchRemoteImages { account_id, folder, uid, urls } => {
@@ -225,7 +231,7 @@ impl Inner {
         if account.id.is_empty() {
             account.id = Account::new_id(&account.email);
         }
-        self.emit(Event::Status(format!("{} に接続しています…", account.imap.host)));
+        self.emit(Event::Status(tr!("Connecting to {0}…", account.imap.host)));
         let session = match imap::login(&account.imap, &account.username, &Credential::Password(password.clone())).await {
             Ok(s) => s,
             Err(e) => return self.emit(Event::AccountAddFailed(e.to_string())),
@@ -238,9 +244,9 @@ impl Inner {
 
     async fn update_account(self: Arc<Self>, account: Account, password: Option<String>) {
         if self.account(&account.id).await.is_none() {
-            return self.emit(Event::AccountAddFailed("アカウントが見つかりません".into()));
+            return self.emit(Event::AccountAddFailed(tr!("Account not found").into()));
         }
-        self.emit(Event::Status(format!("{} に接続しています…", account.imap.host)));
+        self.emit(Event::Status(tr!("Connecting to {0}…", account.imap.host)));
         let credential = match &password {
             Some(p) => Credential::Password(p.clone()),
             None => match self.credential(&account, false).await {
@@ -269,16 +275,16 @@ impl Inner {
         }
         account.auth = crate::account::AuthKind::OAuth2;
         let Some(provider) = account.oauth else {
-            return self.emit(Event::AccountAddFailed("OAuth のプロバイダーが指定されていません".into()));
+            return self.emit(Event::AccountAddFailed(tr!("No OAuth provider given").into()));
         };
         let tokens = match self.browser_sign_in(provider, &account.email).await {
             Ok(t) => t,
             Err(e) => return self.emit(Event::AccountAddFailed(e.to_string())),
         };
         let Some(refresh_token) = tokens.refresh_token.clone() else {
-            return self.emit(Event::AccountAddFailed(format!("{} がリフレッシュ トークンを発行しませんでした", provider.name())));
+            return self.emit(Event::AccountAddFailed(tr!("{0} did not issue a refresh token", provider.name())));
         };
-        self.emit(Event::Status(format!("{} に接続しています…", account.imap.host)));
+        self.emit(Event::Status(tr!("Connecting to {0}…", account.imap.host)));
         let credential = Credential::Bearer(tokens.access_token.clone());
         let session = match imap::login(&account.imap, &account.username, &credential).await {
             Ok(s) => s,
@@ -294,11 +300,7 @@ impl Inner {
     /// Run the browser part of the OAuth flow and exchange the code for tokens.
     async fn browser_sign_in(&self, provider: Provider, email: &str) -> Result<oauth::TokenResponse, OAuthError> {
         let client = self.clients.get(provider).cloned().ok_or_else(|| {
-            OAuthError::Other(format!(
-                "{} の OAuth クライアント ID が設定されていません。設定フォルダーの {} に client_id を書いてください",
-                provider.name(),
-                oauth::CLIENTS_FILE
-            ))
+            OAuthError::Other(tr!("No OAuth client ID for {0} is set up. Put client_id in {1} in the settings folder", provider.name(), oauth::CLIENTS_FILE))
         })?;
         let loopback = oauth::Loopback::bind(provider).await?;
         let redirect_uri = loopback.redirect_uri.clone();
@@ -310,7 +312,7 @@ impl Inner {
             let _ = previous.send(());
         }
         self.emit(Event::OAuthBrowser { url });
-        self.emit(Event::Status(format!("ブラウザで {} にログインしてください…", provider.name())));
+        self.emit(Event::Status(tr!("Sign in to {0} in your browser…", provider.name())));
         let code = tokio::select! {
             code = loopback.wait(&state, OAUTH_TIMEOUT) => code,
             _ = cancel_rx => Err(OAuthError::Cancelled),
@@ -324,7 +326,7 @@ impl Inner {
         if account.auth != crate::account::AuthKind::OAuth2 {
             return secrets::get_long(self.secrets.as_ref(), &account.id).map(Credential::Password).map_err(|e| e.to_string());
         }
-        let provider = account.oauth.ok_or("OAuth のプロバイダーが不明です")?;
+        let provider = account.oauth.ok_or(tr!("Unknown OAuth provider"))?;
         let lock = self.refreshing.lock().await.entry(account.id.clone()).or_default().clone();
         let _guard = lock.lock().await;
         if !force_refresh {
@@ -335,12 +337,12 @@ impl Inner {
             }
         }
         let client = self.clients.get(provider).cloned().ok_or_else(|| {
-            format!("{} の OAuth クライアント ID が設定されていません（{}）", provider.name(), oauth::CLIENTS_FILE)
+            tr!("No OAuth client ID for {0} is set up ({1})", provider.name(), oauth::CLIENTS_FILE)
         })?;
         let refresh_token = match secrets::get_long(self.secrets.as_ref(), &account.id) {
             Ok(t) => t,
             Err(crate::secrets::SecretError::NotFound) => {
-                let message = "ログイン情報が見つかりません。再ログインしてください".to_owned();
+                let message = tr!("No sign-in found. Please sign in again").to_owned();
                 self.reauth_needed.lock().unwrap().insert(account.id.clone());
                 self.emit(Event::ReauthRequired { account_id: account.id.clone(), message: message.clone() });
                 return Err(message);
@@ -351,7 +353,7 @@ impl Inner {
             Ok(r) => r,
             Err(OAuthError::InvalidGrant(detail)) => {
                 self.tokens.lock().await.remove(&account.id);
-                let message = format!("ログインの有効期限が切れたか、取り消されました（{detail}）");
+                let message = tr!("The sign-in has expired or was revoked ({0})", detail);
                 self.reauth_needed.lock().unwrap().insert(account.id.clone());
                 self.emit(Event::ReauthRequired { account_id: account.id.clone(), message });
                 return Err(OAuthError::InvalidGrant(detail).to_string());
@@ -366,19 +368,27 @@ impl Inner {
     }
 
     async fn save_new_account(self: Arc<Self>, mut account: Account, session: ImapSession) {
-        let saved = {
+        let (saved, existed) = {
             let mut file = self.accounts.lock().await;
             // Signing in again replaces the account in place (keeps its position
             // and its signature).
-            match file.accounts.iter_mut().find(|a| a.id == account.id) {
+            let existed = match file.accounts.iter_mut().find(|a| a.id == account.id) {
                 Some(existing) => {
-                    account.signature = std::mem::take(&mut existing.signature);
+                    account.signature = existing.signature.clone();
                     account.signature_enabled = existing.signature_enabled;
                     *existing = account.clone();
+                    true
                 }
-                None => file.accounts.push(account.clone()),
+                None => {
+                    file.accounts.push(account.clone());
+                    false
+                }
+            };
+            let saved = config::save(&self.config_path, &file).map(|_| file.accounts.clone());
+            if saved.is_err() && !existed {
+                file.accounts.retain(|a| a.id != account.id);
             }
-            config::save(&self.config_path, &file).map(|_| file.accounts.clone())
+            (saved, existed)
         };
         match saved {
             Ok(list) => {
@@ -390,7 +400,11 @@ impl Inner {
                 self.open_account(&account.id, None).await;
             }
             Err(e) => {
-                let _ = secrets::delete_long(self.secrets.as_ref(), &account.id);
+                // Only a brand-new account's secret goes; an existing account
+                // (signing in again, edited settings) keeps its sign-in.
+                if !existed {
+                    let _ = secrets::delete_long(self.secrets.as_ref(), &account.id);
+                }
                 self.emit(Event::AccountAddFailed(e.to_string()));
             }
         }
@@ -405,7 +419,7 @@ impl Inner {
         account.signature = signature;
         account.signature_enabled = enabled;
         if let Err(e) = config::save(&self.config_path, &file) {
-            self.emit(Event::Error(format!("署名を保存できませんでした: {e}")));
+            self.emit(Event::Error(tr!("Could not save the signature: {0}", e)));
         }
     }
 
@@ -437,7 +451,7 @@ impl Inner {
         if let Some(s) = self.sessions.lock().await.get(&account.id) {
             return Ok(s.clone());
         }
-        self.emit(Event::Status(format!("{} に接続しています…", account.imap.host)));
+        self.emit(Event::Status(tr!("Connecting to {0}…", account.imap.host)));
         let session = Arc::new(Mutex::new(self.login(account).await?));
         self.sessions.lock().await.insert(account.id.clone(), session.clone());
         Ok(session)
@@ -569,7 +583,7 @@ impl Inner {
     async fn load_folder(&self, account_id: &str, path: &str, refresh: bool) {
         let Some(account) = self.account(account_id).await else { return };
         if !refresh {
-            self.emit(Event::Status("メールを読み込んでいます…".into()));
+            self.emit(Event::Status(tr!("Loading messages…").into()));
         }
         let path_owned = path.to_owned();
         match self
@@ -594,6 +608,22 @@ impl Inner {
             // A failed background reload stays quiet; the watcher retries.
             Err(e) if refresh => eprintln!("fuu: refreshing {path}: {e}"),
             Err(e) => self.emit(Event::Error(e)),
+        }
+    }
+
+    async fn load_conversation(&self, account_id: &str, folder: &str, uid: u32) {
+        let Some(account) = self.account(account_id).await else { return };
+        let sent = self.folders.lock().await.get(&account.id)
+            .and_then(|folders| folders.iter().find(|f| f.role == FolderRole::Sent).map(|f| f.path.clone()));
+        let folder_owned = folder.to_owned();
+        let result = self.with_session(&account, move |session| {
+            let folder = folder_owned.clone();
+            let sent = sent.clone();
+            Box::pin(async move { imap::fetch_conversation(session, &folder, sent.as_deref(), uid).await })
+        }).await;
+        match result {
+            Ok(messages) => self.emit(Event::Conversation { account_id: account.id, folder: folder.to_owned(), uid, messages }),
+            Err(message) => self.emit(Event::ConversationFailed { account_id: account.id, folder: folder.to_owned(), uid, message }),
         }
     }
 
@@ -640,14 +670,14 @@ impl Inner {
         }
         let Some(destination) = destination else {
             let name = match target {
-                MoveTarget::Trash => "ゴミ箱",
-                MoveTarget::Archive => "アーカイブ",
-                MoveTarget::Inbox => "受信トレイ",
+                MoveTarget::Trash => tr!("Trash"),
+                MoveTarget::Archive => tr!("Archive"),
+                MoveTarget::Inbox => tr!("Inbox"),
             };
-            return self.emit(Event::Error(format!("{name}フォルダーが見つかりません")));
+            return self.emit(Event::Error(tr!("No {0} folder found", name)));
         };
         if destination == folder {
-            return self.emit(Event::Error("すでにそのフォルダーにあります".into()));
+            return self.emit(Event::Error(tr!("It is already in that folder").into()));
         }
         let (from, to) = (folder.to_owned(), destination.clone());
         match self
@@ -688,12 +718,12 @@ impl Inner {
                 self.folders.lock().await.insert(account.id.clone(), folders.clone());
                 self.emit(Event::Folders { account_id: account.id.clone(), folders });
                 if found.is_none() {
-                    self.emit(Event::Error(format!("アーカイブフォルダー「{path}」を作成しましたが、一覧に見つかりません")));
+                    self.emit(Event::Error(tr!("Created the archive folder “{0}”, but it is not in the folder list", path)));
                 }
                 found
             }
             Err(e) => {
-                self.emit(Event::Error(format!("アーカイブフォルダーを作成できませんでした: {e}")));
+                self.emit(Event::Error(tr!("Could not create an archive folder: {0}", e)));
                 None
             }
         }
@@ -701,7 +731,7 @@ impl Inner {
 
     async fn send(&self, account_id: &str, outgoing: crate::compose::Outgoing, answered: Option<(String, u32)>, draft_id: u64) {
         let Some(account) = self.account(account_id).await else {
-            return self.emit(Event::SendFailed { draft_id, message: "アカウントが見つかりません".into() });
+            return self.emit(Event::SendFailed { draft_id, message: tr!("Account not found").into() });
         };
         let (_, raw) = match crate::compose::build(&outgoing) {
             Ok(v) => v,
@@ -711,7 +741,7 @@ impl Inner {
             Ok(c) => c,
             Err(message) => return self.emit(Event::SendFailed { draft_id, message }),
         };
-        self.emit(Event::Status("送信しています…".into()));
+        self.emit(Event::Status(tr!("Sending…").into()));
         let recipients = outgoing.envelope_recipients();
         let mut result = crate::smtp::send(&account.smtp, &account.username, &credential, &account.email, &recipients, &raw).await;
         if matches!((&result, &credential), (Err(crate::smtp::SmtpError::Auth(_)), Credential::Bearer(_))) {
@@ -740,10 +770,10 @@ impl Inner {
                         })
                         .await
                     {
-                        warnings.push(format!("送信済みフォルダーに保存できませんでした: {e}"));
+                        warnings.push(tr!("Could not save to the Sent folder: {0}", e));
                     }
                 }
-                None => warnings.push("送信済みフォルダーが見つからないため保存していません".into()),
+                None => warnings.push(tr!("Not saved: no Sent folder found").into()),
             }
         }
         if let Some((folder, uid)) = answered {

@@ -17,6 +17,13 @@ import {
     SearchField, ComposeField, Dialog, MenuRow, CaptionButton, Tab, TooltipLayer, NoticeLayer,
 } from "components.slint";
 
+export struct ConversationRow {
+    sender: string,
+    subject: string,
+    date: string,
+    sent: bool,
+}
+
 export struct MessageRow {
     sender: string,
     subject: string,
@@ -33,6 +40,9 @@ export struct MessageRow {
     // Position in `messages` (the full list), for rows shown via `list-rows`.
     index: int,
     attachment: bool,
+    conversation-open: bool,
+    conversation-loading: bool,
+    conversation: [ConversationRow],
 }
 
 export struct AttachmentItem {
@@ -90,13 +100,15 @@ component MessageItem inherits Rectangle {
     callback clicked;
     callback open-in-background;
     callback toggle-section();
+    callback toggle-conversation();
+    callback conversation-selected(int);
     // Quick actions shown on hover: 0 delete, 1 archive, 2 restore.
     callback quick-action(int);
     // Role of the shown folder (0 inbox … 4 junk, 5 trash, 6 other).
     in property <int> folder-role;
     property <bool> restorable: root.folder-role == 4 || root.folder-role == 5;
     property <length> header-height: root.message.header ? 34px : 0px;
-    height: root.header-height + (root.message.collapsed ? 0px : 80px);
+    height: root.header-height + (root.message.collapsed ? 0px : 80px + (root.message.conversation-open ? (root.message.conversation.length > 0 ? root.message.conversation.length * 60px : 30px) : 0px));
     clip: true;
     if root.message.header: Rectangle {
         x: 10px;
@@ -151,7 +163,7 @@ component MessageItem inherits Rectangle {
             background: Theme.accent;
         }
         VerticalLayout {
-            padding-left: 22px;
+            padding-left: 32px;
             padding-right: 16px;
             padding-top: 13px;
             padding-bottom: 12px;
@@ -214,21 +226,57 @@ component MessageItem inherits Rectangle {
                     spacing: 2px;
                     if root.restorable: IconButton {
                         icon: @image-url("icons/inbox.svg"); size: 28px; icon-size: 15px; tint: Theme.text-muted;
-                        tooltip: "受信トレイに戻す";
+                        tooltip: @tr("Move to Inbox");
                         clicked => { root.quick-action(2); }
                     }
                     if !root.restorable && root.folder-role != 3: IconButton {
                         icon: @image-url("icons/archive.svg"); size: 28px; icon-size: 15px; tint: Theme.text-muted;
-                        tooltip: "アーカイブ";
+                        tooltip: @tr("Archive");
                         clicked => { root.quick-action(1); }
                     }
                     if root.folder-role != 5: IconButton {
                         icon: @image-url("icons/trash.svg"); size: 28px; icon-size: 15px; tint: Theme.text-muted;
-                        tooltip: "削除";
+                        tooltip: @tr("Delete");
                         clicked => { root.quick-action(0); }
                     }
                 }
             }
+        }
+        Rectangle {
+            x: 4px; y: 28px; width: 24px; height: 24px;
+            background: conversation-toggle.has-hover ? Theme.hover : transparent;
+            border-radius: Theme.radius-s;
+            Icon {
+                x: 5px; y: 5px; width: 14px; height: 14px;
+                source: @image-url("icons/chevron-down.svg");
+                transform-rotation: root.message.conversation-open ? 0deg : -90deg;
+                tint: Theme.text-faint;
+            }
+            conversation-toggle := TouchArea { clicked => { root.toggle-conversation(); } }
+        }
+    }
+    if !root.message.collapsed && root.message.conversation-open: VerticalLayout {
+        x: 32px; y: root.header-height + 80px; width: parent.width - 42px;
+        spacing: 0px;
+        if root.message.conversation.length == 0: Text {
+            height: 30px; text: root.message.conversation-loading ? "…" : "—";
+            color: Theme.text-faint; font-size: Theme.font-m;
+        }
+        for child[i] in root.message.conversation: Rectangle {
+            height: 60px;
+            border-radius: Theme.radius-s;
+            background: child-area.has-hover ? Theme.hover : transparent;
+            HorizontalLayout {
+                padding-left: 12px; padding-right: 12px; spacing: 8px;
+                if child.sent: Icon { source: @image-url("icons/send.svg"); width: 14px; height: 14px; tint: Theme.text-faint; }
+                VerticalLayout {
+                    alignment: center; spacing: 3px;
+                    Text { text: child.sender; font-size: Theme.font-m; color: Theme.text; overflow: elide; }
+                    Text { text: child.subject; font-size: Theme.font-s; color: Theme.text-muted; overflow: elide; }
+                }
+                Text { text: child.date; font-size: Theme.font-xs; color: Theme.text-faint; vertical-alignment: center; }
+            }
+            child-area := TouchArea { clicked => { root.conversation-selected(i); } }
         }
     }
 }
@@ -265,6 +313,8 @@ export component AppWindow inherits Window {
     // Open or close a date section of the list; the next visible row from a
     // row in a direction (±1), skipping closed sections.
     callback toggle-section(string);
+    callback toggle-conversation(int);
+    callback conversation-selected(int, int);
     // A hover action on a list row (index into `messages`; 0 delete,
     // 1 archive, 2 restore to the inbox).
     callback row-action(int, int);
@@ -306,7 +356,7 @@ export component AppWindow inherits Window {
     in-out property <bool> link-dialog-open;
     in-out property <bool> info-dialog-open;
     in-out property <bool> composing;
-    in-out property <string> compose-title: "新規メッセージ";
+    in-out property <string> compose-title: @tr("New message");
     in-out property <string> compose-to;
     in-out property <string> compose-subject;
     // Rich editor (state driven by src/editor.rs)
@@ -357,6 +407,25 @@ export component AppWindow inherits Window {
     changed signature-enabled => { self.signature-edited(); }
     changed signature-account => { self.signature-account-picked(); }
     in-out property <bool> compose-html: true;
+    // Updates (src/update.rs). state: 0 none, 1 available, 2 downloading,
+    // 3 installed (restart), 4 checking.
+    in property <int> update-state;
+    in property <string> update-version;
+    in property <float> update-progress;
+    in property <string> update-status;
+    in-out property <bool> check-updates: true;
+    in property <string> app-version;
+    callback update-install();
+    callback update-restart();
+    callback check-update-now();
+    // Theme, HTML sending or the update check changed: save preferences.
+    callback prefs-changed();
+    changed compose-html => { self.prefs-changed(); }
+    changed check-updates => { self.prefs-changed(); }
+    // UI language: 0 follows the system, then fuu_i18n::LANGUAGES in order.
+    in property <[string]> language-names;
+    in-out property <int> language-index;
+    changed language-index => { self.prefs-changed(); }
     // Default mail app (settings → 一般); refreshed when settings open.
     in property <string> default-mail-status;
     in property <bool> is-default-mail-app;
@@ -373,9 +442,10 @@ export component AppWindow inherits Window {
     changed pane-version => { self.pane-fresh = true; }
     changed theme-mode => {
         Palette.color-scheme = self.theme-mode == 1 ? ColorScheme.light : self.theme-mode == 2 ? ColorScheme.dark : self.system-scheme;
+        self.prefs-changed();
     }
-    in property <string> mailbox: "受信トレイ";
-    in property <string> account-name: "アカウントなし";
+    in property <string> mailbox: @tr("Inbox");
+    in property <string> account-name: @tr("No account");
     in property <string> account-email;
     in property <string> account-initial: "+";
     in property <[AccountItem]> accounts;
@@ -652,7 +722,7 @@ callback setup-oauth-cancel();
                     animate width, opacity { duration: 180ms; easing: ease-out; }
                     y: (parent.height - self.height) / 2;
                     text <=> root.search-text;
-                    placeholder: "検索";
+                    placeholder: @tr("Search");
                 }
                 IconButton {
                     icon: root.searching ? @image-url("icons/close.svg") : @image-url("icons/search.svg");
@@ -669,6 +739,30 @@ callback setup-oauth-cancel();
                     icon: @image-url("icons/settings.svg");
                     y: (parent.height - self.height) / 2;
                     clicked => { root.open-settings(); }
+                }
+                // A new version: install it (or restart into it).
+                if root.update-state == 1 || root.update-state == 2 || root.update-state == 3: Rectangle {
+                    width: update-label.preferred-width + 24px;
+                    height: 28px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 14px;
+                    background: update-area.pressed ? Theme.accent.darker(0.15) : update-area.has-hover ? Theme.accent.darker(0.08) : Theme.accent;
+                    update-area := TouchArea {
+                        clicked => {
+                            if (root.update-state == 1) { root.update-install(); }
+                            else if (root.update-state == 3) { root.update-restart(); }
+                        }
+                    }
+                    update-label := Text {
+                        text: root.update-state == 1 ? @tr("Update {}", root.update-version)
+                            : root.update-state == 2 ? @tr("Updating {}%", round(root.update-progress * 100))
+                            : @tr("Restart to update");
+                        color: #ffffff;
+                        font-size: Theme.font-s;
+                        font-weight: 600;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
                 }
                 if !root.is-mac: Rectangle { width: 6px; }
                 if !root.is-mac: CaptionButton {
@@ -739,7 +833,7 @@ callback setup-oauth-cancel();
                         padding: 12px;
                         spacing: 8px;
                         Text {
-                            text: root.reauth-busy ? "ブラウザでログインを続けてください" : "再ログインが必要です";
+                            text: root.reauth-busy ? @tr("Continue signing in in your browser") : @tr("You need to sign in again");
                             font-size: Theme.font-m;
                             font-weight: 600;
                             color: Theme.text;
@@ -753,8 +847,8 @@ callback setup-oauth-cancel();
                         HorizontalLayout {
                             spacing: 8px;
                             alignment: start;
-                            if !root.reauth-busy: PrimaryButton { text: "ログイン"; clicked => { root.reauth(); } }
-                            if root.reauth-busy: SecondaryButton { text: "取り消す"; clicked => { root.reauth-cancel(); } }
+                            if !root.reauth-busy: PrimaryButton { text: @tr("Sign in"); clicked => { root.reauth(); } }
+                            if root.reauth-busy: SecondaryButton { text: @tr("Cancel"); clicked => { root.reauth-cancel(); } }
                         }
                     }
                 }
@@ -772,11 +866,11 @@ callback setup-oauth-cancel();
                 }
                 if root.accounts.length == 0: HorizontalLayout {
                     alignment: center;
-                    PrimaryButton { text: "アカウントを追加"; clicked => { root.open-account-setup(); } }
+                    PrimaryButton { text: @tr("Add account"); clicked => { root.open-account-setup(); } }
                 }
                 if root.list-failed && root.accounts.length > 0: HorizontalLayout {
                     alignment: center;
-                    SecondaryButton { text: "再読み込み"; clicked => { root.retry-load(); } }
+                    SecondaryButton { text: @tr("Reload"); clicked => { root.retry-load(); } }
                 }
               }
               if root.messages.length > 0: ListView {
@@ -789,6 +883,8 @@ callback setup-oauth-cancel();
                     }
                     open-in-background => { root.row-open-in-tab(row.index); }
                     toggle-section => { root.toggle-section(row.section); }
+                    toggle-conversation => { root.toggle-conversation(row.index); }
+                    conversation-selected(i) => { root.conversation-selected(row.index, i); }
                     folder-role: root.folder-role;
                     quick-action(action) => { root.row-action(row.index, action); }
                 }
@@ -851,17 +947,17 @@ callback setup-oauth-cancel();
                         }
                         Text { text: root.reader-date; font-size: Theme.font-s; color: Theme.text-faint; overflow: elide; horizontal-stretch: 1; vertical-alignment: center; }
                         if root.viewing-attachment: HorizontalLayout {
-                            SecondaryButton { text: "保存"; clicked => { root.save-attachment(0, false); } }
+                            SecondaryButton { text: @tr("Save"); clicked => { root.save-attachment(0, false); } }
                         }
                         if !root.viewing-attachment: HorizontalLayout {
                             spacing: 2px;
-                            IconButton { icon: @image-url("icons/reply.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "返信（R）"; clicked => { root.reply(false); } }
-                            IconButton { icon: @image-url("icons/reply-all.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "全員に返信（A）"; clicked => { root.reply(true); } }
-                            IconButton { icon: @image-url("icons/forward.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "転送（F）"; clicked => { root.forward(); } }
+                            IconButton { icon: @image-url("icons/reply.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: @tr("Reply (R)"); clicked => { root.reply(false); } }
+                            IconButton { icon: @image-url("icons/reply-all.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: @tr("Reply all (A)"); clicked => { root.reply(true); } }
+                            IconButton { icon: @image-url("icons/forward.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: @tr("Forward (F)"); clicked => { root.forward(); } }
                             Rectangle { width: 8px; }
-                            if root.folder-role == 4 || root.folder-role == 5: IconButton { icon: @image-url("icons/inbox.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "受信トレイに戻す（E）"; clicked => { root.restore(); } }
-                            if root.folder-role != 4 && root.folder-role != 5 && root.folder-role != 3: IconButton { icon: @image-url("icons/archive.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "アーカイブ（E）"; clicked => { root.archive(); } }
-                            if root.folder-role != 5: IconButton { icon: @image-url("icons/trash.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: "削除（Delete）"; clicked => { root.delete(); } }
+                            if root.folder-role == 4 || root.folder-role == 5: IconButton { icon: @image-url("icons/inbox.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: @tr("Move to Inbox (E)"); clicked => { root.restore(); } }
+                            if root.folder-role != 4 && root.folder-role != 5 && root.folder-role != 3: IconButton { icon: @image-url("icons/archive.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: @tr("Archive (E)"); clicked => { root.archive(); } }
+                            if root.folder-role != 5: IconButton { icon: @image-url("icons/trash.svg"); icon-size: 16px; tint: Theme.text-muted; tooltip: @tr("Delete (Delete)"); clicked => { root.delete(); } }
                         }
                     }
                 }
@@ -872,7 +968,7 @@ callback setup-oauth-cancel();
                     padding-bottom: 12px;
                     spacing: 8px;
                     if root.reader-to != "": Text {
-                        text: "宛先: " + root.reader-to + (root.reader-cc != "" ? "　CC: " + root.reader-cc : "");
+                        text: (root.reader-cc != "" ? @tr("To: {}   CC: {}", root.reader-to, root.reader-cc) : @tr("To: {}", root.reader-to));
                         font-size: Theme.font-s;
                         color: Theme.text-faint;
                         overflow: elide;
@@ -907,8 +1003,8 @@ callback setup-oauth-cancel();
                             Icon { source: @image-url("icons/shield.svg"); width: 14px; height: 14px; y: (parent.height - self.height) / 2; }
                             Text {
                                 text: root.remote-allowable
-                                    ? "外部画像をブロックしました（送信者に開封を知られないため）"
-                                    : "追跡用の画像をブロックしました";
+                                    ? @tr("Remote images blocked (so the sender cannot tell you opened this)")
+                                    : @tr("Tracking images blocked");
                                 font-size: Theme.font-s;
                                 color: Theme.text-muted;
                                 vertical-alignment: center;
@@ -926,7 +1022,7 @@ callback setup-oauth-cancel();
                                     clicked => { root.allow-remote(); }
                                 }
                                 show-label := Text {
-                                    text: root.remote-loading ? "読み込み中…" : "表示する";
+                                    text: root.remote-loading ? @tr("Loading…") : @tr("Show");
                                     font-size: Theme.font-s;
                                     font-weight: 600;
                                     color: root.remote-loading ? Theme.text-faint : Theme.accent;
@@ -953,8 +1049,8 @@ callback setup-oauth-cancel();
                         }
                         ContextMenuArea {
                             Menu {
-                                MenuItem { title: "コピー"; enabled: root.has-selection; activated => { root.copy-selection(); } }
-                                MenuItem { title: "すべて選択"; activated => { root.select-all(); } }
+                                MenuItem { title: @tr("Copy"); enabled: root.has-selection; activated => { root.copy-selection(); } }
+                                MenuItem { title: @tr("Select all"); activated => { root.select-all(); } }
                             }
                             page-scroll := ScrollView {
                                 width: parent.width;
@@ -1043,13 +1139,13 @@ callback setup-oauth-cancel();
                             height: 44px;
                             HorizontalLayout {
                                 spacing: 12px;
-                                Text { text: "差出人"; width: 48px; color: Theme.text-faint; font-size: Theme.font-m; vertical-alignment: center; }
+                                Text { text: @tr("From"); width: 48px; color: Theme.text-faint; font-size: Theme.font-m; vertical-alignment: center; }
                                 Text { text: root.compose-from; color: Theme.text-muted; font-size: Theme.font-m; vertical-alignment: center; overflow: elide; }
                             }
                             Divider { y: parent.height - 1px; height: 1px; }
                         }
                         HorizontalLayout {
-                            ComposeField { inset: 0px; horizontal-stretch: 1; label: "宛先"; placeholder: "name@example.com"; text <=> root.compose-to; }
+                            ComposeField { inset: 0px; horizontal-stretch: 1; label: @tr("To"); placeholder: "name@example.com"; text <=> root.compose-to; }
                             Rectangle {
                                 width: ccbcc-label.preferred-width + 16px;
                                 height: 44px;
@@ -1068,15 +1164,15 @@ callback setup-oauth-cancel();
                             height: root.compose-show-cc-bcc ? 44px : 0px;
                             clip: true;
                             animate height { duration: 180ms; easing: ease-out; }
-                            ComposeField { y: 0px; height: 44px; inset: 0px; label: "CC"; placeholder: "カンマ区切りで複数"; text <=> root.compose-cc; }
+                            ComposeField { y: 0px; height: 44px; inset: 0px; label: "CC"; placeholder: @tr("Separate several with commas"); text <=> root.compose-cc; }
                         }
                         Rectangle {
                             height: root.compose-show-cc-bcc ? 44px : 0px;
                             clip: true;
                             animate height { duration: 180ms; easing: ease-out; }
-                            ComposeField { y: 0px; height: 44px; inset: 0px; label: "BCC"; placeholder: "他の宛先には表示されません"; text <=> root.compose-bcc; }
+                            ComposeField { y: 0px; height: 44px; inset: 0px; label: "BCC"; placeholder: @tr("Not shown to other recipients"); text <=> root.compose-bcc; }
                         }
-                        ComposeField { inset: 0px; label: "件名"; placeholder: "件名"; text <=> root.compose-subject; }
+                        ComposeField { inset: 0px; label: @tr("Subject"); placeholder: @tr("Subject"); text <=> root.compose-subject; }
                         Rectangle { height: 12px; }
                         RichEditor {
                             vertical-stretch: 1;
@@ -1133,7 +1229,7 @@ callback setup-oauth-cancel();
                         HorizontalLayout {
                             spacing: 4px;
                             PrimaryButton {
-                                text: root.compose-sending ? "送信中…" : "送信";
+                                text: root.compose-sending ? @tr("Sending…") : @tr("Send");
                                 icon: @image-url("icons/send.svg");
                                 has-icon: true;
                                 clicked => { if (!root.compose-sending) { root.send-compose(); } }
@@ -1160,9 +1256,9 @@ callback setup-oauth-cancel();
                             alignment: center;
                             Icon { source: @image-url("icons/mail-open.svg"); width: 26px; height: 26px; tint: Theme.text-faint.with-alpha(0.7); }
                         }
-                        Text { text: "メールを選択してください"; font-size: Theme.font-m; color: Theme.text-faint; horizontal-alignment: center; }
+                        Text { text: @tr("Select a message"); font-size: Theme.font-m; color: Theme.text-faint; horizontal-alignment: center; }
                         Text {
-                            text: "j / k で移動　r 返信　a 全員に返信　f 転送　e アーカイブ　c 新規作成";
+                            text: @tr("j / k move   r reply   a reply all   f forward   e archive   c new");
                             font-size: Theme.font-xs;
                             color: Theme.text-faint.with-alpha(0.8);
                             horizontal-alignment: center;
@@ -1217,6 +1313,13 @@ callback setup-oauth-cancel();
                     theme-mode <=> root.theme-mode;
                     compose-html <=> root.compose-html;
                     default-mail-status: root.default-mail-status;
+                    update-status: root.update-status;
+                    check-updates <=> root.check-updates;
+                    language-names: root.language-names;
+                    language-index <=> root.language-index;
+                    update-checking: root.update-state == 4;
+                    app-version: root.app-version;
+                    check-update-now => { root.check-update-now(); }
                     is-default-mail-app: root.is-default-mail-app;
                     make-default-mail-app => { root.make-default-mail-app(); }
                     signature-text <=> root.signature-text;
@@ -1279,12 +1382,12 @@ callback setup-oauth-cancel();
                             Text { text: account.name; font-size: Theme.font-s; font-weight: 600; color: Theme.text; overflow: elide; }
                             Text { text: account.email; font-size: Theme.font-xs; color: Theme.text-faint; overflow: elide; }
                         }
-                        if i == root.active-account: Text { text: "使用中"; font-size: Theme.font-xs; color: Theme.text-faint; vertical-alignment: center; }
+                        if i == root.active-account: Text { text: @tr("In use"); font-size: Theme.font-xs; color: Theme.text-faint; vertical-alignment: center; }
                     }
                 }
                 if root.accounts.length > 0: Rectangle { height: 4px; }
-                if root.active-oauth: MenuRow { icon: @image-url("icons/shield.svg"); label: "再ログイン"; clicked => { account-popup.close(); root.reauth(); } }
-                MenuRow { icon: @image-url("icons/plus.svg"); label: "アカウントを追加"; clicked => { root.open-account-setup(); } }
+                if root.active-oauth: MenuRow { icon: @image-url("icons/shield.svg"); label: @tr("Sign in again"); clicked => { account-popup.close(); root.reauth(); } }
+                MenuRow { icon: @image-url("icons/plus.svg"); label: @tr("Add account"); clicked => { root.open-account-setup(); } }
             }
         }
     }
@@ -1310,7 +1413,7 @@ callback setup-oauth-cancel();
             VerticalLayout {
                 padding: 6px;
                 spacing: 1px;
-                if root.folders.length == 0: Text { text: "フォルダーはまだありません"; font-size: Theme.font-s; color: Theme.text-faint; height: 32px; vertical-alignment: center; }
+                if root.folders.length == 0: Text { text: @tr("No folders yet"); font-size: Theme.font-s; color: Theme.text-faint; height: 32px; vertical-alignment: center; }
                 for folder in root.folders: FolderRow {
                     folder: folder;
                     current: folder.path == root.current-folder;
@@ -1321,26 +1424,26 @@ callback setup-oauth-cancel();
     }
 
     if root.link-dialog-open: Dialog {
-        title: "外部リンクを開きますか？";
-        body: "既定のブラウザで次の URL を開きます。";
+        title: @tr("Open this link?");
+        body: @tr("This URL will open in your default browser.");
         detail: root.link-url;
-        confirm-label: "ブラウザで開く";
+        confirm-label: @tr("Open in browser");
         confirmed => { root.link-dialog-open = false; root.link-confirmed(); }
         cancelled => { root.link-dialog-open = false; }
     }
 
     if root.exec-warning != "": Dialog {
-        title: "実行ファイルの可能性があります";
-        body: "開くとプログラムが実行される種類のファイルです。差出人に心当たりがない場合は保存しないでください。";
+        title: @tr("This may be a program");
+        body: @tr("Opening this kind of file runs a program. Do not save it unless you know the sender.");
         detail: root.exec-warning;
-        confirm-label: "それでも保存";
+        confirm-label: @tr("Save anyway");
         confirmed => { root.exec-warning = ""; root.save-attachment(-1, false); }
         cancelled => { root.exec-warning = ""; }
     }
 
     if root.info-dialog-open: Dialog {
-        title: "重なり検査";
-        body: "このダイアログは Slint が描画しています。Blitz では文書の上に重なり、WebView では表示中だけ WebView を隠します。";
+        title: @tr("Overlap test");
+        body: @tr("Slint draws this dialogue. With Blitz it sits above the document; with a WebView the WebView is hidden while it shows.");
         show-cancel: false;
         confirmed => { root.info-dialog-open = false; }
     }

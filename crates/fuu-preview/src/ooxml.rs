@@ -8,6 +8,7 @@ use quick_xml::events::Event;
 use quick_xml::Reader;
 
 use crate::PreviewError;
+use fuu_i18n::tr;
 
 /// Zip entries allowed in a package.
 const MAX_ENTRIES: usize = 4000;
@@ -81,7 +82,7 @@ fn read_capped(entry: impl Read, budget: u64) -> Result<Vec<u8>, PreviewError> {
 }
 
 fn unreadable() -> PreviewError {
-    PreviewError::Unreadable("Office ファイルとして読み取れません".into())
+    PreviewError::Unreadable(tr!("Not readable as an Office file").into())
 }
 
 /// A relationship target: an internal part path, or an external URL.

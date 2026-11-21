@@ -1,0 +1,1227 @@
+# Fuu user interface. Source strings are English.
+# Translations other than Japanese were made by AI and need review;
+# corrections are welcome (see README).
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: id\n"
+
+#: crates/fuu-app/ui/components.slint:261 crates/fuu-app/ui/main.slint:675
+msgid "Search"
+msgstr "Cari"
+
+#: crates/fuu-app/ui/components.slint:394 crates/fuu-app/ui/main.slint:801 crates/fuu-app/ui/setup.slint:194
+msgid "Cancel"
+msgstr "Batal"
+
+#: crates/fuu-app/ui/editor.slint:276
+msgid "Link (applies to the selected text)"
+msgstr "Tautan (berlaku untuk teks yang dipilih)"
+
+#: crates/fuu-app/ui/editor.slint:285
+msgid "Remove"
+msgstr "Hapus tautan"
+
+#: crates/fuu-app/ui/editor.slint:286
+msgid "Set"
+msgstr "Terapkan"
+
+#: crates/fuu-app/ui/editor.slint:330
+msgid "Small"
+msgstr "Kecil"
+
+#: crates/fuu-app/ui/editor.slint:331
+msgid "Normal"
+msgstr "Normal"
+
+#: crates/fuu-app/ui/editor.slint:332
+msgid "Large"
+msgstr "Besar"
+
+#: crates/fuu-app/ui/editor.slint:333
+msgid "Huge"
+msgstr "Sangat besar"
+
+#: crates/fuu-app/ui/main.slint:217
+msgid "Move to Inbox"
+msgstr "Pindahkan ke Kotak Masuk"
+
+#: crates/fuu-app/ui/main.slint:222 crates/fuu-app/src/mail.rs:724 crates/fuu-core/src/engine.rs:653
+msgid "Archive"
+msgstr "Arsipkan"
+
+#: crates/fuu-app/ui/main.slint:227 crates/fuu-app/ui/settings.slint:251
+msgid "Delete"
+msgstr "Hapus"
+
+#: crates/fuu-app/ui/main.slint:309 crates/fuu-app/src/main.rs:599 crates/fuu-app/src/main.rs:1392 crates/fuu-app/src/main.rs:1453
+msgid "New message"
+msgstr "Pesan baru"
+
+#: crates/fuu-app/ui/main.slint:397 crates/fuu-app/src/mail.rs:650 crates/fuu-app/src/mail.rs:721 crates/fuu-core/src/engine.rs:654
+msgid "Inbox"
+msgstr "Kotak Masuk"
+
+#: crates/fuu-app/ui/main.slint:398 crates/fuu-app/src/mail.rs:698
+msgid "No account"
+msgstr "Tidak ada akun"
+
+#: crates/fuu-app/ui/main.slint:707
+msgid "Update {}"
+msgstr "Perbarui {}"
+
+#: crates/fuu-app/ui/main.slint:708
+msgid "Updating {}%"
+msgstr "Memperbarui {}%"
+
+#: crates/fuu-app/ui/main.slint:709
+msgid "Restart to update"
+msgstr "Mulai ulang untuk memperbarui"
+
+#: crates/fuu-app/ui/main.slint:786
+msgid "Continue signing in in your browser"
+msgstr "Lanjutkan masuk di peramban"
+
+#: crates/fuu-app/ui/main.slint:786
+msgid "You need to sign in again"
+msgstr "Anda perlu masuk lagi"
+
+#: crates/fuu-app/ui/main.slint:800
+msgid "Sign in"
+msgstr "Masuk"
+
+#: crates/fuu-app/ui/main.slint:819 crates/fuu-app/ui/main.slint:1338 crates/fuu-app/ui/settings.slint:256 crates/fuu-app/ui/setup.slint:96
+msgid "Add account"
+msgstr "Tambah akun"
+
+#: crates/fuu-app/ui/main.slint:823
+msgid "Reload"
+msgstr "Muat ulang"
+
+#: crates/fuu-app/ui/main.slint:898
+msgid "Save"
+msgstr "Simpan"
+
+#: crates/fuu-app/ui/main.slint:902
+msgid "Reply (R)"
+msgstr "Balas (R)"
+
+#: crates/fuu-app/ui/main.slint:903
+msgid "Reply all (A)"
+msgstr "Balas semua (A)"
+
+#: crates/fuu-app/ui/main.slint:904
+msgid "Forward (F)"
+msgstr "Teruskan (F)"
+
+#: crates/fuu-app/ui/main.slint:906
+msgid "Move to Inbox (E)"
+msgstr "Pindahkan ke Kotak Masuk (E)"
+
+#: crates/fuu-app/ui/main.slint:907
+msgid "Archive (E)"
+msgstr "Arsipkan (E)"
+
+#: crates/fuu-app/ui/main.slint:908
+msgid "Delete (Delete)"
+msgstr "Hapus (Delete)"
+
+#: crates/fuu-app/ui/main.slint:919
+msgid "To: {}   CC: {}"
+msgstr "Kepada: {}   CC: {}"
+
+#: crates/fuu-app/ui/main.slint:919
+msgid "To: {}"
+msgstr "Kepada: {}"
+
+#: crates/fuu-app/ui/main.slint:954
+msgid "Remote images blocked (so the sender cannot tell you opened this)"
+msgstr "Gambar eksternal diblokir (agar pengirim tidak tahu Anda membukanya)"
+
+#: crates/fuu-app/ui/main.slint:955
+msgid "Tracking images blocked"
+msgstr "Gambar pelacak diblokir"
+
+#: crates/fuu-app/ui/main.slint:973 crates/fuu-app/src/mail.rs:164 crates/fuu-app/src/mail.rs:414 crates/fuu-app/src/mail.rs:665
+msgid "Loading…"
+msgstr "Memuat…"
+
+#: crates/fuu-app/ui/main.slint:973
+msgid "Show"
+msgstr "Tampilkan"
+
+#: crates/fuu-app/ui/main.slint:1000
+msgid "Copy"
+msgstr "Salin"
+
+#: crates/fuu-app/ui/main.slint:1001
+msgid "Select all"
+msgstr "Pilih semua"
+
+#: crates/fuu-app/ui/main.slint:1090
+msgid "From"
+msgstr "Dari"
+
+#: crates/fuu-app/ui/main.slint:1096
+msgid "To"
+msgstr "Kepada"
+
+#: crates/fuu-app/ui/main.slint:1115
+msgid "Separate several with commas"
+msgstr "Pisahkan beberapa alamat dengan koma"
+
+#: crates/fuu-app/ui/main.slint:1121
+msgid "Not shown to other recipients"
+msgstr "Tidak ditampilkan ke penerima lain"
+
+#: crates/fuu-app/ui/main.slint:1123 crates/fuu-app/ui/main.slint:1123
+msgid "Subject"
+msgstr "Subjek"
+
+#: crates/fuu-app/ui/main.slint:1180 crates/fuu-core/src/engine.rs:723
+msgid "Sending…"
+msgstr "Mengirim…"
+
+#: crates/fuu-app/ui/main.slint:1180
+msgid "Send"
+msgstr "Kirim"
+
+#: crates/fuu-app/ui/main.slint:1207
+msgid "Select a message"
+msgstr "Pilih sebuah pesan"
+
+#: crates/fuu-app/ui/main.slint:1209
+msgid "j / k move   r reply   a reply all   f forward   e archive   c new"
+msgstr "j / k pindah   r balas   a balas semua   f teruskan   e arsipkan   c baru"
+
+#: crates/fuu-app/ui/main.slint:1333
+msgid "In use"
+msgstr "Sedang dipakai"
+
+#: crates/fuu-app/ui/main.slint:1337
+msgid "Sign in again"
+msgstr "Masuk lagi"
+
+#: crates/fuu-app/ui/main.slint:1364
+msgid "No folders yet"
+msgstr "Belum ada folder"
+
+#: crates/fuu-app/ui/main.slint:1375
+msgid "Open this link?"
+msgstr "Buka tautan ini?"
+
+#: crates/fuu-app/ui/main.slint:1376
+msgid "This URL will open in your default browser."
+msgstr "Alamat ini akan dibuka di peramban bawaan Anda."
+
+#: crates/fuu-app/ui/main.slint:1378
+msgid "Open in browser"
+msgstr "Buka di peramban"
+
+#: crates/fuu-app/ui/main.slint:1384
+msgid "This may be a program"
+msgstr "Ini mungkin sebuah program"
+
+#: crates/fuu-app/ui/main.slint:1385
+msgid "Opening this kind of file runs a program. Do not save it unless you know the sender."
+msgstr "Membuka jenis berkas ini akan menjalankan program. Jangan simpan jika Anda tidak mengenal pengirimnya."
+
+#: crates/fuu-app/ui/main.slint:1387
+msgid "Save anyway"
+msgstr "Tetap simpan"
+
+#: crates/fuu-app/ui/main.slint:1393
+msgid "Overlap test"
+msgstr "Uji tumpang tindih"
+
+#: crates/fuu-app/ui/main.slint:1394
+msgid "Slint draws this dialogue. With Blitz it sits above the document; with a WebView the WebView is hidden while it shows."
+msgstr "Dialog ini digambar oleh Slint. Dengan Blitz dialog berada di atas dokumen; dengan WebView, WebView disembunyikan selama dialog tampil."
+
+#: crates/fuu-app/ui/settings.slint:160 crates/fuu-app/ui/settings.slint:176
+msgid "General"
+msgstr "Umum"
+
+#: crates/fuu-app/ui/settings.slint:161 crates/fuu-app/ui/settings.slint:217 crates/fuu-app/ui/settings.slint:275
+msgid "Accounts"
+msgstr "Akun"
+
+#: crates/fuu-app/ui/settings.slint:162 crates/fuu-app/ui/settings.slint:261
+msgid "Signature"
+msgstr "Tanda tangan"
+
+#: crates/fuu-app/ui/settings.slint:163 crates/fuu-app/ui/settings.slint:348
+msgid "Privacy"
+msgstr "Privasi"
+
+#: crates/fuu-app/ui/settings.slint:164 crates/fuu-app/ui/settings.slint:371
+msgid "Language"
+msgstr "Bahasa"
+
+#: crates/fuu-app/ui/settings.slint:165
+msgid "About"
+msgstr "Tentang"
+
+#: crates/fuu-app/ui/settings.slint:179
+msgid "Theme"
+msgstr "Tema"
+
+#: crates/fuu-app/ui/settings.slint:180
+msgid "Follow the system, or always use the light or dark look."
+msgstr "Ikuti sistem, atau selalu gunakan tampilan terang atau gelap."
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "System"
+msgstr "Sistem"
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "Light"
+msgstr "Terang"
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "Dark"
+msgstr "Gelap"
+
+#: crates/fuu-app/ui/settings.slint:185
+msgid "Send HTML mail"
+msgstr "Kirim email HTML"
+
+#: crates/fuu-app/ui/settings.slint:186
+msgid "Sends an HTML version made from the text alongside the plain text (tidier quotes, signature and links). Turn off to send plain text only."
+msgstr "Mengirim versi HTML yang dibuat dari teks bersama teks biasa (kutipan, tanda tangan, dan tautan lebih rapi). Matikan untuk mengirim teks biasa saja."
+
+#: crates/fuu-app/ui/settings.slint:191
+msgid "Default mail app"
+msgstr "Aplikasi email bawaan"
+
+#: crates/fuu-app/ui/settings.slint:194
+msgid "Make Fuu the default"
+msgstr "Jadikan Fuu bawaan"
+
+#: crates/fuu-app/ui/settings.slint:200
+msgid "Check for updates at start-up"
+msgstr "Periksa pembaruan saat mulai"
+
+#: crates/fuu-app/ui/settings.slint:202
+msgid "Looks at the GitHub releases and tells you about a new version. Updates are installed only after their signature is verified."
+msgstr "Memeriksa rilis di GitHub dan memberi tahu jika ada versi baru. Pembaruan hanya dipasang setelah tanda tangannya diverifikasi."
+
+#: crates/fuu-app/ui/settings.slint:209 crates/fuu-app/src/update.rs:62
+msgid "Checking…"
+msgstr "Memeriksa…"
+
+#: crates/fuu-app/ui/settings.slint:209
+msgid "Check now"
+msgstr "Periksa sekarang"
+
+#: crates/fuu-app/ui/settings.slint:219
+msgid "No accounts yet."
+msgstr "Belum ada akun."
+
+#: crates/fuu-app/ui/settings.slint:242
+msgid "Edit"
+msgstr "Edit"
+
+#: crates/fuu-app/ui/settings.slint:264
+msgid "Add an account to give each account its own signature."
+msgstr "Tambahkan akun agar setiap akun punya tanda tangan sendiri."
+
+#: crates/fuu-app/ui/settings.slint:276
+msgid "Each account keeps its own signature."
+msgstr "Setiap akun menyimpan tanda tangannya sendiri."
+
+#: crates/fuu-app/ui/settings.slint:307
+msgid "Add the signature to new messages"
+msgstr "Tambahkan tanda tangan ke pesan baru"
+
+#: crates/fuu-app/ui/settings.slint:308
+msgid "Inserted below the text of every new message, reply and forward. Changes are saved straight away."
+msgstr "Disisipkan di bawah teks setiap pesan baru, balasan, dan penerusan. Perubahan langsung disimpan."
+
+#: crates/fuu-app/ui/settings.slint:338
+msgid "e.g. Alex Taylor\nExample Ltd."
+msgstr "mis. Budi Santoso\nPT Contoh"
+
+#: crates/fuu-app/ui/settings.slint:351
+msgid "Do not load remote images"
+msgstr "Jangan muat gambar eksternal"
+
+#: crates/fuu-app/ui/settings.slint:352
+msgid "Blocked by default; Fuu fetches them only when you allow it for a message. Tracking pixels are never fetched."
+msgstr "Diblokir secara bawaan; Fuu hanya mengambilnya jika Anda mengizinkan untuk suatu pesan. Piksel pelacak tidak pernah diambil."
+
+#: crates/fuu-app/ui/settings.slint:357
+msgid "No remote CSS or scripts"
+msgstr "Tanpa CSS eksternal atau skrip"
+
+#: crates/fuu-app/ui/settings.slint:358
+msgid "Only CSS known to be safe is applied to HTML mail. JavaScript never runs."
+msgstr "Hanya CSS yang diketahui aman yang diterapkan pada email HTML. JavaScript tidak pernah dijalankan."
+
+#: crates/fuu-app/ui/settings.slint:363
+msgid "Confirm before opening links"
+msgstr "Konfirmasi sebelum membuka tautan"
+
+#: crates/fuu-app/ui/settings.slint:364
+msgid "Shows the real URL, then opens it in your default browser."
+msgstr "Menampilkan alamat sebenarnya, lalu membukanya di peramban bawaan Anda."
+
+#: crates/fuu-app/ui/settings.slint:373
+msgid "Translations other than Japanese are made by AI. Corrections are welcome on GitHub."
+msgstr "Terjemahan selain bahasa Jepang dibuat oleh AI. Koreksi di GitHub sangat diterima."
+
+#: crates/fuu-app/ui/settings.slint:415
+msgid "Version {}"
+msgstr "Versi {}"
+
+#: crates/fuu-app/ui/settings.slint:417
+msgid "A minimal mail client with just what you need."
+msgstr "Klien email minimalis dengan fitur seperlunya."
+
+#: crates/fuu-app/ui/settings.slint:418
+msgid "Distributed under the GNU General Public License v3.0."
+msgstr "Didistribusikan di bawah GNU General Public License v3.0."
+
+#: crates/fuu-app/ui/settings.slint:419
+msgid "Built with Slint (GPLv3), Blitz (MIT / Apache-2.0) and other open-source software."
+msgstr "Dibuat dengan Slint (GPLv3), Blitz (MIT / Apache-2.0), dan perangkat lunak sumber terbuka lainnya."
+
+#: crates/fuu-app/ui/setup.slint:96 crates/fuu-app/src/main.rs:275
+msgid "Edit account"
+msgstr "Edit akun"
+
+#: crates/fuu-app/ui/setup.slint:99
+msgid "Fuu connects straight to your mail server over IMAP / SMTP. Passwords and sign-in data are kept only in the system keychain."
+msgstr "Fuu terhubung langsung ke server email Anda melalui IMAP / SMTP. Kata sandi dan data masuk hanya disimpan di gantungan kunci sistem."
+
+#: crates/fuu-app/ui/setup.slint:106
+msgid "Name"
+msgstr "Nama"
+
+#: crates/fuu-app/ui/setup.slint:106
+msgid "Shown as the sender"
+msgstr "Ditampilkan sebagai pengirim"
+
+#: crates/fuu-app/ui/setup.slint:107
+msgid "Email address"
+msgstr "Alamat email"
+
+#: crates/fuu-app/ui/setup.slint:109
+msgid "Password"
+msgstr "Kata sandi"
+
+#: crates/fuu-app/ui/setup.slint:110
+msgid "App password (not needed when you sign in with {})"
+msgstr "Kata sandi aplikasi (tidak perlu jika masuk dengan {})"
+
+#: crates/fuu-app/ui/setup.slint:110
+msgid "Password or app password"
+msgstr "Kata sandi atau kata sandi aplikasi"
+
+#: crates/fuu-app/ui/setup.slint:125
+msgid "{}: "
+msgstr "{}: "
+
+#: crates/fuu-app/ui/setup.slint:150
+msgid "Server settings"
+msgstr "Pengaturan server"
+
+#: crates/fuu-app/ui/setup.slint:165
+msgid "User name"
+msgstr "Nama pengguna"
+
+#: crates/fuu-app/ui/setup.slint:165
+msgid "Usually the email address"
+msgstr "Biasanya alamat email"
+
+#: crates/fuu-app/ui/setup.slint:166
+msgid "IMAP server"
+msgstr "Server IMAP"
+
+#: crates/fuu-app/ui/setup.slint:169
+msgid "IMAP port"
+msgstr "Port IMAP"
+
+#: crates/fuu-app/ui/setup.slint:172
+msgid "SMTP server"
+msgstr "Server SMTP"
+
+#: crates/fuu-app/ui/setup.slint:175
+msgid "SMTP port"
+msgstr "Port SMTP"
+
+#: crates/fuu-app/ui/setup.slint:186 crates/fuu-app/ui/setup.slint:190 crates/fuu-app/ui/setup.slint:198
+msgid "Checking the connection…"
+msgstr "Memeriksa koneksi…"
+
+#: crates/fuu-app/ui/setup.slint:186
+msgid "Check and save"
+msgstr "Periksa dan simpan"
+
+#: crates/fuu-app/ui/setup.slint:190
+msgid "Continue signing in in your browser…"
+msgstr "Lanjutkan masuk di peramban…"
+
+#: crates/fuu-app/ui/setup.slint:190
+msgid "Sign in with {}"
+msgstr "Masuk dengan {}"
+
+#: crates/fuu-app/ui/setup.slint:198
+msgid "Connect and add"
+msgstr "Hubungkan dan tambahkan"
+
+#: crates/fuu-app/ui/setup.slint:202
+msgid "Add with password"
+msgstr "Tambah dengan kata sandi"
+
+#: crates/fuu-app/src/mail.rs:132
+msgid "This message cannot be shown ({0})."
+msgstr "Pesan ini tidak dapat ditampilkan ({0})."
+
+#: crates/fuu-app/src/mail.rs:193
+msgid "Could not read the attachment"
+msgstr "Lampiran tidak dapat dibaca"
+
+#: crates/fuu-app/src/mail.rs:194
+msgid "Could not save: {0}"
+msgstr "Tidak dapat menyimpan: {0}"
+
+#: crates/fuu-app/src/mail.rs:434
+msgid "Add an account and your mail appears here"
+msgstr "Tambahkan akun dan email Anda akan muncul di sini"
+
+#: crates/fuu-app/src/mail.rs:468
+msgid "Account settings saved"
+msgstr "Pengaturan akun disimpan"
+
+#: crates/fuu-app/src/mail.rs:485
+msgid "Could not open the browser: {0}"
+msgstr "Tidak dapat membuka peramban: {0}"
+
+#: crates/fuu-app/src/mail.rs:541 crates/fuu-app/src/mail.rs:560
+msgid "No messages"
+msgstr "Tidak ada pesan"
+
+#: crates/fuu-app/src/mail.rs:579
+msgid "Could not load the message: {0}"
+msgstr "Tidak dapat memuat pesan: {0}"
+
+#: crates/fuu-app/src/mail.rs:594
+msgid "Loaded {0} of {1} remote images"
+msgstr "{0} dari {1} gambar eksternal dimuat"
+
+#: crates/fuu-app/src/mail.rs:620
+msgid "Moved to Trash"
+msgstr "Dipindahkan ke Sampah"
+
+#: crates/fuu-app/src/mail.rs:621
+msgid "Archived"
+msgstr "Diarsipkan"
+
+#: crates/fuu-app/src/mail.rs:622
+msgid "Moved back to Inbox"
+msgstr "Dikembalikan ke Kotak Masuk"
+
+#: crates/fuu-app/src/mail.rs:629
+msgid "Sent ({0})"
+msgstr "Terkirim ({0})"
+
+#: crates/fuu-app/src/mail.rs:630 crates/fuu-app/src/mail.rs:723
+msgid "Sent"
+msgstr "Terkirim"
+
+#: crates/fuu-app/src/mail.rs:699
+msgid "Add one to get started"
+msgstr "Tambahkan satu untuk memulai"
+
+#: crates/fuu-app/src/mail.rs:722
+msgid "Drafts"
+msgstr "Draf"
+
+#: crates/fuu-app/src/mail.rs:725
+msgid "Junk"
+msgstr "Spam"
+
+#: crates/fuu-app/src/mail.rs:726 crates/fuu-core/src/engine.rs:652
+msgid "Trash"
+msgstr "Sampah"
+
+#: crates/fuu-app/src/mail.rs:779 crates/fuu-app/src/main.rs:269 crates/fuu-app/src/main.rs:445 crates/fuu-app/src/main.rs:504
+msgid "(no subject)"
+msgstr "(tanpa subjek)"
+
+#: crates/fuu-app/src/mail.rs:963
+msgid "Enter an email address"
+msgstr "Masukkan alamat email"
+
+#: crates/fuu-app/src/mail.rs:965
+msgid "Enter a password"
+msgstr "Masukkan kata sandi"
+
+#: crates/fuu-app/src/mail.rs:968
+msgid "Fill in the server settings"
+msgstr "Isi pengaturan server"
+
+#: crates/fuu-app/src/mail.rs:971
+msgid "The port number is not valid"
+msgstr "Nomor port tidak valid"
+
+#: crates/fuu-app/src/mail.rs:980 crates/fuu-app/src/mail.rs:1014
+msgid "Accounts cannot be added while showing development data (start without FUU_SPIKE_FEED)"
+msgstr "Akun tidak dapat ditambahkan saat menampilkan data pengembangan (mulai tanpa FUU_SPIKE_FEED)"
+
+#: crates/fuu-app/src/mail.rs:1010
+msgid "This address does not support signing in through the browser"
+msgstr "Alamat ini tidak mendukung masuk melalui peramban"
+
+#: crates/fuu-app/src/main.rs:251
+msgid "You can have up to 32 tabs"
+msgstr "Anda dapat membuka hingga 32 tab"
+
+#: crates/fuu-app/src/main.rs:274
+msgid "Settings"
+msgstr "Pengaturan"
+
+#: crates/fuu-app/src/main.rs:446
+msgid "Attachment of “{0}”"
+msgstr "Lampiran dari “{0}”"
+
+#: crates/fuu-app/src/main.rs:564
+msgid "Fuu is your default mail app."
+msgstr "Fuu adalah aplikasi email bawaan Anda."
+
+#: crates/fuu-app/src/main.rs:565
+msgid "Email links currently open another app."
+msgstr "Saat ini tautan email membuka aplikasi lain."
+
+#: crates/fuu-app/src/main.rs:566
+msgid "Available when Fuu runs as an app (Fuu.app)."
+msgstr "Tersedia saat Fuu berjalan sebagai aplikasi (Fuu.app)."
+
+#: crates/fuu-app/src/main.rs:595
+msgid "Could not open the email link"
+msgstr "Tidak dapat membuka tautan email"
+
+#: crates/fuu-app/src/main.rs:616
+msgid "(no account set up)"
+msgstr "(belum ada akun)"
+
+#: crates/fuu-app/src/main.rs:894
+msgid "System default"
+msgstr "Ikuti sistem"
+
+#: crates/fuu-app/src/main.rs:918
+msgid "Could not save settings: {0}"
+msgstr "Tidak dapat menyimpan pengaturan: {0}"
+
+#: crates/fuu-app/src/main.rs:1198
+msgid "Saved: {0}"
+msgstr "Disimpan: {0}"
+
+#: crates/fuu-app/src/main.rs:1356
+msgid "Copied {0} characters"
+msgstr "{0} karakter disalin"
+
+#: crates/fuu-app/src/main.rs:1421
+msgid "Choose Fuu in Default apps to finish"
+msgstr "Pilih Fuu di Aplikasi bawaan untuk menyelesaikan"
+
+#: crates/fuu-app/src/main.rs:1465 crates/fuu-app/src/main.rs:1999
+msgid "Reply all"
+msgstr "Balas semua"
+
+#: crates/fuu-app/src/main.rs:1465
+msgid "Reply"
+msgstr "Balas"
+
+#: crates/fuu-app/src/main.rs:1508
+msgid "Forward"
+msgstr "Teruskan"
+
+#: crates/fuu-app/src/main.rs:1636
+msgid "Cannot send while showing development data"
+msgstr "Tidak dapat mengirim saat menampilkan data pengembangan"
+
+#: crates/fuu-app/src/main.rs:1638
+msgid "There is no account to send from"
+msgstr "Tidak ada akun untuk mengirim"
+
+#: crates/fuu-app/src/main.rs:1645 crates/fuu-core/src/compose.rs:443
+msgid "Enter a recipient"
+msgstr "Masukkan penerima"
+
+#: crates/fuu-app/src/main.rs:1726
+msgid "Could not read: {0}"
+msgstr "Tidak dapat membaca: {0}"
+
+#: crates/fuu-app/src/main.rs:1728
+msgid "The attachments total {0}. Some servers will not accept that much"
+msgstr "Total lampiran {0}. Sebagian server tidak menerima sebesar itu"
+
+#: crates/fuu-app/src/os_mail.rs:72
+msgid "Not supported on this system"
+msgstr "Tidak didukung di sistem ini"
+
+#: crates/fuu-app/src/os_mail.rs:188
+msgid "Home folder not found"
+msgstr "Folder beranda tidak ditemukan"
+
+#: crates/fuu-app/src/os_mail.rs:208
+msgid "Could not run xdg-mime: {0}"
+msgstr "Tidak dapat menjalankan xdg-mime: {0}"
+
+#: crates/fuu-app/src/os_mail.rs:209
+msgid "Could not make Fuu the default mail app (xdg-mime)"
+msgstr "Tidak dapat menjadikan Fuu aplikasi email bawaan (xdg-mime)"
+
+#: crates/fuu-app/src/os_mail.rs:384 crates/fuu-app/src/os_mail.rs:401
+msgid "Could not write to the registry ({0}: {1})"
+msgstr "Tidak dapat menulis ke registri ({0}: {1})"
+
+#: crates/fuu-app/src/os_mail.rs:450
+msgid "Could not open Settings: {0}"
+msgstr "Tidak dapat membuka Pengaturan: {0}"
+
+#: crates/fuu-app/src/os_mail.rs:539
+msgid "Only available when Fuu runs as an app (Fuu.app)"
+msgstr "Hanya tersedia saat Fuu berjalan sebagai aplikasi (Fuu.app)"
+
+#: crates/fuu-app/src/os_mail.rs:543
+msgid "Could not make Fuu the default mail app ({0})"
+msgstr "Tidak dapat menjadikan Fuu aplikasi email bawaan ({0})"
+
+#: crates/fuu-app/src/preview.rs:61 crates/fuu-app/src/preview.rs:96
+msgid "Preparing the preview…"
+msgstr "Menyiapkan pratinjau…"
+
+#: crates/fuu-app/src/preview.rs:62
+msgid "{0}. Use Save to save the file and open it."
+msgstr "{0}. Gunakan Simpan untuk menyimpan berkas lalu membukanya."
+
+#: crates/fuu-app/src/preview.rs:71
+msgid "Could not read the attachment."
+msgstr "Lampiran tidak dapat dibaca."
+
+#: crates/fuu-app/src/preview.rs:80
+msgid "Something went wrong while preparing the preview"
+msgstr "Terjadi masalah saat menyiapkan pratinjau"
+
+#: crates/fuu-app/src/preview.rs:94
+msgid "Could not prepare a preview."
+msgstr "Tidak dapat membuat pratinjau."
+
+#: crates/fuu-app/src/sections.rs:26 crates/fuu-app/src/sections.rs:45
+msgid "Older"
+msgstr "Lebih lama"
+
+#: crates/fuu-app/src/sections.rs:34
+msgid "Today"
+msgstr "Hari ini"
+
+#: crates/fuu-app/src/sections.rs:35
+msgid "Yesterday"
+msgstr "Kemarin"
+
+#: crates/fuu-app/src/sections.rs:36
+msgid "Two days ago"
+msgstr "Dua hari lalu"
+
+#: crates/fuu-app/src/sections.rs:41
+msgid "This month"
+msgstr "Bulan ini"
+
+#: crates/fuu-app/src/sections.rs:44
+msgid "{0} {1}"
+msgstr "{0} {1}"
+
+#: crates/fuu-app/src/update.rs:77
+msgid "Version {0} is available."
+msgstr "Versi {0} tersedia."
+
+#: crates/fuu-app/src/update.rs:82
+msgid "You have the latest version ({0})."
+msgstr "Anda memakai versi terbaru ({0})."
+
+#: crates/fuu-app/src/update.rs:87
+msgid "Could not check: {0}"
+msgstr "Tidak dapat memeriksa: {0}"
+
+#: crates/fuu-app/src/update.rs:132
+msgid "Could not download: {0}"
+msgstr "Tidak dapat mengunduh: {0}"
+
+#: crates/fuu-app/src/update.rs:139
+msgid "Version {0} is installed. Restart to use it."
+msgstr "Versi {0} sudah dipasang. Mulai ulang untuk memakainya."
+
+#: crates/fuu-app/src/update.rs:141
+msgid "Could not update: {0}"
+msgstr "Tidak dapat memperbarui: {0}"
+
+#: crates/fuu-core/src/account.rs:124
+msgid "Sign in with Google, or turn on 2-Step Verification and use an app password."
+msgstr "Masuk dengan Google, atau aktifkan Verifikasi 2 Langkah dan gunakan sandi aplikasi."
+
+#: crates/fuu-core/src/account.rs:133
+msgid "Outlook.com only accepts signing in with a Microsoft account."
+msgstr "Outlook.com hanya menerima masuk dengan akun Microsoft."
+
+#: crates/fuu-core/src/account.rs:142
+msgid "Create an app-specific password for your Apple Account and use it here."
+msgstr "Buat kata sandi khusus aplikasi untuk Akun Apple Anda dan gunakan di sini."
+
+#: crates/fuu-core/src/account.rs:147
+msgid "Yahoo Mail"
+msgstr "Yahoo Mail"
+
+#: crates/fuu-core/src/account.rs:150
+msgid "Turn on IMAP / SMTP access in your Yahoo Mail settings."
+msgstr "Aktifkan akses IMAP / SMTP di pengaturan Yahoo Mail."
+
+#: crates/fuu-core/src/cache.rs:17
+msgid "Cache operation failed: {0}"
+msgstr "Operasi cache gagal: {0}"
+
+#: crates/fuu-core/src/compose.rs:112
+msgid "Not a valid email address: {0}"
+msgstr "Alamat email tidak valid: {0}"
+
+#: crates/fuu-core/src/compose.rs:192
+msgid "{0} wrote:"
+msgstr "{0} menulis:"
+
+#: crates/fuu-core/src/compose.rs:192
+msgid "On {0}, {1} wrote:"
+msgstr "Pada {0}, {1} menulis:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "From:"
+msgstr "Dari:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "Sent:"
+msgstr "Dikirim:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "To:"
+msgstr "Kepada:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "Subject:"
+msgstr "Subjek:"
+
+#: crates/fuu-core/src/compose.rs:215
+msgid "January"
+msgstr "Januari"
+
+#: crates/fuu-core/src/compose.rs:216
+msgid "February"
+msgstr "Februari"
+
+#: crates/fuu-core/src/compose.rs:217
+msgid "March"
+msgstr "Maret"
+
+#: crates/fuu-core/src/compose.rs:218
+msgid "April"
+msgstr "April"
+
+#: crates/fuu-core/src/compose.rs:219
+msgid "May"
+msgstr "Mei"
+
+#: crates/fuu-core/src/compose.rs:220
+msgid "June"
+msgstr "Juni"
+
+#: crates/fuu-core/src/compose.rs:221
+msgid "July"
+msgstr "Juli"
+
+#: crates/fuu-core/src/compose.rs:222
+msgid "August"
+msgstr "Agustus"
+
+#: crates/fuu-core/src/compose.rs:223
+msgid "September"
+msgstr "September"
+
+#: crates/fuu-core/src/compose.rs:224
+msgid "October"
+msgstr "Oktober"
+
+#: crates/fuu-core/src/compose.rs:225
+msgid "November"
+msgstr "November"
+
+#: crates/fuu-core/src/compose.rs:226
+msgid "December"
+msgstr "Desember"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Monday"
+msgstr "Senin"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Tuesday"
+msgstr "Selasa"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Wednesday"
+msgstr "Rabu"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Thursday"
+msgstr "Kamis"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Friday"
+msgstr "Jumat"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Saturday"
+msgstr "Sabtu"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Sunday"
+msgstr "Minggu"
+
+#: crates/fuu-core/src/compose.rs:238
+msgid "{0}, {1} {2} {3} {4}"
+msgstr "{0}, {1} {2} {3} {4}"
+
+#: crates/fuu-core/src/compose.rs:276
+msgid "---------- Forwarded message ----------"
+msgstr "---------- Pesan diteruskan ----------"
+
+#: crates/fuu-core/src/compose.rs:279
+msgid "Date:"
+msgstr "Tanggal:"
+
+#: crates/fuu-core/src/compose.rs:446
+msgid "The sender address is not valid"
+msgstr "Alamat pengirim tidak valid"
+
+#: crates/fuu-core/src/config.rs:26
+msgid "The settings folder was not found"
+msgstr "Folder pengaturan tidak ditemukan"
+
+#: crates/fuu-core/src/config.rs:27
+msgid "Could not read or write the settings file: {0}"
+msgstr "Tidak dapat membaca atau menulis berkas pengaturan: {0}"
+
+#: crates/fuu-core/src/config.rs:28
+msgid "Could not understand the settings file: {0}"
+msgstr "Berkas pengaturan tidak dapat dipahami: {0}"
+
+#: crates/fuu-core/src/engine.rs:229 crates/fuu-core/src/engine.rs:244 crates/fuu-core/src/engine.rs:282 crates/fuu-core/src/engine.rs:449
+msgid "Connecting to {0}…"
+msgstr "Menghubungkan ke {0}…"
+
+#: crates/fuu-core/src/engine.rs:242 crates/fuu-core/src/engine.rs:713
+msgid "Account not found"
+msgstr "Akun tidak ditemukan"
+
+#: crates/fuu-core/src/engine.rs:273
+msgid "No OAuth provider given"
+msgstr "Penyedia OAuth tidak ditentukan"
+
+#: crates/fuu-core/src/engine.rs:280
+msgid "{0} did not issue a refresh token"
+msgstr "{0} tidak menerbitkan token penyegaran"
+
+#: crates/fuu-core/src/engine.rs:298
+msgid "No OAuth client ID for {0} is set up. Put client_id in {1} in the settings folder"
+msgstr "ID klien OAuth untuk {0} belum diatur. Tulis client_id di {1} pada folder pengaturan"
+
+#: crates/fuu-core/src/engine.rs:310
+msgid "Sign in to {0} in your browser…"
+msgstr "Masuk ke {0} di peramban Anda…"
+
+#: crates/fuu-core/src/engine.rs:324
+msgid "Unknown OAuth provider"
+msgstr "Penyedia OAuth tidak dikenal"
+
+#: crates/fuu-core/src/engine.rs:335
+msgid "No OAuth client ID for {0} is set up ({1})"
+msgstr "ID klien OAuth untuk {0} belum diatur ({1})"
+
+#: crates/fuu-core/src/engine.rs:340
+msgid "No sign-in found. Please sign in again"
+msgstr "Data masuk tidak ditemukan. Silakan masuk lagi"
+
+#: crates/fuu-core/src/engine.rs:351
+msgid "The sign-in has expired or was revoked ({0})"
+msgstr "Sesi masuk sudah kedaluwarsa atau dicabut ({0})"
+
+#: crates/fuu-core/src/engine.rs:417
+msgid "Could not save the signature: {0}"
+msgstr "Tidak dapat menyimpan tanda tangan: {0}"
+
+#: crates/fuu-core/src/engine.rs:581
+msgid "Loading messages…"
+msgstr "Memuat pesan…"
+
+#: crates/fuu-core/src/engine.rs:656
+msgid "No {0} folder found"
+msgstr "Folder “{0}” tidak ditemukan"
+
+#: crates/fuu-core/src/engine.rs:659
+msgid "It is already in that folder"
+msgstr "Pesan sudah ada di folder itu"
+
+#: crates/fuu-core/src/engine.rs:700
+msgid "Created the archive folder “{0}”, but it is not in the folder list"
+msgstr "Folder arsip “{0}” sudah dibuat, tetapi tidak ada di daftar folder"
+
+#: crates/fuu-core/src/engine.rs:705
+msgid "Could not create an archive folder: {0}"
+msgstr "Tidak dapat membuat folder arsip: {0}"
+
+#: crates/fuu-core/src/engine.rs:752
+msgid "Could not save to the Sent folder: {0}"
+msgstr "Tidak dapat menyimpan ke folder Terkirim: {0}"
+
+#: crates/fuu-core/src/engine.rs:755
+msgid "Not saved: no Sent folder found"
+msgstr "Tidak disimpan: folder Terkirim tidak ditemukan"
+
+#: crates/fuu-core/src/imap.rs:36
+msgid "Cannot connect to the server: {0}"
+msgstr "Tidak dapat terhubung ke server: {0}"
+
+#: crates/fuu-core/src/imap.rs:37
+msgid "Cannot set up an encrypted connection: {0}"
+msgstr "Tidak dapat membuat koneksi terenkripsi: {0}"
+
+#: crates/fuu-core/src/imap.rs:38
+msgid "Cannot sign in (check the user name and password): {0}"
+msgstr "Tidak dapat masuk (periksa nama pengguna dan kata sandi): {0}"
+
+#: crates/fuu-core/src/imap.rs:39
+msgid "Talking to the IMAP server failed: {0}"
+msgstr "Komunikasi dengan server IMAP gagal: {0}"
+
+#: crates/fuu-core/src/imap.rs:40
+msgid "The server did not answer (timed out)"
+msgstr "Server tidak menjawab (waktu habis)"
+
+#: crates/fuu-core/src/imap.rs:422
+msgid "Message UID {0} not found"
+msgstr "Pesan UID {0} tidak ditemukan"
+
+#: crates/fuu-core/src/oauth.rs:143
+msgid "You need to sign in again ({0})"
+msgstr "Anda perlu masuk lagi ({0})"
+
+#: crates/fuu-core/src/oauth.rs:144
+msgid "Sign-in cancelled"
+msgstr "Masuk dibatalkan"
+
+#: crates/fuu-core/src/oauth.rs:145
+msgid "Signing in through the browser did not finish in time"
+msgstr "Masuk melalui peramban tidak selesai tepat waktu"
+
+#: crates/fuu-core/src/oauth.rs:146
+msgid "Sign-in was not allowed ({0})"
+msgstr "Masuk tidak diizinkan ({0})"
+
+#: crates/fuu-core/src/oauth.rs:364
+msgid "Cannot read the token response: {0}"
+msgstr "Respons token tidak dapat dibaca: {0}"
+
+#: crates/fuu-core/src/oauth.rs:369
+msgid "No access token"
+msgstr "Tidak ada token akses"
+
+#: crates/fuu-core/src/oauth.rs:387
+msgid "Cannot set up the HTTPS client"
+msgstr "Klien HTTPS tidak dapat disiapkan"
+
+#: crates/fuu-core/src/oauth.rs:398
+msgid "Cannot connect to {0}: {1}"
+msgstr "Tidak dapat terhubung ke {0}: {1}"
+
+#: crates/fuu-core/src/secrets.rs:22
+msgid "The system keychain is not available: {0}"
+msgstr "Gantungan kunci sistem tidak tersedia: {0}"
+
+#: crates/fuu-core/src/secrets.rs:23
+msgid "No password is saved"
+msgstr "Tidak ada kata sandi yang disimpan"
+
+#: crates/fuu-core/src/secrets.rs:24
+msgid "Keychain operation failed: {0}"
+msgstr "Operasi gantungan kunci gagal: {0}"
+
+#: crates/fuu-core/src/smtp.rs:32
+msgid "Cannot connect to the outgoing server: {0}"
+msgstr "Tidak dapat terhubung ke server keluar: {0}"
+
+#: crates/fuu-core/src/smtp.rs:33
+msgid "Cannot set up an encrypted connection to the outgoing server: {0}"
+msgstr "Tidak dapat membuat koneksi terenkripsi ke server keluar: {0}"
+
+#: crates/fuu-core/src/smtp.rs:34
+msgid "Cannot sign in to the outgoing server: {0}"
+msgstr "Tidak dapat masuk ke server keluar: {0}"
+
+#: crates/fuu-core/src/smtp.rs:35
+msgid "Sending was refused: {0}"
+msgstr "Pengiriman ditolak: {0}"
+
+#: crates/fuu-core/src/smtp.rs:36
+msgid "Talking to the outgoing server failed: {0}"
+msgstr "Komunikasi dengan server keluar gagal: {0}"
+
+#: crates/fuu-core/src/smtp.rs:37
+msgid "The outgoing server did not answer (timed out)"
+msgstr "Server keluar tidak menjawab (waktu habis)"
+
+#: crates/fuu-core/src/smtp.rs:70
+msgid "The connection was closed"
+msgstr "Koneksi terputus"
+
+#: crates/fuu-core/src/smtp.rs:74 crates/fuu-core/src/smtp.rs:76
+msgid "Unexpected reply: {0}"
+msgstr "Balasan tak terduga: {0}"
+
+#: crates/fuu-core/src/smtp.rs:124
+msgid "The server does not support STARTTLS"
+msgstr "Server tidak mendukung STARTTLS"
+
+#: crates/fuu-core/src/smtp.rs:184
+msgid "Unsupported sign-in method ({0})"
+msgstr "Metode masuk tidak didukung ({0})"
+
+#: crates/fuu-parser/src/mailparser.rs:142
+msgid "Forwarded message {0}.eml"
+msgstr "Pesan diteruskan {0}.eml"
+
+#: crates/fuu-parser/src/mailparser.rs:143
+msgid "Attachment {0}"
+msgstr "Lampiran {0}"
+
+#: crates/fuu-preview/src/docx.rs:323 crates/fuu-preview/src/pptx.rs:262
+msgid "[Picture]"
+msgstr "[Gambar]"
+
+#: crates/fuu-preview/src/docx.rs:648
+msgid "Not readable as a Word document"
+msgstr "Tidak dapat dibaca sebagai dokumen Word"
+
+#: crates/fuu-preview/src/docx.rs:683
+msgid "The Word document is damaged"
+msgstr "Dokumen Word rusak"
+
+#: crates/fuu-preview/src/docx.rs:692
+msgid "A long document: only the beginning is shown"
+msgstr "Dokumen panjang: hanya bagian awal yang ditampilkan"
+
+#: crates/fuu-preview/src/docx.rs:695 crates/fuu-preview/src/pptx.rs:384
+msgid "Pictures loaded from elsewhere, not shown: {0}"
+msgstr "Gambar yang dimuat dari luar, tidak ditampilkan: {0}"
+
+#: crates/fuu-preview/src/image.rs:20
+msgid "Unknown image format"
+msgstr "Format gambar tidak dikenal"
+
+#: crates/fuu-preview/src/image.rs:71
+msgid "{0} × {1} pixels"
+msgstr "{0} × {1} piksel"
+
+#: crates/fuu-preview/src/lib.rs:39
+msgid "Image"
+msgstr "Gambar"
+
+#: crates/fuu-preview/src/lib.rs:41
+msgid "Word document"
+msgstr "Dokumen Word"
+
+#: crates/fuu-preview/src/lib.rs:42
+msgid "Spreadsheet"
+msgstr "Lembar kerja"
+
+#: crates/fuu-preview/src/lib.rs:43
+msgid "Presentation"
+msgstr "Presentasi"
+
+#: crates/fuu-preview/src/lib.rs:85
+msgid "This format cannot be previewed"
+msgstr "Format ini tidak dapat dipratinjau"
+
+#: crates/fuu-preview/src/lib.rs:86
+msgid "The file is too large to preview"
+msgstr "Berkas terlalu besar untuk dipratinjau"
+
+#: crates/fuu-preview/src/lib.rs:87
+msgid "Could not read the file ({0})"
+msgstr "Tidak dapat membaca berkas ({0})"
+
+#: crates/fuu-preview/src/ooxml.rs:85
+msgid "Not readable as an Office file"
+msgstr "Tidak dapat dibaca sebagai berkas Office"
+
+#: crates/fuu-preview/src/pdf.rs:137
+msgid "Protected by a password"
+msgstr "Dilindungi kata sandi"
+
+#: crates/fuu-preview/src/pdf.rs:138
+msgid "Not readable as a PDF"
+msgstr "Tidak dapat dibaca sebagai PDF"
+
+#: crates/fuu-preview/src/pdf.rs:144
+msgid "There are no pages"
+msgstr "Tidak ada halaman"
+
+#: crates/fuu-preview/src/pdf.rs:151
+msgid "Showing the first {1} of {0} pages"
+msgstr "Menampilkan {1} halaman pertama dari {0}"
+
+#: crates/fuu-preview/src/pdf.rs:153
+msgid "Pages: {0}"
+msgstr "Halaman: {0}"
+
+#: crates/fuu-preview/src/pptx.rs:282
+msgid "Not readable as a PowerPoint file"
+msgstr "Tidak dapat dibaca sebagai berkas PowerPoint"
+
+#: crates/fuu-preview/src/pptx.rs:310
+msgid "There are no slides"
+msgstr "Tidak ada salindia"
+
+#: crates/fuu-preview/src/pptx.rs:375
+msgid "Slide {}"
+msgstr "Salindia {}"
+
+#: crates/fuu-preview/src/pptx.rs:379
+msgid "Showing the first {1} of {0} slides"
+msgstr "Menampilkan {1} salindia pertama dari {0}"
+
+#: crates/fuu-preview/src/pptx.rs:381
+msgid "Slides: {0}"
+msgstr "Salindia: {0}"
+
+#: crates/fuu-preview/src/xlsx.rs:159
+msgid "There are no sheets"
+msgstr "Tidak ada lembar"
+
+#: crates/fuu-preview/src/xlsx.rs:163
+msgid "Showing the first {1} of {0} sheets"
+msgstr "Menampilkan {1} lembar pertama dari {0}"
+
+#: crates/fuu-preview/src/xlsx.rs:168
+msgid "This sheet covers too large an area to show"
+msgstr "Lembar ini mencakup area yang terlalu luas untuk ditampilkan"
+
+#: crates/fuu-preview/src/xlsx.rs:174
+msgid "This sheet cannot be read ({0})"
+msgstr "Lembar ini tidak dapat dibaca ({0})"
+
+#: crates/fuu-preview/src/xlsx.rs:193
+msgid "(empty sheet)"
+msgstr "(lembar kosong)"
+
+#: crates/fuu-preview/src/xlsx.rs:244
+msgid "Showing {2} rows × {3} columns of {0} × {1}"
+msgstr "Menampilkan {2} baris × {3} kolom dari {0} × {1}"

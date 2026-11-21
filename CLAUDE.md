@@ -11,3 +11,11 @@
 - Never commit OAuth client IDs, tokens or account data.
 - Verify on both Windows and macOS before calling UI work done.
 - Plan and milestones: `docs/plan.md`.
+- README: `README.md` is English (the main page); each other language has its
+  own `README.<lang>.md`. The Japanese text (`README.ja.md`) is the source: edit
+  it first, polish it with the yomiyasu skill, then translate it into English
+  and every other language. Translations are AI-made and say so, inviting
+  corrections.
+- UI strings are English in the source (`@tr()` in Slint, `fuu_i18n::tr!` in
+  Rust); translations live in `lang/<lang>/LC_MESSAGES/fuu-app.po`. After
+  changing strings run `python scripts/i18n.py` to update the catalogues.

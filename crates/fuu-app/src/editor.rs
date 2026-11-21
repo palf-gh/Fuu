@@ -97,6 +97,11 @@ pub fn doc_from_plain(text: &str) -> RichDoc {
 /// Reply/forward body: an empty line to type on, the signature, then a rule, the
 /// original message's header block (labels in bold) and its text.
 pub fn original_doc(signature: &str, header: &str, original: &str) -> RichDoc {
+    // Line endings are normalised before any offset is taken: RichDoc drops
+    // "\r", which would otherwise shift the bold labels (a signature typed on
+    // Windows can hold "\r\n").
+    let lf = |s: &str| s.replace("\r\n", "\n").replace('\r', "\n");
+    let (signature, header, original) = (lf(signature), lf(header), lf(original));
     let mut text = String::from("\n");
     if !signature.trim().is_empty() {
         text.push_str(signature.trim_end());
@@ -106,14 +111,14 @@ pub fn original_doc(signature: &str, header: &str, original: &str) -> RichDoc {
     let header_start = text.len() + RULE.len() + 1;
     text.push_str(RULE);
     text.push('\n');
-    text.push_str(header);
+    text.push_str(&header);
     let header_end = text.len();
     text.push('\n');
     text.push_str(original.trim_end());
     let mut doc = RichDoc::from_plain(&text);
     let mut line_start = header_start;
     for line in text[header_start..header_end].split_inclusive('\n') {
-        if let Some(label) = fuu_core::compose::HEADER_LABELS.iter().find(|l| line.starts_with(**l)) {
+        if let Some(label) = fuu_core::compose::header_labels().into_iter().find(|l| line.starts_with(*l)) {
             doc.toggle_mark(line_start..line_start + label.len(), Mark::Bold);
         }
         line_start += line.len();
@@ -542,11 +547,21 @@ mod tests {
 
     #[test]
     fn original_doc_layout() {
-        let d = original_doc("-- \n山田", "差出人: a@example.jp\n件名: 件\n", "本文");
-        assert_eq!(d.text(), "\n-- \n山田\n\n─\n差出人: a@example.jp\n件名: 件\n\n本文");
-        let at = d.text().find("差出人:").unwrap();
-        assert!(d.style_of_char(at).bold && !d.style_of_char(at + "差出人:".len() + 1).bold);
-        assert!(d.style_of_char(d.text().find("件名:").unwrap()).bold);
+        let d = original_doc("-- \n山田", "From: a@example.jp\nSubject: 件\n", "本文");
+        assert_eq!(d.text(), "\n-- \n山田\n\n─\nFrom: a@example.jp\nSubject: 件\n\n本文");
+        let at = d.text().find("From:").unwrap();
+        assert!(d.style_of_char(at).bold && !d.style_of_char(at + "From:".len() + 1).bold);
+        assert!(d.style_of_char(d.text().find("Subject:").unwrap()).bold);
+    }
+
+    /// Exactly the labels are bold, whatever line endings the signature and
+    /// the original carry (a "\r" used to push the bold to the right).
+    #[test]
+    fn header_labels_stay_bold_with_crlf() {
+        let d = original_doc("山田 太郎\r\n株式会社サンプル\r\n", "From: \"柳田\" <a@example.jp>\r\nSent: 2026年11月21日\r\nSubject: [ご依頼] 件\r\n", "本文\r\nです");
+        assert!(!d.text().contains('\r'));
+        let bold: String = d.text().char_indices().filter(|(i, _)| d.style_of_char(*i).bold).map(|(_, c)| c).collect();
+        assert_eq!(bold, "From:Sent:Subject:");
     }
 
     #[test]

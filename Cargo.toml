@@ -9,12 +9,13 @@ members = [
     "crates/fuu-editor",
     "crates/fuu-preview",
     "crates/fuu-app",
+    "crates/fuu-i18n",
 ]
 # Needs nightly (cargo-fuzz); see fuzz/Cargo.toml.
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.0-alpha.3"
 edition = "2021"
 license = "GPL-3.0-only"
 rust-version = "1.95"
@@ -28,6 +29,7 @@ fuu-core = { path = "crates/fuu-core" }
 fuu-render = { path = "crates/fuu-render" }
 fuu-editor = { path = "crates/fuu-editor" }
 fuu-preview = { path = "crates/fuu-preview" }
+fuu-i18n = { path = "crates/fuu-i18n" }
 
 # Heavy pixel work stays usable in debug builds and tests (PDF previews).
 [profile.dev.package.hayro]

@@ -12,6 +12,7 @@ use tokio_rustls::TlsConnector;
 
 use crate::account::{Security, ServerConfig};
 use crate::imap::Credential;
+use fuu_i18n::tr;
 
 const TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -28,12 +29,12 @@ pub enum SmtpError {
 impl std::fmt::Display for SmtpError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Connect(e) => write!(f, "送信サーバーに接続できません: {e}"),
-            Self::Tls(e) => write!(f, "送信サーバーとの暗号化接続を確立できません: {e}"),
-            Self::Auth(e) => write!(f, "送信サーバーにログインできません: {e}"),
-            Self::Rejected(e) => write!(f, "送信を拒否されました: {e}"),
-            Self::Protocol(e) => write!(f, "送信サーバーとの通信に失敗しました: {e}"),
-            Self::Timeout => f.write_str("送信サーバーの応答がありません（タイムアウト）"),
+            Self::Connect(e) => f.write_str(&tr!("Cannot connect to the outgoing server: {0}", e)),
+            Self::Tls(e) => f.write_str(&tr!("Cannot set up an encrypted connection to the outgoing server: {0}", e)),
+            Self::Auth(e) => f.write_str(&tr!("Cannot sign in to the outgoing server: {0}", e)),
+            Self::Rejected(e) => f.write_str(&tr!("Sending was refused: {0}", e)),
+            Self::Protocol(e) => f.write_str(&tr!("Talking to the outgoing server failed: {0}", e)),
+            Self::Timeout => f.write_str(tr!("The outgoing server did not answer (timed out)")),
         }
     }
 }
@@ -66,13 +67,13 @@ impl Conn {
             let mut line = String::new();
             let n = self.stream.read_line(&mut line).await.map_err(|e| SmtpError::Protocol(e.to_string()))?;
             if n == 0 {
-                return Err(SmtpError::Protocol("接続が切れました".into()));
+                return Err(SmtpError::Protocol(tr!("The connection was closed").into()));
             }
             let line = line.trim_end();
             if line.len() < 3 {
-                return Err(SmtpError::Protocol(format!("不正な応答: {line}")));
+                return Err(SmtpError::Protocol(tr!("Unexpected reply: {0}", line)));
             }
-            let code: u16 = line[..3].parse().map_err(|_| SmtpError::Protocol(format!("不正な応答: {line}")))?;
+            let code: u16 = line[..3].parse().map_err(|_| SmtpError::Protocol(tr!("Unexpected reply: {0}", line)))?;
             let last = line.as_bytes().get(3) != Some(&b'-');
             lines.push(line.get(4..).unwrap_or("").to_owned());
             if last {
@@ -120,7 +121,7 @@ async fn open(server: &ServerConfig) -> Result<(Conn, Vec<String>), SmtpError> {
             greeting(&mut conn).await?;
             let caps = conn.ehlo().await?;
             if !caps.iter().any(|c| c.starts_with("STARTTLS")) {
-                return Err(SmtpError::Tls("サーバーが STARTTLS に対応していません".into()));
+                return Err(SmtpError::Tls(tr!("The server does not support STARTTLS").into()));
             }
             conn.expect("STARTTLS", |c| c == 220).await.map_err(|e| SmtpError::Tls(e.to_string()))?;
             let inner = conn.stream.into_inner();
@@ -180,7 +181,7 @@ async fn authenticate(conn: &mut Conn, caps: &[String], username: &str, credenti
         }
         conn.command(&b64.encode(password)).await?
     } else {
-        return Err(SmtpError::Auth(format!("対応していない認証方式です（{auth}）")));
+        return Err(SmtpError::Auth(tr!("Unsupported sign-in method ({0})", auth)));
     };
     if reply.code == 235 { Ok(()) } else { Err(SmtpError::Auth(reply.text())) }
 }

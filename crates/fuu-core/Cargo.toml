@@ -14,6 +14,7 @@ default = []
 insecure-test-transport = []
 
 [dependencies]
+fuu-i18n.workspace = true
 fuu-model.workspace = true
 fuu-parser.workspace = true
 fuu-sanitiser.workspace = true

@@ -7,13 +7,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use rusqlite::{params, Connection, OptionalExtension};
+use fuu_i18n::tr;
 
 #[derive(Debug)]
 pub struct CacheError(pub String);
 
 impl std::fmt::Display for CacheError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "キャッシュの操作に失敗しました: {}", self.0)
+        f.write_str(&tr!("Cache operation failed: {0}", self.0))
     }
 }
 

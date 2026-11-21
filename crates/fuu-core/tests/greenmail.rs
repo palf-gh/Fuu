@@ -75,6 +75,33 @@ fn seed() {
 }
 
 #[tokio::test]
+async fn conversation_follows_references_across_inbox_and_sent() {
+    if !enabled() {
+        eprintln!("skipped: set FUU_GREENMAIL=1 with GreenMail running");
+        return;
+    }
+    let mut session = imap::login(&imap_server(), USER, &password(PASSWORD)).await.unwrap();
+    let _ = session.create("Sent").await;
+    let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let root = format!("{nonce}-root@example.org");
+    let reply = format!("{nonce}-reply@example.org");
+    let subject = format!("Thread test {nonce}");
+    let make = |id: &str, extra: &str| format!("From: a@example.org\r\nTo: test@localhost\r\nSubject: {subject}\r\nMessage-ID: <{id}>\r\n{extra}\r\n\r\nBody\r\n");
+    imap::append_message(&mut session, "INBOX", make(&root, "").as_bytes()).await.unwrap();
+    imap::append_message(&mut session, "Sent", make(&reply, &format!("In-Reply-To: <{root}>\r\nReferences: <{root}>")).as_bytes()).await.unwrap();
+    let other = format!("{nonce}-unrelated@example.org");
+    imap::append_message(&mut session, "INBOX", make(&other, "").as_bytes()).await.unwrap();
+    let page = imap::fetch_summaries(&mut session, "INBOX", 20).await.unwrap();
+    // The unrelated message has the same subject, so locate the root by its
+    // append order: the root is the smaller of the two UIDs.
+    let uid = page.messages.iter().filter(|m| m.subject == subject).map(|m| m.uid).min().unwrap();
+    let thread = imap::fetch_conversation(&mut session, "INBOX", Some("Sent"), uid).await.unwrap();
+    assert_eq!(thread.len(), 2);
+    assert!(thread.iter().any(|m| m.folder == "INBOX" && m.summary.uid == uid));
+    assert!(thread.iter().any(|m| m.folder == "Sent"));
+}
+
+#[tokio::test]
 async fn lists_folders_and_fetches_summaries() {
     if !enabled() {
         eprintln!("skipped: set FUU_GREENMAIL=1 with GreenMail running");

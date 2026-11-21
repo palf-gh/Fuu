@@ -11,6 +11,8 @@ component SetupField inherits Rectangle {
     in property <bool> password;
     in property <bool> read-only;
     in-out property <string> text;
+    // Password fields: shown as dots until the eye button reveals them.
+    property <bool> revealed;
     callback edited(string);
     height: 46px;
     HorizontalLayout {
@@ -19,7 +21,7 @@ component SetupField inherits Rectangle {
         Rectangle {
             input := TextInput {
                 text <=> root.text;
-                input-type: root.password ? InputType.password : InputType.text;
+                input-type: root.password && !root.revealed ? InputType.password : InputType.text;
                 read-only: root.read-only;
                 color: root.read-only ? Theme.text-muted : Theme.text;
                 font-size: Theme.font-m;
@@ -34,6 +36,20 @@ component SetupField inherits Rectangle {
                 font-size: Theme.font-m;
                 vertical-alignment: center;
                 x: 0;
+            }
+        }
+        if root.password: Rectangle {
+            width: 30px;
+            height: 30px;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.radius-m;
+            background: eye-area.has-hover ? Theme.hover : transparent;
+            eye-area := TouchArea { clicked => { root.revealed = !root.revealed; } }
+            Icon {
+                source: root.revealed ? @image-url("icons/eye-off.svg") : @image-url("icons/eye.svg");
+                width: 16px;
+                height: 16px;
+                tint: eye-area.has-hover ? Theme.text : Theme.text-faint;
             }
         }
     }
@@ -77,22 +93,21 @@ export component AccountSetupView inherits Rectangle {
         spacing: 0px;
         alignment: start;
 
-        Text { text: root.editing ? "アカウントを編集" : "アカウントを追加"; font-size: Theme.font-xl; font-weight: 600; color: Theme.text; }
+        Text { text: root.editing ? @tr("Edit account") : @tr("Add account"); font-size: Theme.font-xl; font-weight: 600; color: Theme.text; }
         Rectangle { height: 6px; }
         Text {
-            text: "IMAP / SMTP でメールサーバーに直接接続します。パスワードやログイン情報は OS のキーチェーンにだけ保存されます。";
+            text: @tr("Fuu connects straight to your mail server over IMAP / SMTP. Passwords and sign-in data are kept only in the system keychain.");
             font-size: Theme.font-s;
             color: Theme.text-faint;
             wrap: word-wrap;
         }
         Rectangle { height: 16px; }
 
-        SetupField { label: "名前"; placeholder: "差出人に表示される名前"; text <=> root.name; }
-        SetupField { label: "メールアドレス"; placeholder: "name@example.com"; read-only: root.email-locked; text <=> root.email; edited(t) => { root.email-edited(t); } }
+        SetupField { label: @tr("Name"); placeholder: @tr("Shown as the sender"); text <=> root.name; }
+        SetupField { label: @tr("Email address"); placeholder: "name@example.com"; read-only: root.email-locked; text <=> root.email; edited(t) => { root.email-edited(t); } }
         if root.password-login: SetupField {
-            label: "パスワード";
-            placeholder: root.editing ? "変更しない場合は空欄のまま"
-                : root.oauth-provider != "" ? "アプリ パスワード（" + root.oauth-provider + " でログインする場合は不要）" : "パスワードまたはアプリ パスワード";
+            label: @tr("Password");
+            placeholder: root.oauth-provider != "" && !root.editing ? @tr("App password (not needed when you sign in with {})", root.oauth-provider) : @tr("Password or app password");
             password: true;
             text <=> root.password;
         }
@@ -107,7 +122,7 @@ export component AccountSetupView inherits Rectangle {
                 note-text := Text {
                     x: 12px;
                     width: parent.width - 24px;
-                    text: (root.provider != "" ? root.provider + "：" : "") + root.note;
+                    text: (root.provider != "" ? @tr("{}: ", root.provider) : "") + root.note;
                     font-size: Theme.font-s;
                     color: Theme.text-muted;
                     wrap: word-wrap;
@@ -132,7 +147,7 @@ export component AccountSetupView inherits Rectangle {
                     tint: Theme.text-faint;
                 }
                 Text {
-                    text: "サーバーの詳細設定";
+                    text: @tr("Server settings");
                     font-size: Theme.font-s;
                     color: adv-area.has-hover ? Theme.text : Theme.text-muted;
                     vertical-alignment: center;
@@ -147,17 +162,17 @@ export component AccountSetupView inherits Rectangle {
             adv := VerticalLayout {
                 y: 0px;
                 height: self.preferred-height;
-                SetupField { label: "ユーザー名"; placeholder: "通常はメールアドレス"; text <=> root.username; }
-                SetupField { label: "IMAP サーバー"; text <=> root.imap-host; }
+                SetupField { label: @tr("User name"); placeholder: @tr("Usually the email address"); text <=> root.username; }
+                SetupField { label: @tr("IMAP server"); text <=> root.imap-host; }
                 HorizontalLayout {
                     spacing: 16px;
-                    SetupField { label: "IMAP ポート"; text <=> root.imap-port; horizontal-stretch: 1; }
+                    SetupField { label: @tr("IMAP port"); text <=> root.imap-port; horizontal-stretch: 1; }
                     VerticalLayout { alignment: center; Segmented { options: ["TLS", "STARTTLS"]; selected <=> root.imap-security; } }
                 }
-                SetupField { label: "SMTP サーバー"; text <=> root.smtp-host; }
+                SetupField { label: @tr("SMTP server"); text <=> root.smtp-host; }
                 HorizontalLayout {
                     spacing: 16px;
-                    SetupField { label: "SMTP ポート"; text <=> root.smtp-port; horizontal-stretch: 1; }
+                    SetupField { label: @tr("SMTP port"); text <=> root.smtp-port; horizontal-stretch: 1; }
                     VerticalLayout { alignment: center; Segmented { options: ["TLS", "STARTTLS"]; selected <=> root.smtp-security; } }
                 }
             }
@@ -168,23 +183,23 @@ export component AccountSetupView inherits Rectangle {
             spacing: 10px;
             alignment: start;
             if root.editing: PrimaryButton {
-                text: root.busy ? "接続を確認しています…" : "接続を確認して保存";
+                text: root.busy ? @tr("Checking the connection…") : @tr("Check and save");
                 clicked => { if (!root.busy) { root.submit(); } }
             }
             if !root.editing && root.oauth-provider != "": PrimaryButton {
-                text: root.oauth-waiting ? "ブラウザでログインを続けてください…" : root.busy ? "接続を確認しています…" : root.oauth-provider + " でログイン";
+                text: root.oauth-waiting ? @tr("Continue signing in in your browser…") : root.busy ? @tr("Checking the connection…") : @tr("Sign in with {}", root.oauth-provider);
                 clicked => { if (!root.busy) { root.oauth-submit(); } }
             }
             if root.oauth-waiting: SecondaryButton {
-                text: "取り消す";
+                text: @tr("Cancel");
                 clicked => { root.oauth-cancel(); }
             }
             if !root.editing && root.password-login && root.oauth-provider == "": PrimaryButton {
-                text: root.busy ? "接続を確認しています…" : "接続して追加";
+                text: root.busy ? @tr("Checking the connection…") : @tr("Connect and add");
                 clicked => { if (!root.busy) { root.submit(); } }
             }
             if !root.editing && root.password-login && root.oauth-provider != "" && !root.busy: SecondaryButton {
-                text: "パスワードで追加";
+                text: @tr("Add with password");
                 clicked => { root.submit(); }
             }
             if root.error != "": Text {

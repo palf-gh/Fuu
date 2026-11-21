@@ -1,5 +1,11 @@
 fn main() {
-    slint_build::compile("ui/main.slint").expect("Slint UI failed to compile");
+    // @tr() strings are English; the catalogues in ../../lang (shared with
+    // fuu-i18n for Rust strings) are bundled into the binary.
+    let config = slint_build::CompilerConfiguration::new()
+        .with_bundled_translations("../../lang")
+        .with_default_translation_context(slint_build::DefaultTranslationContext::None);
+    slint_build::compile_with_config("ui/main.slint", config).expect("Slint UI failed to compile");
+    println!("cargo:rerun-if-changed=../../lang");
 
     // Windows: give fuu.exe its icon (Explorer, taskbar, shortcuts).
     println!("cargo:rerun-if-changed=icons/app/fuu.ico");

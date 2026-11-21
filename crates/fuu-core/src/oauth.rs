@@ -16,6 +16,7 @@ use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use fuu_i18n::tr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -139,10 +140,10 @@ pub enum OAuthError {
 impl std::fmt::Display for OAuthError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidGrant(e) => write!(f, "再ログインが必要です（{e}）"),
-            Self::Cancelled => f.write_str("ログインを取り消しました"),
-            Self::TimedOut => f.write_str("ブラウザでのログインが時間内に完了しませんでした"),
-            Self::Denied(e) => write!(f, "ログインが許可されませんでした（{e}）"),
+            Self::InvalidGrant(e) => f.write_str(&tr!("You need to sign in again ({0})", e)),
+            Self::Cancelled => f.write_str(tr!("Sign-in cancelled")),
+            Self::TimedOut => f.write_str(tr!("Signing in through the browser did not finish in time")),
+            Self::Denied(e) => f.write_str(&tr!("Sign-in was not allowed ({0})", e)),
             Self::Other(e) => f.write_str(e),
         }
     }
@@ -360,12 +361,12 @@ struct RawToken {
 }
 
 pub fn parse_token_response(body: &[u8]) -> Result<TokenResponse, OAuthError> {
-    let raw: RawToken = serde_json::from_slice(body).map_err(|e| OAuthError::Other(format!("トークン応答を読めません: {e}")))?;
+    let raw: RawToken = serde_json::from_slice(body).map_err(|e| OAuthError::Other(tr!("Cannot read the token response: {0}", e)))?;
     if let Some(error) = raw.error {
         let detail = raw.error_description.map_or(error.clone(), |d| format!("{error}: {d}"));
         return Err(if error == "invalid_grant" { OAuthError::InvalidGrant(detail) } else { OAuthError::Other(detail) });
     }
-    let access_token = raw.access_token.filter(|t| !t.is_empty()).ok_or_else(|| OAuthError::Other("アクセス トークンがありません".into()))?;
+    let access_token = raw.access_token.filter(|t| !t.is_empty()).ok_or_else(|| OAuthError::Other(tr!("No access token").into()))?;
     Ok(TokenResponse { access_token, refresh_token: raw.refresh_token.filter(|t| !t.is_empty()), expires_in: raw.expires_in.unwrap_or(3600) })
 }
 
@@ -383,7 +384,7 @@ fn http() -> Result<&'static reqwest::Client, OAuthError> {
                 .ok()
         })
         .as_ref()
-        .ok_or_else(|| OAuthError::Other("HTTPS クライアントを初期化できません".into()))
+        .ok_or_else(|| OAuthError::Other(tr!("Cannot set up the HTTPS client").into()))
 }
 
 async fn token_request(provider: Provider, pairs: &[(&str, &str)]) -> Result<TokenResponse, OAuthError> {
@@ -394,7 +395,7 @@ async fn token_request(provider: Provider, pairs: &[(&str, &str)]) -> Result<Tok
         .body(form(pairs))
         .send()
         .await
-        .map_err(|e| OAuthError::Other(format!("{} に接続できません: {e}", provider.name())))?;
+        .map_err(|e| OAuthError::Other(tr!("Cannot connect to {0}: {1}", provider.name(), e)))?;
     let body = response.bytes().await.map_err(|e| OAuthError::Other(e.to_string()))?;
     parse_token_response(&body)
 }

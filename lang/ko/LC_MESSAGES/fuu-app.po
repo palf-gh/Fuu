@@ -1,0 +1,1227 @@
+# Fuu user interface. Source strings are English.
+# Translations other than Japanese were made by AI and need review;
+# corrections are welcome (see README).
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ko\n"
+
+#: crates/fuu-app/ui/components.slint:261 crates/fuu-app/ui/main.slint:675
+msgid "Search"
+msgstr "검색"
+
+#: crates/fuu-app/ui/components.slint:394 crates/fuu-app/ui/main.slint:801 crates/fuu-app/ui/setup.slint:194
+msgid "Cancel"
+msgstr "취소"
+
+#: crates/fuu-app/ui/editor.slint:276
+msgid "Link (applies to the selected text)"
+msgstr "링크(선택한 텍스트에 적용)"
+
+#: crates/fuu-app/ui/editor.slint:285
+msgid "Remove"
+msgstr "제거"
+
+#: crates/fuu-app/ui/editor.slint:286
+msgid "Set"
+msgstr "설정"
+
+#: crates/fuu-app/ui/editor.slint:330
+msgid "Small"
+msgstr "작게"
+
+#: crates/fuu-app/ui/editor.slint:331
+msgid "Normal"
+msgstr "보통"
+
+#: crates/fuu-app/ui/editor.slint:332
+msgid "Large"
+msgstr "크게"
+
+#: crates/fuu-app/ui/editor.slint:333
+msgid "Huge"
+msgstr "아주 크게"
+
+#: crates/fuu-app/ui/main.slint:217
+msgid "Move to Inbox"
+msgstr "받은편지함으로 이동"
+
+#: crates/fuu-app/ui/main.slint:222 crates/fuu-app/src/mail.rs:724 crates/fuu-core/src/engine.rs:653
+msgid "Archive"
+msgstr "보관"
+
+#: crates/fuu-app/ui/main.slint:227 crates/fuu-app/ui/settings.slint:251
+msgid "Delete"
+msgstr "삭제"
+
+#: crates/fuu-app/ui/main.slint:309 crates/fuu-app/src/main.rs:599 crates/fuu-app/src/main.rs:1392 crates/fuu-app/src/main.rs:1453
+msgid "New message"
+msgstr "새 메일"
+
+#: crates/fuu-app/ui/main.slint:397 crates/fuu-app/src/mail.rs:650 crates/fuu-app/src/mail.rs:721 crates/fuu-core/src/engine.rs:654
+msgid "Inbox"
+msgstr "받은편지함"
+
+#: crates/fuu-app/ui/main.slint:398 crates/fuu-app/src/mail.rs:698
+msgid "No account"
+msgstr "계정 없음"
+
+#: crates/fuu-app/ui/main.slint:707
+msgid "Update {}"
+msgstr "업데이트 {}"
+
+#: crates/fuu-app/ui/main.slint:708
+msgid "Updating {}%"
+msgstr "업데이트 중 {}%"
+
+#: crates/fuu-app/ui/main.slint:709
+msgid "Restart to update"
+msgstr "다시 시작하여 업데이트"
+
+#: crates/fuu-app/ui/main.slint:786
+msgid "Continue signing in in your browser"
+msgstr "브라우저에서 로그인을 계속하세요"
+
+#: crates/fuu-app/ui/main.slint:786
+msgid "You need to sign in again"
+msgstr "다시 로그인해야 합니다"
+
+#: crates/fuu-app/ui/main.slint:800
+msgid "Sign in"
+msgstr "로그인"
+
+#: crates/fuu-app/ui/main.slint:819 crates/fuu-app/ui/main.slint:1338 crates/fuu-app/ui/settings.slint:256 crates/fuu-app/ui/setup.slint:96
+msgid "Add account"
+msgstr "계정 추가"
+
+#: crates/fuu-app/ui/main.slint:823
+msgid "Reload"
+msgstr "새로 고침"
+
+#: crates/fuu-app/ui/main.slint:898
+msgid "Save"
+msgstr "저장"
+
+#: crates/fuu-app/ui/main.slint:902
+msgid "Reply (R)"
+msgstr "답장(R)"
+
+#: crates/fuu-app/ui/main.slint:903
+msgid "Reply all (A)"
+msgstr "전체 답장(A)"
+
+#: crates/fuu-app/ui/main.slint:904
+msgid "Forward (F)"
+msgstr "전달(F)"
+
+#: crates/fuu-app/ui/main.slint:906
+msgid "Move to Inbox (E)"
+msgstr "받은편지함으로 이동(E)"
+
+#: crates/fuu-app/ui/main.slint:907
+msgid "Archive (E)"
+msgstr "보관(E)"
+
+#: crates/fuu-app/ui/main.slint:908
+msgid "Delete (Delete)"
+msgstr "삭제(Delete)"
+
+#: crates/fuu-app/ui/main.slint:919
+msgid "To: {}   CC: {}"
+msgstr "받는 사람: {}   참조: {}"
+
+#: crates/fuu-app/ui/main.slint:919
+msgid "To: {}"
+msgstr "받는 사람: {}"
+
+#: crates/fuu-app/ui/main.slint:954
+msgid "Remote images blocked (so the sender cannot tell you opened this)"
+msgstr "외부 이미지를 차단했습니다(보낸 사람이 열람 여부를 알 수 없도록)"
+
+#: crates/fuu-app/ui/main.slint:955
+msgid "Tracking images blocked"
+msgstr "추적 이미지를 차단했습니다"
+
+#: crates/fuu-app/ui/main.slint:973 crates/fuu-app/src/mail.rs:164 crates/fuu-app/src/mail.rs:414 crates/fuu-app/src/mail.rs:665
+msgid "Loading…"
+msgstr "불러오는 중…"
+
+#: crates/fuu-app/ui/main.slint:973
+msgid "Show"
+msgstr "표시"
+
+#: crates/fuu-app/ui/main.slint:1000
+msgid "Copy"
+msgstr "복사"
+
+#: crates/fuu-app/ui/main.slint:1001
+msgid "Select all"
+msgstr "모두 선택"
+
+#: crates/fuu-app/ui/main.slint:1090
+msgid "From"
+msgstr "보낸 사람"
+
+#: crates/fuu-app/ui/main.slint:1096
+msgid "To"
+msgstr "받는 사람"
+
+#: crates/fuu-app/ui/main.slint:1115
+msgid "Separate several with commas"
+msgstr "여러 개는 쉼표로 구분"
+
+#: crates/fuu-app/ui/main.slint:1121
+msgid "Not shown to other recipients"
+msgstr "다른 받는 사람에게는 표시되지 않습니다"
+
+#: crates/fuu-app/ui/main.slint:1123 crates/fuu-app/ui/main.slint:1123
+msgid "Subject"
+msgstr "제목"
+
+#: crates/fuu-app/ui/main.slint:1180 crates/fuu-core/src/engine.rs:723
+msgid "Sending…"
+msgstr "보내는 중…"
+
+#: crates/fuu-app/ui/main.slint:1180
+msgid "Send"
+msgstr "보내기"
+
+#: crates/fuu-app/ui/main.slint:1207
+msgid "Select a message"
+msgstr "메일을 선택하세요"
+
+#: crates/fuu-app/ui/main.slint:1209
+msgid "j / k move   r reply   a reply all   f forward   e archive   c new"
+msgstr "j / k 이동   r 답장   a 전체 답장   f 전달   e 보관   c 새 메일"
+
+#: crates/fuu-app/ui/main.slint:1333
+msgid "In use"
+msgstr "사용 중"
+
+#: crates/fuu-app/ui/main.slint:1337
+msgid "Sign in again"
+msgstr "다시 로그인"
+
+#: crates/fuu-app/ui/main.slint:1364
+msgid "No folders yet"
+msgstr "아직 폴더가 없습니다"
+
+#: crates/fuu-app/ui/main.slint:1375
+msgid "Open this link?"
+msgstr "이 링크를 열까요?"
+
+#: crates/fuu-app/ui/main.slint:1376
+msgid "This URL will open in your default browser."
+msgstr "기본 브라우저에서 다음 URL을 엽니다."
+
+#: crates/fuu-app/ui/main.slint:1378
+msgid "Open in browser"
+msgstr "브라우저에서 열기"
+
+#: crates/fuu-app/ui/main.slint:1384
+msgid "This may be a program"
+msgstr "프로그램일 수 있습니다"
+
+#: crates/fuu-app/ui/main.slint:1385
+msgid "Opening this kind of file runs a program. Do not save it unless you know the sender."
+msgstr "이런 종류의 파일을 열면 프로그램이 실행됩니다. 보낸 사람을 모르면 저장하지 마세요."
+
+#: crates/fuu-app/ui/main.slint:1387
+msgid "Save anyway"
+msgstr "그래도 저장"
+
+#: crates/fuu-app/ui/main.slint:1393
+msgid "Overlap test"
+msgstr "겹침 테스트"
+
+#: crates/fuu-app/ui/main.slint:1394
+msgid "Slint draws this dialogue. With Blitz it sits above the document; with a WebView the WebView is hidden while it shows."
+msgstr "이 대화상자는 Slint가 그립니다. Blitz에서는 문서 위에 겹쳐 표시되고, WebView에서는 표시되는 동안 WebView를 숨깁니다."
+
+#: crates/fuu-app/ui/settings.slint:160 crates/fuu-app/ui/settings.slint:176
+msgid "General"
+msgstr "일반"
+
+#: crates/fuu-app/ui/settings.slint:161 crates/fuu-app/ui/settings.slint:217 crates/fuu-app/ui/settings.slint:275
+msgid "Accounts"
+msgstr "계정"
+
+#: crates/fuu-app/ui/settings.slint:162 crates/fuu-app/ui/settings.slint:261
+msgid "Signature"
+msgstr "서명"
+
+#: crates/fuu-app/ui/settings.slint:163 crates/fuu-app/ui/settings.slint:348
+msgid "Privacy"
+msgstr "개인정보"
+
+#: crates/fuu-app/ui/settings.slint:164 crates/fuu-app/ui/settings.slint:371
+msgid "Language"
+msgstr "언어"
+
+#: crates/fuu-app/ui/settings.slint:165
+msgid "About"
+msgstr "정보"
+
+#: crates/fuu-app/ui/settings.slint:179
+msgid "Theme"
+msgstr "테마"
+
+#: crates/fuu-app/ui/settings.slint:180
+msgid "Follow the system, or always use the light or dark look."
+msgstr "시스템을 따르거나 항상 밝은 화면 또는 어두운 화면을 사용합니다."
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "System"
+msgstr "시스템"
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "Light"
+msgstr "밝게"
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "Dark"
+msgstr "어둡게"
+
+#: crates/fuu-app/ui/settings.slint:185
+msgid "Send HTML mail"
+msgstr "HTML 메일 보내기"
+
+#: crates/fuu-app/ui/settings.slint:186
+msgid "Sends an HTML version made from the text alongside the plain text (tidier quotes, signature and links). Turn off to send plain text only."
+msgstr "본문으로 HTML 버전을 만들어 일반 텍스트와 함께 보냅니다(인용, 서명, 링크가 더 깔끔해짐). 끄면 일반 텍스트만 보냅니다."
+
+#: crates/fuu-app/ui/settings.slint:191
+msgid "Default mail app"
+msgstr "기본 메일 앱"
+
+#: crates/fuu-app/ui/settings.slint:194
+msgid "Make Fuu the default"
+msgstr "Fuu를 기본 앱으로 설정"
+
+#: crates/fuu-app/ui/settings.slint:200
+msgid "Check for updates at start-up"
+msgstr "시작할 때 업데이트 확인"
+
+#: crates/fuu-app/ui/settings.slint:202
+msgid "Looks at the GitHub releases and tells you about a new version. Updates are installed only after their signature is verified."
+msgstr "GitHub 릴리스를 확인해 새 버전이 있으면 알려 줍니다. 업데이트는 서명을 확인한 뒤에만 설치합니다."
+
+#: crates/fuu-app/ui/settings.slint:209 crates/fuu-app/src/update.rs:62
+msgid "Checking…"
+msgstr "확인 중…"
+
+#: crates/fuu-app/ui/settings.slint:209
+msgid "Check now"
+msgstr "지금 확인"
+
+#: crates/fuu-app/ui/settings.slint:219
+msgid "No accounts yet."
+msgstr "아직 계정이 없습니다."
+
+#: crates/fuu-app/ui/settings.slint:242
+msgid "Edit"
+msgstr "편집"
+
+#: crates/fuu-app/ui/settings.slint:264
+msgid "Add an account to give each account its own signature."
+msgstr "계정을 추가하면 계정마다 서명을 설정할 수 있습니다."
+
+#: crates/fuu-app/ui/settings.slint:276
+msgid "Each account keeps its own signature."
+msgstr "서명은 계정마다 따로 저장됩니다."
+
+#: crates/fuu-app/ui/settings.slint:307
+msgid "Add the signature to new messages"
+msgstr "새 메일에 서명 넣기"
+
+#: crates/fuu-app/ui/settings.slint:308
+msgid "Inserted below the text of every new message, reply and forward. Changes are saved straight away."
+msgstr "새 메일, 답장, 전달할 때마다 본문 아래에 넣습니다. 변경 사항은 바로 저장됩니다."
+
+#: crates/fuu-app/ui/settings.slint:338
+msgid "e.g. Alex Taylor\nExample Ltd."
+msgstr "예: 김민준\n예시 주식회사"
+
+#: crates/fuu-app/ui/settings.slint:351
+msgid "Do not load remote images"
+msgstr "외부 이미지 불러오지 않기"
+
+#: crates/fuu-app/ui/settings.slint:352
+msgid "Blocked by default; Fuu fetches them only when you allow it for a message. Tracking pixels are never fetched."
+msgstr "기본적으로 차단하며, 메일별로 허용했을 때만 Fuu가 가져옵니다. 추적 픽셀은 허용해도 가져오지 않습니다."
+
+#: crates/fuu-app/ui/settings.slint:357
+msgid "No remote CSS or scripts"
+msgstr "외부 CSS와 스크립트 사용 안 함"
+
+#: crates/fuu-app/ui/settings.slint:358
+msgid "Only CSS known to be safe is applied to HTML mail. JavaScript never runs."
+msgstr "HTML 메일에는 안전하다고 확인된 CSS만 적용합니다. JavaScript는 실행하지 않습니다."
+
+#: crates/fuu-app/ui/settings.slint:363
+msgid "Confirm before opening links"
+msgstr "링크를 열기 전에 확인"
+
+#: crates/fuu-app/ui/settings.slint:364
+msgid "Shows the real URL, then opens it in your default browser."
+msgstr "실제 URL을 보여 준 다음 기본 브라우저에서 엽니다."
+
+#: crates/fuu-app/ui/settings.slint:373
+msgid "Translations other than Japanese are made by AI. Corrections are welcome on GitHub."
+msgstr "일본어 외의 번역은 AI가 만들었습니다. GitHub에서 수정 제안을 환영합니다."
+
+#: crates/fuu-app/ui/settings.slint:415
+msgid "Version {}"
+msgstr "버전 {}"
+
+#: crates/fuu-app/ui/settings.slint:417
+msgid "A minimal mail client with just what you need."
+msgstr "꼭 필요한 기능만 담은 미니멀한 메일 클라이언트."
+
+#: crates/fuu-app/ui/settings.slint:418
+msgid "Distributed under the GNU General Public License v3.0."
+msgstr "GNU General Public License v3.0으로 배포됩니다."
+
+#: crates/fuu-app/ui/settings.slint:419
+msgid "Built with Slint (GPLv3), Blitz (MIT / Apache-2.0) and other open-source software."
+msgstr "Slint(GPLv3), Blitz(MIT / Apache-2.0) 등 오픈 소스 소프트웨어를 사용합니다."
+
+#: crates/fuu-app/ui/setup.slint:96 crates/fuu-app/src/main.rs:275
+msgid "Edit account"
+msgstr "계정 편집"
+
+#: crates/fuu-app/ui/setup.slint:99
+msgid "Fuu connects straight to your mail server over IMAP / SMTP. Passwords and sign-in data are kept only in the system keychain."
+msgstr "Fuu는 IMAP / SMTP로 메일 서버에 직접 연결합니다. 비밀번호와 로그인 정보는 시스템 키체인에만 저장됩니다."
+
+#: crates/fuu-app/ui/setup.slint:106
+msgid "Name"
+msgstr "이름"
+
+#: crates/fuu-app/ui/setup.slint:106
+msgid "Shown as the sender"
+msgstr "보낸 사람으로 표시"
+
+#: crates/fuu-app/ui/setup.slint:107
+msgid "Email address"
+msgstr "이메일 주소"
+
+#: crates/fuu-app/ui/setup.slint:109
+msgid "Password"
+msgstr "비밀번호"
+
+#: crates/fuu-app/ui/setup.slint:110
+msgid "App password (not needed when you sign in with {})"
+msgstr "앱 비밀번호({}(으)로 로그인하면 필요 없음)"
+
+#: crates/fuu-app/ui/setup.slint:110
+msgid "Password or app password"
+msgstr "비밀번호 또는 앱 비밀번호"
+
+#: crates/fuu-app/ui/setup.slint:125
+msgid "{}: "
+msgstr "{}: "
+
+#: crates/fuu-app/ui/setup.slint:150
+msgid "Server settings"
+msgstr "서버 설정"
+
+#: crates/fuu-app/ui/setup.slint:165
+msgid "User name"
+msgstr "사용자 이름"
+
+#: crates/fuu-app/ui/setup.slint:165
+msgid "Usually the email address"
+msgstr "보통 이메일 주소"
+
+#: crates/fuu-app/ui/setup.slint:166
+msgid "IMAP server"
+msgstr "IMAP 서버"
+
+#: crates/fuu-app/ui/setup.slint:169
+msgid "IMAP port"
+msgstr "IMAP 포트"
+
+#: crates/fuu-app/ui/setup.slint:172
+msgid "SMTP server"
+msgstr "SMTP 서버"
+
+#: crates/fuu-app/ui/setup.slint:175
+msgid "SMTP port"
+msgstr "SMTP 포트"
+
+#: crates/fuu-app/ui/setup.slint:186 crates/fuu-app/ui/setup.slint:190 crates/fuu-app/ui/setup.slint:198
+msgid "Checking the connection…"
+msgstr "연결 확인 중…"
+
+#: crates/fuu-app/ui/setup.slint:186
+msgid "Check and save"
+msgstr "확인하고 저장"
+
+#: crates/fuu-app/ui/setup.slint:190
+msgid "Continue signing in in your browser…"
+msgstr "브라우저에서 로그인을 계속하세요…"
+
+#: crates/fuu-app/ui/setup.slint:190
+msgid "Sign in with {}"
+msgstr "{}(으)로 로그인"
+
+#: crates/fuu-app/ui/setup.slint:198
+msgid "Connect and add"
+msgstr "연결하고 추가"
+
+#: crates/fuu-app/ui/setup.slint:202
+msgid "Add with password"
+msgstr "비밀번호로 추가"
+
+#: crates/fuu-app/src/mail.rs:132
+msgid "This message cannot be shown ({0})."
+msgstr "이 메일을 표시할 수 없습니다({0})."
+
+#: crates/fuu-app/src/mail.rs:193
+msgid "Could not read the attachment"
+msgstr "첨부 파일을 읽을 수 없습니다"
+
+#: crates/fuu-app/src/mail.rs:194
+msgid "Could not save: {0}"
+msgstr "저장할 수 없습니다: {0}"
+
+#: crates/fuu-app/src/mail.rs:434
+msgid "Add an account and your mail appears here"
+msgstr "계정을 추가하면 여기에 메일이 표시됩니다"
+
+#: crates/fuu-app/src/mail.rs:468
+msgid "Account settings saved"
+msgstr "계정 설정을 저장했습니다"
+
+#: crates/fuu-app/src/mail.rs:485
+msgid "Could not open the browser: {0}"
+msgstr "브라우저를 열 수 없습니다: {0}"
+
+#: crates/fuu-app/src/mail.rs:541 crates/fuu-app/src/mail.rs:560
+msgid "No messages"
+msgstr "메일이 없습니다"
+
+#: crates/fuu-app/src/mail.rs:579
+msgid "Could not load the message: {0}"
+msgstr "메일을 불러올 수 없습니다: {0}"
+
+#: crates/fuu-app/src/mail.rs:594
+msgid "Loaded {0} of {1} remote images"
+msgstr "외부 이미지 {1}개 중 {0}개를 불러왔습니다"
+
+#: crates/fuu-app/src/mail.rs:620
+msgid "Moved to Trash"
+msgstr "휴지통으로 이동했습니다"
+
+#: crates/fuu-app/src/mail.rs:621
+msgid "Archived"
+msgstr "보관했습니다"
+
+#: crates/fuu-app/src/mail.rs:622
+msgid "Moved back to Inbox"
+msgstr "받은편지함으로 되돌렸습니다"
+
+#: crates/fuu-app/src/mail.rs:629
+msgid "Sent ({0})"
+msgstr "보냈습니다({0})"
+
+#: crates/fuu-app/src/mail.rs:630 crates/fuu-app/src/mail.rs:723
+msgid "Sent"
+msgstr "보냈습니다"
+
+#: crates/fuu-app/src/mail.rs:699
+msgid "Add one to get started"
+msgstr "계정을 추가해 시작하세요"
+
+#: crates/fuu-app/src/mail.rs:722
+msgid "Drafts"
+msgstr "임시 보관함"
+
+#: crates/fuu-app/src/mail.rs:725
+msgid "Junk"
+msgstr "스팸"
+
+#: crates/fuu-app/src/mail.rs:726 crates/fuu-core/src/engine.rs:652
+msgid "Trash"
+msgstr "휴지통"
+
+#: crates/fuu-app/src/mail.rs:779 crates/fuu-app/src/main.rs:269 crates/fuu-app/src/main.rs:445 crates/fuu-app/src/main.rs:504
+msgid "(no subject)"
+msgstr "(제목 없음)"
+
+#: crates/fuu-app/src/mail.rs:963
+msgid "Enter an email address"
+msgstr "이메일 주소를 입력하세요"
+
+#: crates/fuu-app/src/mail.rs:965
+msgid "Enter a password"
+msgstr "비밀번호를 입력하세요"
+
+#: crates/fuu-app/src/mail.rs:968
+msgid "Fill in the server settings"
+msgstr "서버 설정을 입력하세요"
+
+#: crates/fuu-app/src/mail.rs:971
+msgid "The port number is not valid"
+msgstr "포트 번호가 올바르지 않습니다"
+
+#: crates/fuu-app/src/mail.rs:980 crates/fuu-app/src/mail.rs:1014
+msgid "Accounts cannot be added while showing development data (start without FUU_SPIKE_FEED)"
+msgstr "개발용 데이터를 표시하는 동안에는 계정을 추가할 수 없습니다(FUU_SPIKE_FEED 없이 실행하세요)"
+
+#: crates/fuu-app/src/mail.rs:1010
+msgid "This address does not support signing in through the browser"
+msgstr "이 주소는 브라우저 로그인을 지원하지 않습니다"
+
+#: crates/fuu-app/src/main.rs:251
+msgid "You can have up to 32 tabs"
+msgstr "탭은 최대 32개까지 열 수 있습니다"
+
+#: crates/fuu-app/src/main.rs:274
+msgid "Settings"
+msgstr "설정"
+
+#: crates/fuu-app/src/main.rs:446
+msgid "Attachment of “{0}”"
+msgstr "“{0}”의 첨부 파일"
+
+#: crates/fuu-app/src/main.rs:564
+msgid "Fuu is your default mail app."
+msgstr "Fuu가 기본 메일 앱입니다."
+
+#: crates/fuu-app/src/main.rs:565
+msgid "Email links currently open another app."
+msgstr "지금은 이메일 링크를 열면 다른 앱이 실행됩니다."
+
+#: crates/fuu-app/src/main.rs:566
+msgid "Available when Fuu runs as an app (Fuu.app)."
+msgstr "Fuu를 앱(Fuu.app)으로 실행하면 사용할 수 있습니다."
+
+#: crates/fuu-app/src/main.rs:595
+msgid "Could not open the email link"
+msgstr "이메일 링크를 열 수 없습니다"
+
+#: crates/fuu-app/src/main.rs:616
+msgid "(no account set up)"
+msgstr "(계정이 설정되지 않음)"
+
+#: crates/fuu-app/src/main.rs:894
+msgid "System default"
+msgstr "시스템 설정 따르기"
+
+#: crates/fuu-app/src/main.rs:918
+msgid "Could not save settings: {0}"
+msgstr "설정을 저장할 수 없습니다: {0}"
+
+#: crates/fuu-app/src/main.rs:1198
+msgid "Saved: {0}"
+msgstr "저장했습니다: {0}"
+
+#: crates/fuu-app/src/main.rs:1356
+msgid "Copied {0} characters"
+msgstr "{0}자를 복사했습니다"
+
+#: crates/fuu-app/src/main.rs:1421
+msgid "Choose Fuu in Default apps to finish"
+msgstr "‘기본 앱’에서 Fuu를 선택하면 완료됩니다"
+
+#: crates/fuu-app/src/main.rs:1465 crates/fuu-app/src/main.rs:1999
+msgid "Reply all"
+msgstr "전체 답장"
+
+#: crates/fuu-app/src/main.rs:1465
+msgid "Reply"
+msgstr "답장"
+
+#: crates/fuu-app/src/main.rs:1508
+msgid "Forward"
+msgstr "전달"
+
+#: crates/fuu-app/src/main.rs:1636
+msgid "Cannot send while showing development data"
+msgstr "개발용 데이터를 표시하는 동안에는 보낼 수 없습니다"
+
+#: crates/fuu-app/src/main.rs:1638
+msgid "There is no account to send from"
+msgstr "보낼 계정이 없습니다"
+
+#: crates/fuu-app/src/main.rs:1645 crates/fuu-core/src/compose.rs:443
+msgid "Enter a recipient"
+msgstr "받는 사람을 입력하세요"
+
+#: crates/fuu-app/src/main.rs:1726
+msgid "Could not read: {0}"
+msgstr "읽을 수 없습니다: {0}"
+
+#: crates/fuu-app/src/main.rs:1728
+msgid "The attachments total {0}. Some servers will not accept that much"
+msgstr "첨부 파일 합계가 {0}입니다. 일부 서버는 받지 않을 수 있습니다"
+
+#: crates/fuu-app/src/os_mail.rs:72
+msgid "Not supported on this system"
+msgstr "이 시스템에서는 지원되지 않습니다"
+
+#: crates/fuu-app/src/os_mail.rs:188
+msgid "Home folder not found"
+msgstr "홈 폴더를 찾을 수 없습니다"
+
+#: crates/fuu-app/src/os_mail.rs:208
+msgid "Could not run xdg-mime: {0}"
+msgstr "xdg-mime을 실행할 수 없습니다: {0}"
+
+#: crates/fuu-app/src/os_mail.rs:209
+msgid "Could not make Fuu the default mail app (xdg-mime)"
+msgstr "Fuu를 기본 메일 앱으로 설정할 수 없습니다(xdg-mime)"
+
+#: crates/fuu-app/src/os_mail.rs:384 crates/fuu-app/src/os_mail.rs:401
+msgid "Could not write to the registry ({0}: {1})"
+msgstr "레지스트리에 쓸 수 없습니다({0}: {1})"
+
+#: crates/fuu-app/src/os_mail.rs:450
+msgid "Could not open Settings: {0}"
+msgstr "설정을 열 수 없습니다: {0}"
+
+#: crates/fuu-app/src/os_mail.rs:539
+msgid "Only available when Fuu runs as an app (Fuu.app)"
+msgstr "Fuu를 앱(Fuu.app)으로 실행할 때만 사용할 수 있습니다"
+
+#: crates/fuu-app/src/os_mail.rs:543
+msgid "Could not make Fuu the default mail app ({0})"
+msgstr "Fuu를 기본 메일 앱으로 설정할 수 없습니다({0})"
+
+#: crates/fuu-app/src/preview.rs:61 crates/fuu-app/src/preview.rs:96
+msgid "Preparing the preview…"
+msgstr "미리 보기를 준비하는 중…"
+
+#: crates/fuu-app/src/preview.rs:62
+msgid "{0}. Use Save to save the file and open it."
+msgstr "{0}. ‘저장’으로 파일을 저장한 뒤 여세요."
+
+#: crates/fuu-app/src/preview.rs:71
+msgid "Could not read the attachment."
+msgstr "첨부 파일을 읽을 수 없습니다."
+
+#: crates/fuu-app/src/preview.rs:80
+msgid "Something went wrong while preparing the preview"
+msgstr "미리 보기를 준비하는 중 문제가 발생했습니다"
+
+#: crates/fuu-app/src/preview.rs:94
+msgid "Could not prepare a preview."
+msgstr "미리 보기를 만들 수 없습니다."
+
+#: crates/fuu-app/src/sections.rs:26 crates/fuu-app/src/sections.rs:45
+msgid "Older"
+msgstr "이전"
+
+#: crates/fuu-app/src/sections.rs:34
+msgid "Today"
+msgstr "오늘"
+
+#: crates/fuu-app/src/sections.rs:35
+msgid "Yesterday"
+msgstr "어제"
+
+#: crates/fuu-app/src/sections.rs:36
+msgid "Two days ago"
+msgstr "그저께"
+
+#: crates/fuu-app/src/sections.rs:41
+msgid "This month"
+msgstr "이번 달"
+
+#: crates/fuu-app/src/sections.rs:44
+msgid "{0} {1}"
+msgstr "{1}년 {0}"
+
+#: crates/fuu-app/src/update.rs:77
+msgid "Version {0} is available."
+msgstr "새 버전 {0}이(가) 있습니다."
+
+#: crates/fuu-app/src/update.rs:82
+msgid "You have the latest version ({0})."
+msgstr "최신 버전({0})을 사용 중입니다."
+
+#: crates/fuu-app/src/update.rs:87
+msgid "Could not check: {0}"
+msgstr "확인할 수 없습니다: {0}"
+
+#: crates/fuu-app/src/update.rs:132
+msgid "Could not download: {0}"
+msgstr "다운로드할 수 없습니다: {0}"
+
+#: crates/fuu-app/src/update.rs:139
+msgid "Version {0} is installed. Restart to use it."
+msgstr "버전 {0}을(를) 설치했습니다. 다시 시작하면 사용할 수 있습니다."
+
+#: crates/fuu-app/src/update.rs:141
+msgid "Could not update: {0}"
+msgstr "업데이트할 수 없습니다: {0}"
+
+#: crates/fuu-core/src/account.rs:124
+msgid "Sign in with Google, or turn on 2-Step Verification and use an app password."
+msgstr "Google로 로그인하거나 2단계 인증을 켜고 앱 비밀번호를 사용하세요."
+
+#: crates/fuu-core/src/account.rs:133
+msgid "Outlook.com only accepts signing in with a Microsoft account."
+msgstr "Outlook.com은 Microsoft 계정 로그인만 허용합니다."
+
+#: crates/fuu-core/src/account.rs:142
+msgid "Create an app-specific password for your Apple Account and use it here."
+msgstr "Apple 계정에서 앱 암호를 만들어 여기에 사용하세요."
+
+#: crates/fuu-core/src/account.rs:147
+msgid "Yahoo Mail"
+msgstr "Yahoo 메일"
+
+#: crates/fuu-core/src/account.rs:150
+msgid "Turn on IMAP / SMTP access in your Yahoo Mail settings."
+msgstr "Yahoo 메일 설정에서 IMAP / SMTP 접근을 켜세요."
+
+#: crates/fuu-core/src/cache.rs:17
+msgid "Cache operation failed: {0}"
+msgstr "캐시 작업에 실패했습니다: {0}"
+
+#: crates/fuu-core/src/compose.rs:112
+msgid "Not a valid email address: {0}"
+msgstr "올바른 이메일 주소가 아닙니다: {0}"
+
+#: crates/fuu-core/src/compose.rs:192
+msgid "{0} wrote:"
+msgstr "{0} 님이 작성:"
+
+#: crates/fuu-core/src/compose.rs:192
+msgid "On {0}, {1} wrote:"
+msgstr "{0}에 {1} 님이 작성:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "From:"
+msgstr "보낸 사람:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "Sent:"
+msgstr "보낸 날짜:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "To:"
+msgstr "받는 사람:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "Subject:"
+msgstr "제목:"
+
+#: crates/fuu-core/src/compose.rs:215
+msgid "January"
+msgstr "1월"
+
+#: crates/fuu-core/src/compose.rs:216
+msgid "February"
+msgstr "2월"
+
+#: crates/fuu-core/src/compose.rs:217
+msgid "March"
+msgstr "3월"
+
+#: crates/fuu-core/src/compose.rs:218
+msgid "April"
+msgstr "4월"
+
+#: crates/fuu-core/src/compose.rs:219
+msgid "May"
+msgstr "5월"
+
+#: crates/fuu-core/src/compose.rs:220
+msgid "June"
+msgstr "6월"
+
+#: crates/fuu-core/src/compose.rs:221
+msgid "July"
+msgstr "7월"
+
+#: crates/fuu-core/src/compose.rs:222
+msgid "August"
+msgstr "8월"
+
+#: crates/fuu-core/src/compose.rs:223
+msgid "September"
+msgstr "9월"
+
+#: crates/fuu-core/src/compose.rs:224
+msgid "October"
+msgstr "10월"
+
+#: crates/fuu-core/src/compose.rs:225
+msgid "November"
+msgstr "11월"
+
+#: crates/fuu-core/src/compose.rs:226
+msgid "December"
+msgstr "12월"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Monday"
+msgstr "월요일"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Tuesday"
+msgstr "화요일"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Wednesday"
+msgstr "수요일"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Thursday"
+msgstr "목요일"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Friday"
+msgstr "금요일"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Saturday"
+msgstr "토요일"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Sunday"
+msgstr "일요일"
+
+#: crates/fuu-core/src/compose.rs:238
+msgid "{0}, {1} {2} {3} {4}"
+msgstr "{3}년 {5}월 {1}일 ({0}) {4}"
+
+#: crates/fuu-core/src/compose.rs:276
+msgid "---------- Forwarded message ----------"
+msgstr "---------- 전달된 메일 ----------"
+
+#: crates/fuu-core/src/compose.rs:279
+msgid "Date:"
+msgstr "날짜:"
+
+#: crates/fuu-core/src/compose.rs:446
+msgid "The sender address is not valid"
+msgstr "보낸 사람 주소가 올바르지 않습니다"
+
+#: crates/fuu-core/src/config.rs:26
+msgid "The settings folder was not found"
+msgstr "설정 폴더를 찾을 수 없습니다"
+
+#: crates/fuu-core/src/config.rs:27
+msgid "Could not read or write the settings file: {0}"
+msgstr "설정 파일을 읽거나 쓸 수 없습니다: {0}"
+
+#: crates/fuu-core/src/config.rs:28
+msgid "Could not understand the settings file: {0}"
+msgstr "설정 파일을 해석할 수 없습니다: {0}"
+
+#: crates/fuu-core/src/engine.rs:229 crates/fuu-core/src/engine.rs:244 crates/fuu-core/src/engine.rs:282 crates/fuu-core/src/engine.rs:449
+msgid "Connecting to {0}…"
+msgstr "{0}에 연결하는 중…"
+
+#: crates/fuu-core/src/engine.rs:242 crates/fuu-core/src/engine.rs:713
+msgid "Account not found"
+msgstr "계정을 찾을 수 없습니다"
+
+#: crates/fuu-core/src/engine.rs:273
+msgid "No OAuth provider given"
+msgstr "OAuth 공급자가 지정되지 않았습니다"
+
+#: crates/fuu-core/src/engine.rs:280
+msgid "{0} did not issue a refresh token"
+msgstr "{0}에서 새로 고침 토큰을 발급하지 않았습니다"
+
+#: crates/fuu-core/src/engine.rs:298
+msgid "No OAuth client ID for {0} is set up. Put client_id in {1} in the settings folder"
+msgstr "{0}의 OAuth 클라이언트 ID가 설정되지 않았습니다. 설정 폴더의 {1}에 client_id를 적으세요"
+
+#: crates/fuu-core/src/engine.rs:310
+msgid "Sign in to {0} in your browser…"
+msgstr "브라우저에서 {0}에 로그인하세요…"
+
+#: crates/fuu-core/src/engine.rs:324
+msgid "Unknown OAuth provider"
+msgstr "알 수 없는 OAuth 공급자"
+
+#: crates/fuu-core/src/engine.rs:335
+msgid "No OAuth client ID for {0} is set up ({1})"
+msgstr "{0}의 OAuth 클라이언트 ID가 설정되지 않았습니다({1})"
+
+#: crates/fuu-core/src/engine.rs:340
+msgid "No sign-in found. Please sign in again"
+msgstr "로그인 정보가 없습니다. 다시 로그인하세요"
+
+#: crates/fuu-core/src/engine.rs:351
+msgid "The sign-in has expired or was revoked ({0})"
+msgstr "로그인이 만료되었거나 취소되었습니다({0})"
+
+#: crates/fuu-core/src/engine.rs:417
+msgid "Could not save the signature: {0}"
+msgstr "서명을 저장할 수 없습니다: {0}"
+
+#: crates/fuu-core/src/engine.rs:581
+msgid "Loading messages…"
+msgstr "메일을 불러오는 중…"
+
+#: crates/fuu-core/src/engine.rs:656
+msgid "No {0} folder found"
+msgstr "‘{0}’ 폴더를 찾을 수 없습니다"
+
+#: crates/fuu-core/src/engine.rs:659
+msgid "It is already in that folder"
+msgstr "이미 그 폴더에 있습니다"
+
+#: crates/fuu-core/src/engine.rs:700
+msgid "Created the archive folder “{0}”, but it is not in the folder list"
+msgstr "보관 폴더 ‘{0}’을(를) 만들었지만 폴더 목록에 없습니다"
+
+#: crates/fuu-core/src/engine.rs:705
+msgid "Could not create an archive folder: {0}"
+msgstr "보관 폴더를 만들 수 없습니다: {0}"
+
+#: crates/fuu-core/src/engine.rs:752
+msgid "Could not save to the Sent folder: {0}"
+msgstr "보낸편지함에 저장할 수 없습니다: {0}"
+
+#: crates/fuu-core/src/engine.rs:755
+msgid "Not saved: no Sent folder found"
+msgstr "저장하지 않음: 보낸편지함을 찾을 수 없습니다"
+
+#: crates/fuu-core/src/imap.rs:36
+msgid "Cannot connect to the server: {0}"
+msgstr "서버에 연결할 수 없습니다: {0}"
+
+#: crates/fuu-core/src/imap.rs:37
+msgid "Cannot set up an encrypted connection: {0}"
+msgstr "암호화 연결을 설정할 수 없습니다: {0}"
+
+#: crates/fuu-core/src/imap.rs:38
+msgid "Cannot sign in (check the user name and password): {0}"
+msgstr "로그인할 수 없습니다(사용자 이름과 비밀번호를 확인하세요): {0}"
+
+#: crates/fuu-core/src/imap.rs:39
+msgid "Talking to the IMAP server failed: {0}"
+msgstr "IMAP 서버와 통신하지 못했습니다: {0}"
+
+#: crates/fuu-core/src/imap.rs:40
+msgid "The server did not answer (timed out)"
+msgstr "서버가 응답하지 않습니다(시간 초과)"
+
+#: crates/fuu-core/src/imap.rs:422
+msgid "Message UID {0} not found"
+msgstr "UID {0} 메일을 찾을 수 없습니다"
+
+#: crates/fuu-core/src/oauth.rs:143
+msgid "You need to sign in again ({0})"
+msgstr "다시 로그인해야 합니다({0})"
+
+#: crates/fuu-core/src/oauth.rs:144
+msgid "Sign-in cancelled"
+msgstr "로그인을 취소했습니다"
+
+#: crates/fuu-core/src/oauth.rs:145
+msgid "Signing in through the browser did not finish in time"
+msgstr "브라우저 로그인이 제한 시간 안에 끝나지 않았습니다"
+
+#: crates/fuu-core/src/oauth.rs:146
+msgid "Sign-in was not allowed ({0})"
+msgstr "로그인이 허용되지 않았습니다({0})"
+
+#: crates/fuu-core/src/oauth.rs:364
+msgid "Cannot read the token response: {0}"
+msgstr "토큰 응답을 읽을 수 없습니다: {0}"
+
+#: crates/fuu-core/src/oauth.rs:369
+msgid "No access token"
+msgstr "액세스 토큰이 없습니다"
+
+#: crates/fuu-core/src/oauth.rs:387
+msgid "Cannot set up the HTTPS client"
+msgstr "HTTPS 클라이언트를 초기화할 수 없습니다"
+
+#: crates/fuu-core/src/oauth.rs:398
+msgid "Cannot connect to {0}: {1}"
+msgstr "{0}에 연결할 수 없습니다: {1}"
+
+#: crates/fuu-core/src/secrets.rs:22
+msgid "The system keychain is not available: {0}"
+msgstr "시스템 키체인을 사용할 수 없습니다: {0}"
+
+#: crates/fuu-core/src/secrets.rs:23
+msgid "No password is saved"
+msgstr "저장된 비밀번호가 없습니다"
+
+#: crates/fuu-core/src/secrets.rs:24
+msgid "Keychain operation failed: {0}"
+msgstr "키체인 작업에 실패했습니다: {0}"
+
+#: crates/fuu-core/src/smtp.rs:32
+msgid "Cannot connect to the outgoing server: {0}"
+msgstr "보내는 서버에 연결할 수 없습니다: {0}"
+
+#: crates/fuu-core/src/smtp.rs:33
+msgid "Cannot set up an encrypted connection to the outgoing server: {0}"
+msgstr "보내는 서버와 암호화 연결을 설정할 수 없습니다: {0}"
+
+#: crates/fuu-core/src/smtp.rs:34
+msgid "Cannot sign in to the outgoing server: {0}"
+msgstr "보내는 서버에 로그인할 수 없습니다: {0}"
+
+#: crates/fuu-core/src/smtp.rs:35
+msgid "Sending was refused: {0}"
+msgstr "보내기가 거부되었습니다: {0}"
+
+#: crates/fuu-core/src/smtp.rs:36
+msgid "Talking to the outgoing server failed: {0}"
+msgstr "보내는 서버와 통신하지 못했습니다: {0}"
+
+#: crates/fuu-core/src/smtp.rs:37
+msgid "The outgoing server did not answer (timed out)"
+msgstr "보내는 서버가 응답하지 않습니다(시간 초과)"
+
+#: crates/fuu-core/src/smtp.rs:70
+msgid "The connection was closed"
+msgstr "연결이 끊어졌습니다"
+
+#: crates/fuu-core/src/smtp.rs:74 crates/fuu-core/src/smtp.rs:76
+msgid "Unexpected reply: {0}"
+msgstr "예상하지 못한 응답: {0}"
+
+#: crates/fuu-core/src/smtp.rs:124
+msgid "The server does not support STARTTLS"
+msgstr "서버가 STARTTLS를 지원하지 않습니다"
+
+#: crates/fuu-core/src/smtp.rs:184
+msgid "Unsupported sign-in method ({0})"
+msgstr "지원하지 않는 로그인 방식입니다({0})"
+
+#: crates/fuu-parser/src/mailparser.rs:142
+msgid "Forwarded message {0}.eml"
+msgstr "전달된 메일 {0}.eml"
+
+#: crates/fuu-parser/src/mailparser.rs:143
+msgid "Attachment {0}"
+msgstr "첨부 파일 {0}"
+
+#: crates/fuu-preview/src/docx.rs:323 crates/fuu-preview/src/pptx.rs:262
+msgid "[Picture]"
+msgstr "[그림]"
+
+#: crates/fuu-preview/src/docx.rs:648
+msgid "Not readable as a Word document"
+msgstr "Word 문서로 읽을 수 없습니다"
+
+#: crates/fuu-preview/src/docx.rs:683
+msgid "The Word document is damaged"
+msgstr "Word 문서가 손상되었습니다"
+
+#: crates/fuu-preview/src/docx.rs:692
+msgid "A long document: only the beginning is shown"
+msgstr "긴 문서라서 앞부분만 표시합니다"
+
+#: crates/fuu-preview/src/docx.rs:695 crates/fuu-preview/src/pptx.rs:384
+msgid "Pictures loaded from elsewhere, not shown: {0}"
+msgstr "외부에서 불러오는 그림은 표시하지 않았습니다: {0}개"
+
+#: crates/fuu-preview/src/image.rs:20
+msgid "Unknown image format"
+msgstr "알 수 없는 이미지 형식"
+
+#: crates/fuu-preview/src/image.rs:71
+msgid "{0} × {1} pixels"
+msgstr "{0} × {1} 픽셀"
+
+#: crates/fuu-preview/src/lib.rs:39
+msgid "Image"
+msgstr "이미지"
+
+#: crates/fuu-preview/src/lib.rs:41
+msgid "Word document"
+msgstr "Word 문서"
+
+#: crates/fuu-preview/src/lib.rs:42
+msgid "Spreadsheet"
+msgstr "스프레드시트"
+
+#: crates/fuu-preview/src/lib.rs:43
+msgid "Presentation"
+msgstr "프레젠테이션"
+
+#: crates/fuu-preview/src/lib.rs:85
+msgid "This format cannot be previewed"
+msgstr "이 형식은 미리 볼 수 없습니다"
+
+#: crates/fuu-preview/src/lib.rs:86
+msgid "The file is too large to preview"
+msgstr "파일이 너무 커서 미리 볼 수 없습니다"
+
+#: crates/fuu-preview/src/lib.rs:87
+msgid "Could not read the file ({0})"
+msgstr "파일을 읽을 수 없습니다({0})"
+
+#: crates/fuu-preview/src/ooxml.rs:85
+msgid "Not readable as an Office file"
+msgstr "Office 파일로 읽을 수 없습니다"
+
+#: crates/fuu-preview/src/pdf.rs:137
+msgid "Protected by a password"
+msgstr "비밀번호로 보호되어 있습니다"
+
+#: crates/fuu-preview/src/pdf.rs:138
+msgid "Not readable as a PDF"
+msgstr "PDF로 읽을 수 없습니다"
+
+#: crates/fuu-preview/src/pdf.rs:144
+msgid "There are no pages"
+msgstr "페이지가 없습니다"
+
+#: crates/fuu-preview/src/pdf.rs:151
+msgid "Showing the first {1} of {0} pages"
+msgstr "전체 {0}페이지 중 처음 {1}페이지를 표시합니다"
+
+#: crates/fuu-preview/src/pdf.rs:153
+msgid "Pages: {0}"
+msgstr "{0}페이지"
+
+#: crates/fuu-preview/src/pptx.rs:282
+msgid "Not readable as a PowerPoint file"
+msgstr "PowerPoint 파일로 읽을 수 없습니다"
+
+#: crates/fuu-preview/src/pptx.rs:310
+msgid "There are no slides"
+msgstr "슬라이드가 없습니다"
+
+#: crates/fuu-preview/src/pptx.rs:375
+msgid "Slide {}"
+msgstr "슬라이드 {}"
+
+#: crates/fuu-preview/src/pptx.rs:379
+msgid "Showing the first {1} of {0} slides"
+msgstr "전체 {0}장 중 처음 {1}장의 슬라이드를 표시합니다"
+
+#: crates/fuu-preview/src/pptx.rs:381
+msgid "Slides: {0}"
+msgstr "슬라이드 {0}장"
+
+#: crates/fuu-preview/src/xlsx.rs:159
+msgid "There are no sheets"
+msgstr "시트가 없습니다"
+
+#: crates/fuu-preview/src/xlsx.rs:163
+msgid "Showing the first {1} of {0} sheets"
+msgstr "전체 {0}개 시트 중 처음 {1}개를 표시합니다"
+
+#: crates/fuu-preview/src/xlsx.rs:168
+msgid "This sheet covers too large an area to show"
+msgstr "이 시트는 범위가 너무 넓어 표시하지 않습니다"
+
+#: crates/fuu-preview/src/xlsx.rs:174
+msgid "This sheet cannot be read ({0})"
+msgstr "이 시트를 읽을 수 없습니다({0})"
+
+#: crates/fuu-preview/src/xlsx.rs:193
+msgid "(empty sheet)"
+msgstr "(빈 시트)"
+
+#: crates/fuu-preview/src/xlsx.rs:244
+msgid "Showing {2} rows × {3} columns of {0} × {1}"
+msgstr "{0}행 × {1}열 중 {2}행 × {3}열을 표시합니다"

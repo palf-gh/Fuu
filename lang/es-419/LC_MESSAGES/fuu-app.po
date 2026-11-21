@@ -1,0 +1,1227 @@
+# Fuu user interface. Source strings are English.
+# Translations other than Japanese were made by AI and need review;
+# corrections are welcome (see README).
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: es-419\n"
+
+#: crates/fuu-app/ui/components.slint:261 crates/fuu-app/ui/main.slint:675
+msgid "Search"
+msgstr "Buscar"
+
+#: crates/fuu-app/ui/components.slint:394 crates/fuu-app/ui/main.slint:801 crates/fuu-app/ui/setup.slint:194
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: crates/fuu-app/ui/editor.slint:276
+msgid "Link (applies to the selected text)"
+msgstr "Enlace (se aplica al texto seleccionado)"
+
+#: crates/fuu-app/ui/editor.slint:285
+msgid "Remove"
+msgstr "Quitar"
+
+#: crates/fuu-app/ui/editor.slint:286
+msgid "Set"
+msgstr "Aplicar"
+
+#: crates/fuu-app/ui/editor.slint:330
+msgid "Small"
+msgstr "Pequeño"
+
+#: crates/fuu-app/ui/editor.slint:331
+msgid "Normal"
+msgstr "Normal"
+
+#: crates/fuu-app/ui/editor.slint:332
+msgid "Large"
+msgstr "Grande"
+
+#: crates/fuu-app/ui/editor.slint:333
+msgid "Huge"
+msgstr "Enorme"
+
+#: crates/fuu-app/ui/main.slint:217
+msgid "Move to Inbox"
+msgstr "Mover a la bandeja de entrada"
+
+#: crates/fuu-app/ui/main.slint:222 crates/fuu-app/src/mail.rs:724 crates/fuu-core/src/engine.rs:653
+msgid "Archive"
+msgstr "Archivar"
+
+#: crates/fuu-app/ui/main.slint:227 crates/fuu-app/ui/settings.slint:251
+msgid "Delete"
+msgstr "Eliminar"
+
+#: crates/fuu-app/ui/main.slint:309 crates/fuu-app/src/main.rs:599 crates/fuu-app/src/main.rs:1392 crates/fuu-app/src/main.rs:1453
+msgid "New message"
+msgstr "Mensaje nuevo"
+
+#: crates/fuu-app/ui/main.slint:397 crates/fuu-app/src/mail.rs:650 crates/fuu-app/src/mail.rs:721 crates/fuu-core/src/engine.rs:654
+msgid "Inbox"
+msgstr "Bandeja de entrada"
+
+#: crates/fuu-app/ui/main.slint:398 crates/fuu-app/src/mail.rs:698
+msgid "No account"
+msgstr "Sin cuenta"
+
+#: crates/fuu-app/ui/main.slint:707
+msgid "Update {}"
+msgstr "Actualizar {}"
+
+#: crates/fuu-app/ui/main.slint:708
+msgid "Updating {}%"
+msgstr "Actualizando {}%"
+
+#: crates/fuu-app/ui/main.slint:709
+msgid "Restart to update"
+msgstr "Reiniciar para actualizar"
+
+#: crates/fuu-app/ui/main.slint:786
+msgid "Continue signing in in your browser"
+msgstr "Continúa iniciando sesión en el navegador"
+
+#: crates/fuu-app/ui/main.slint:786
+msgid "You need to sign in again"
+msgstr "Tienes que volver a iniciar sesión"
+
+#: crates/fuu-app/ui/main.slint:800
+msgid "Sign in"
+msgstr "Iniciar sesión"
+
+#: crates/fuu-app/ui/main.slint:819 crates/fuu-app/ui/main.slint:1338 crates/fuu-app/ui/settings.slint:256 crates/fuu-app/ui/setup.slint:96
+msgid "Add account"
+msgstr "Agregar cuenta"
+
+#: crates/fuu-app/ui/main.slint:823
+msgid "Reload"
+msgstr "Recargar"
+
+#: crates/fuu-app/ui/main.slint:898
+msgid "Save"
+msgstr "Guardar"
+
+#: crates/fuu-app/ui/main.slint:902
+msgid "Reply (R)"
+msgstr "Responder (R)"
+
+#: crates/fuu-app/ui/main.slint:903
+msgid "Reply all (A)"
+msgstr "Responder a todos (A)"
+
+#: crates/fuu-app/ui/main.slint:904
+msgid "Forward (F)"
+msgstr "Reenviar (F)"
+
+#: crates/fuu-app/ui/main.slint:906
+msgid "Move to Inbox (E)"
+msgstr "Mover a la bandeja de entrada (E)"
+
+#: crates/fuu-app/ui/main.slint:907
+msgid "Archive (E)"
+msgstr "Archivar (E)"
+
+#: crates/fuu-app/ui/main.slint:908
+msgid "Delete (Delete)"
+msgstr "Eliminar (Supr)"
+
+#: crates/fuu-app/ui/main.slint:919
+msgid "To: {}   CC: {}"
+msgstr "Para: {}   CC: {}"
+
+#: crates/fuu-app/ui/main.slint:919
+msgid "To: {}"
+msgstr "Para: {}"
+
+#: crates/fuu-app/ui/main.slint:954
+msgid "Remote images blocked (so the sender cannot tell you opened this)"
+msgstr "Imágenes externas bloqueadas (para que el remitente no sepa que lo abriste)"
+
+#: crates/fuu-app/ui/main.slint:955
+msgid "Tracking images blocked"
+msgstr "Imágenes de seguimiento bloqueadas"
+
+#: crates/fuu-app/ui/main.slint:973 crates/fuu-app/src/mail.rs:164 crates/fuu-app/src/mail.rs:414 crates/fuu-app/src/mail.rs:665
+msgid "Loading…"
+msgstr "Cargando…"
+
+#: crates/fuu-app/ui/main.slint:973
+msgid "Show"
+msgstr "Mostrar"
+
+#: crates/fuu-app/ui/main.slint:1000
+msgid "Copy"
+msgstr "Copiar"
+
+#: crates/fuu-app/ui/main.slint:1001
+msgid "Select all"
+msgstr "Seleccionar todo"
+
+#: crates/fuu-app/ui/main.slint:1090
+msgid "From"
+msgstr "De"
+
+#: crates/fuu-app/ui/main.slint:1096
+msgid "To"
+msgstr "Para"
+
+#: crates/fuu-app/ui/main.slint:1115
+msgid "Separate several with commas"
+msgstr "Separa varios con comas"
+
+#: crates/fuu-app/ui/main.slint:1121
+msgid "Not shown to other recipients"
+msgstr "No se muestra a los demás destinatarios"
+
+#: crates/fuu-app/ui/main.slint:1123 crates/fuu-app/ui/main.slint:1123
+msgid "Subject"
+msgstr "Asunto"
+
+#: crates/fuu-app/ui/main.slint:1180 crates/fuu-core/src/engine.rs:723
+msgid "Sending…"
+msgstr "Enviando…"
+
+#: crates/fuu-app/ui/main.slint:1180
+msgid "Send"
+msgstr "Enviar"
+
+#: crates/fuu-app/ui/main.slint:1207
+msgid "Select a message"
+msgstr "Selecciona un mensaje"
+
+#: crates/fuu-app/ui/main.slint:1209
+msgid "j / k move   r reply   a reply all   f forward   e archive   c new"
+msgstr "j / k mover   r responder   a responder a todos   f reenviar   e archivar   c nuevo"
+
+#: crates/fuu-app/ui/main.slint:1333
+msgid "In use"
+msgstr "En uso"
+
+#: crates/fuu-app/ui/main.slint:1337
+msgid "Sign in again"
+msgstr "Volver a iniciar sesión"
+
+#: crates/fuu-app/ui/main.slint:1364
+msgid "No folders yet"
+msgstr "Aún no hay carpetas"
+
+#: crates/fuu-app/ui/main.slint:1375
+msgid "Open this link?"
+msgstr "¿Abrir este enlace?"
+
+#: crates/fuu-app/ui/main.slint:1376
+msgid "This URL will open in your default browser."
+msgstr "Esta dirección se abrirá en tu navegador predeterminado."
+
+#: crates/fuu-app/ui/main.slint:1378
+msgid "Open in browser"
+msgstr "Abrir en el navegador"
+
+#: crates/fuu-app/ui/main.slint:1384
+msgid "This may be a program"
+msgstr "Puede ser un programa"
+
+#: crates/fuu-app/ui/main.slint:1385
+msgid "Opening this kind of file runs a program. Do not save it unless you know the sender."
+msgstr "Al abrir este tipo de archivo se ejecuta un programa. No lo guardes si no conoces al remitente."
+
+#: crates/fuu-app/ui/main.slint:1387
+msgid "Save anyway"
+msgstr "Guardar de todos modos"
+
+#: crates/fuu-app/ui/main.slint:1393
+msgid "Overlap test"
+msgstr "Prueba de superposición"
+
+#: crates/fuu-app/ui/main.slint:1394
+msgid "Slint draws this dialogue. With Blitz it sits above the document; with a WebView the WebView is hidden while it shows."
+msgstr "Slint dibuja este cuadro de diálogo. Con Blitz queda sobre el documento; con un WebView, el WebView se oculta mientras se muestra."
+
+#: crates/fuu-app/ui/settings.slint:160 crates/fuu-app/ui/settings.slint:176
+msgid "General"
+msgstr "General"
+
+#: crates/fuu-app/ui/settings.slint:161 crates/fuu-app/ui/settings.slint:217 crates/fuu-app/ui/settings.slint:275
+msgid "Accounts"
+msgstr "Cuentas"
+
+#: crates/fuu-app/ui/settings.slint:162 crates/fuu-app/ui/settings.slint:261
+msgid "Signature"
+msgstr "Firma"
+
+#: crates/fuu-app/ui/settings.slint:163 crates/fuu-app/ui/settings.slint:348
+msgid "Privacy"
+msgstr "Privacidad"
+
+#: crates/fuu-app/ui/settings.slint:164 crates/fuu-app/ui/settings.slint:371
+msgid "Language"
+msgstr "Idioma"
+
+#: crates/fuu-app/ui/settings.slint:165
+msgid "About"
+msgstr "Acerca de"
+
+#: crates/fuu-app/ui/settings.slint:179
+msgid "Theme"
+msgstr "Tema"
+
+#: crates/fuu-app/ui/settings.slint:180
+msgid "Follow the system, or always use the light or dark look."
+msgstr "Seguir al sistema o usar siempre el aspecto claro u oscuro."
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "System"
+msgstr "Sistema"
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "Light"
+msgstr "Claro"
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "Dark"
+msgstr "Oscuro"
+
+#: crates/fuu-app/ui/settings.slint:185
+msgid "Send HTML mail"
+msgstr "Enviar correo HTML"
+
+#: crates/fuu-app/ui/settings.slint:186
+msgid "Sends an HTML version made from the text alongside the plain text (tidier quotes, signature and links). Turn off to send plain text only."
+msgstr "Envía una versión HTML hecha a partir del texto junto con el texto sin formato (citas, firma y enlaces más cuidados). Desactívalo para enviar solo texto sin formato."
+
+#: crates/fuu-app/ui/settings.slint:191
+msgid "Default mail app"
+msgstr "Aplicación de correo predeterminada"
+
+#: crates/fuu-app/ui/settings.slint:194
+msgid "Make Fuu the default"
+msgstr "Hacer que Fuu sea la predeterminada"
+
+#: crates/fuu-app/ui/settings.slint:200
+msgid "Check for updates at start-up"
+msgstr "Buscar actualizaciones al iniciar"
+
+#: crates/fuu-app/ui/settings.slint:202
+msgid "Looks at the GitHub releases and tells you about a new version. Updates are installed only after their signature is verified."
+msgstr "Consulta las versiones publicadas en GitHub y te avisa si hay una nueva. Las actualizaciones solo se instalan tras verificar su firma."
+
+#: crates/fuu-app/ui/settings.slint:209 crates/fuu-app/src/update.rs:62
+msgid "Checking…"
+msgstr "Comprobando…"
+
+#: crates/fuu-app/ui/settings.slint:209
+msgid "Check now"
+msgstr "Comprobar ahora"
+
+#: crates/fuu-app/ui/settings.slint:219
+msgid "No accounts yet."
+msgstr "Aún no hay cuentas."
+
+#: crates/fuu-app/ui/settings.slint:242
+msgid "Edit"
+msgstr "Editar"
+
+#: crates/fuu-app/ui/settings.slint:264
+msgid "Add an account to give each account its own signature."
+msgstr "Agrega una cuenta para que cada una tenga su propia firma."
+
+#: crates/fuu-app/ui/settings.slint:276
+msgid "Each account keeps its own signature."
+msgstr "Cada cuenta guarda su propia firma."
+
+#: crates/fuu-app/ui/settings.slint:307
+msgid "Add the signature to new messages"
+msgstr "Agregar la firma a los mensajes nuevos"
+
+#: crates/fuu-app/ui/settings.slint:308
+msgid "Inserted below the text of every new message, reply and forward. Changes are saved straight away."
+msgstr "Se inserta bajo el texto de cada mensaje nuevo, respuesta y reenvío. Los cambios se guardan al momento."
+
+#: crates/fuu-app/ui/settings.slint:338
+msgid "e.g. Alex Taylor\nExample Ltd."
+msgstr "p. ej., Lucía Martínez\nEjemplo S.A."
+
+#: crates/fuu-app/ui/settings.slint:351
+msgid "Do not load remote images"
+msgstr "No cargar imágenes externas"
+
+#: crates/fuu-app/ui/settings.slint:352
+msgid "Blocked by default; Fuu fetches them only when you allow it for a message. Tracking pixels are never fetched."
+msgstr "Bloqueadas por defecto; Fuu solo las descarga cuando lo permites en un mensaje. Los píxeles de seguimiento nunca se descargan."
+
+#: crates/fuu-app/ui/settings.slint:357
+msgid "No remote CSS or scripts"
+msgstr "Sin CSS ni scripts externos"
+
+#: crates/fuu-app/ui/settings.slint:358
+msgid "Only CSS known to be safe is applied to HTML mail. JavaScript never runs."
+msgstr "Al correo HTML solo se le aplica CSS comprobado como seguro. JavaScript nunca se ejecuta."
+
+#: crates/fuu-app/ui/settings.slint:363
+msgid "Confirm before opening links"
+msgstr "Confirmar antes de abrir enlaces"
+
+#: crates/fuu-app/ui/settings.slint:364
+msgid "Shows the real URL, then opens it in your default browser."
+msgstr "Muestra la dirección real y luego la abre en tu navegador predeterminado."
+
+#: crates/fuu-app/ui/settings.slint:373
+msgid "Translations other than Japanese are made by AI. Corrections are welcome on GitHub."
+msgstr "Las traducciones distintas del japonés fueron hechas por IA. Se agradecen las correcciones en GitHub."
+
+#: crates/fuu-app/ui/settings.slint:415
+msgid "Version {}"
+msgstr "Versión {}"
+
+#: crates/fuu-app/ui/settings.slint:417
+msgid "A minimal mail client with just what you need."
+msgstr "Un cliente de correo minimalista, solo con lo esencial."
+
+#: crates/fuu-app/ui/settings.slint:418
+msgid "Distributed under the GNU General Public License v3.0."
+msgstr "Se distribuye bajo la GNU General Public License v3.0."
+
+#: crates/fuu-app/ui/settings.slint:419
+msgid "Built with Slint (GPLv3), Blitz (MIT / Apache-2.0) and other open-source software."
+msgstr "Hecho con Slint (GPLv3), Blitz (MIT / Apache-2.0) y otro software de código abierto."
+
+#: crates/fuu-app/ui/setup.slint:96 crates/fuu-app/src/main.rs:275
+msgid "Edit account"
+msgstr "Editar cuenta"
+
+#: crates/fuu-app/ui/setup.slint:99
+msgid "Fuu connects straight to your mail server over IMAP / SMTP. Passwords and sign-in data are kept only in the system keychain."
+msgstr "Fuu se conecta directamente a tu servidor de correo por IMAP / SMTP. Las contraseñas y los datos de inicio de sesión solo se guardan en el llavero del sistema."
+
+#: crates/fuu-app/ui/setup.slint:106
+msgid "Name"
+msgstr "Nombre"
+
+#: crates/fuu-app/ui/setup.slint:106
+msgid "Shown as the sender"
+msgstr "Se muestra como remitente"
+
+#: crates/fuu-app/ui/setup.slint:107
+msgid "Email address"
+msgstr "Dirección de correo"
+
+#: crates/fuu-app/ui/setup.slint:109
+msgid "Password"
+msgstr "Contraseña"
+
+#: crates/fuu-app/ui/setup.slint:110
+msgid "App password (not needed when you sign in with {})"
+msgstr "Contraseña de aplicación (no hace falta si inicias sesión con {})"
+
+#: crates/fuu-app/ui/setup.slint:110
+msgid "Password or app password"
+msgstr "Contraseña o contraseña de aplicación"
+
+#: crates/fuu-app/ui/setup.slint:125
+msgid "{}: "
+msgstr "{}: "
+
+#: crates/fuu-app/ui/setup.slint:150
+msgid "Server settings"
+msgstr "Configuración del servidor"
+
+#: crates/fuu-app/ui/setup.slint:165
+msgid "User name"
+msgstr "Nombre de usuario"
+
+#: crates/fuu-app/ui/setup.slint:165
+msgid "Usually the email address"
+msgstr "Normalmente la dirección de correo"
+
+#: crates/fuu-app/ui/setup.slint:166
+msgid "IMAP server"
+msgstr "Servidor IMAP"
+
+#: crates/fuu-app/ui/setup.slint:169
+msgid "IMAP port"
+msgstr "Puerto IMAP"
+
+#: crates/fuu-app/ui/setup.slint:172
+msgid "SMTP server"
+msgstr "Servidor SMTP"
+
+#: crates/fuu-app/ui/setup.slint:175
+msgid "SMTP port"
+msgstr "Puerto SMTP"
+
+#: crates/fuu-app/ui/setup.slint:186 crates/fuu-app/ui/setup.slint:190 crates/fuu-app/ui/setup.slint:198
+msgid "Checking the connection…"
+msgstr "Comprobando la conexión…"
+
+#: crates/fuu-app/ui/setup.slint:186
+msgid "Check and save"
+msgstr "Comprobar y guardar"
+
+#: crates/fuu-app/ui/setup.slint:190
+msgid "Continue signing in in your browser…"
+msgstr "Continúa iniciando sesión en el navegador…"
+
+#: crates/fuu-app/ui/setup.slint:190
+msgid "Sign in with {}"
+msgstr "Iniciar sesión con {}"
+
+#: crates/fuu-app/ui/setup.slint:198
+msgid "Connect and add"
+msgstr "Conectar y agregar"
+
+#: crates/fuu-app/ui/setup.slint:202
+msgid "Add with password"
+msgstr "Agregar con contraseña"
+
+#: crates/fuu-app/src/mail.rs:132
+msgid "This message cannot be shown ({0})."
+msgstr "No se puede mostrar este mensaje ({0})."
+
+#: crates/fuu-app/src/mail.rs:193
+msgid "Could not read the attachment"
+msgstr "No se pudo leer el archivo adjunto"
+
+#: crates/fuu-app/src/mail.rs:194
+msgid "Could not save: {0}"
+msgstr "No se pudo guardar: {0}"
+
+#: crates/fuu-app/src/mail.rs:434
+msgid "Add an account and your mail appears here"
+msgstr "Agrega una cuenta y tu correo aparecerá aquí"
+
+#: crates/fuu-app/src/mail.rs:468
+msgid "Account settings saved"
+msgstr "Configuración de la cuenta guardada"
+
+#: crates/fuu-app/src/mail.rs:485
+msgid "Could not open the browser: {0}"
+msgstr "No se pudo abrir el navegador: {0}"
+
+#: crates/fuu-app/src/mail.rs:541 crates/fuu-app/src/mail.rs:560
+msgid "No messages"
+msgstr "No hay mensajes"
+
+#: crates/fuu-app/src/mail.rs:579
+msgid "Could not load the message: {0}"
+msgstr "No se pudo cargar el mensaje: {0}"
+
+#: crates/fuu-app/src/mail.rs:594
+msgid "Loaded {0} of {1} remote images"
+msgstr "Cargadas {0} de {1} imágenes externas"
+
+#: crates/fuu-app/src/mail.rs:620
+msgid "Moved to Trash"
+msgstr "Movido a la papelera"
+
+#: crates/fuu-app/src/mail.rs:621
+msgid "Archived"
+msgstr "Archivado"
+
+#: crates/fuu-app/src/mail.rs:622
+msgid "Moved back to Inbox"
+msgstr "Regresado a la bandeja de entrada"
+
+#: crates/fuu-app/src/mail.rs:629
+msgid "Sent ({0})"
+msgstr "Enviado ({0})"
+
+#: crates/fuu-app/src/mail.rs:630 crates/fuu-app/src/mail.rs:723
+msgid "Sent"
+msgstr "Enviado"
+
+#: crates/fuu-app/src/mail.rs:699
+msgid "Add one to get started"
+msgstr "Agrega una para comenzar"
+
+#: crates/fuu-app/src/mail.rs:722
+msgid "Drafts"
+msgstr "Borradores"
+
+#: crates/fuu-app/src/mail.rs:725
+msgid "Junk"
+msgstr "Spam"
+
+#: crates/fuu-app/src/mail.rs:726 crates/fuu-core/src/engine.rs:652
+msgid "Trash"
+msgstr "Papelera"
+
+#: crates/fuu-app/src/mail.rs:779 crates/fuu-app/src/main.rs:269 crates/fuu-app/src/main.rs:445 crates/fuu-app/src/main.rs:504
+msgid "(no subject)"
+msgstr "(sin asunto)"
+
+#: crates/fuu-app/src/mail.rs:963
+msgid "Enter an email address"
+msgstr "Escribe una dirección de correo"
+
+#: crates/fuu-app/src/mail.rs:965
+msgid "Enter a password"
+msgstr "Escribe una contraseña"
+
+#: crates/fuu-app/src/mail.rs:968
+msgid "Fill in the server settings"
+msgstr "Completa la configuración del servidor"
+
+#: crates/fuu-app/src/mail.rs:971
+msgid "The port number is not valid"
+msgstr "El número de puerto no es válido"
+
+#: crates/fuu-app/src/mail.rs:980 crates/fuu-app/src/mail.rs:1014
+msgid "Accounts cannot be added while showing development data (start without FUU_SPIKE_FEED)"
+msgstr "No se pueden agregar cuentas mientras se muestran datos de desarrollo (inicia sin FUU_SPIKE_FEED)"
+
+#: crates/fuu-app/src/mail.rs:1010
+msgid "This address does not support signing in through the browser"
+msgstr "Esta dirección no admite iniciar sesión desde el navegador"
+
+#: crates/fuu-app/src/main.rs:251
+msgid "You can have up to 32 tabs"
+msgstr "Puedes tener hasta 32 pestañas"
+
+#: crates/fuu-app/src/main.rs:274
+msgid "Settings"
+msgstr "Configuración"
+
+#: crates/fuu-app/src/main.rs:446
+msgid "Attachment of “{0}”"
+msgstr "Archivo adjunto de “{0}”"
+
+#: crates/fuu-app/src/main.rs:564
+msgid "Fuu is your default mail app."
+msgstr "Fuu es tu aplicación de correo predeterminada."
+
+#: crates/fuu-app/src/main.rs:565
+msgid "Email links currently open another app."
+msgstr "Ahora mismo, los enlaces de correo abren otra aplicación."
+
+#: crates/fuu-app/src/main.rs:566
+msgid "Available when Fuu runs as an app (Fuu.app)."
+msgstr "Disponible cuando Fuu se ejecuta como aplicación (Fuu.app)."
+
+#: crates/fuu-app/src/main.rs:595
+msgid "Could not open the email link"
+msgstr "No se pudo abrir el enlace de correo"
+
+#: crates/fuu-app/src/main.rs:616
+msgid "(no account set up)"
+msgstr "(sin cuenta configurada)"
+
+#: crates/fuu-app/src/main.rs:894
+msgid "System default"
+msgstr "Predeterminado del sistema"
+
+#: crates/fuu-app/src/main.rs:918
+msgid "Could not save settings: {0}"
+msgstr "No se pudo guardar la configuración: {0}"
+
+#: crates/fuu-app/src/main.rs:1198
+msgid "Saved: {0}"
+msgstr "Guardado: {0}"
+
+#: crates/fuu-app/src/main.rs:1356
+msgid "Copied {0} characters"
+msgstr "{0} caracteres copiados"
+
+#: crates/fuu-app/src/main.rs:1421
+msgid "Choose Fuu in Default apps to finish"
+msgstr "Elige Fuu en Aplicaciones predeterminadas para terminar"
+
+#: crates/fuu-app/src/main.rs:1465 crates/fuu-app/src/main.rs:1999
+msgid "Reply all"
+msgstr "Responder a todos"
+
+#: crates/fuu-app/src/main.rs:1465
+msgid "Reply"
+msgstr "Responder"
+
+#: crates/fuu-app/src/main.rs:1508
+msgid "Forward"
+msgstr "Reenviar"
+
+#: crates/fuu-app/src/main.rs:1636
+msgid "Cannot send while showing development data"
+msgstr "No se puede enviar mientras se muestran datos de desarrollo"
+
+#: crates/fuu-app/src/main.rs:1638
+msgid "There is no account to send from"
+msgstr "No hay ninguna cuenta desde la que enviar"
+
+#: crates/fuu-app/src/main.rs:1645 crates/fuu-core/src/compose.rs:443
+msgid "Enter a recipient"
+msgstr "Escribe un destinatario"
+
+#: crates/fuu-app/src/main.rs:1726
+msgid "Could not read: {0}"
+msgstr "No se pudo leer: {0}"
+
+#: crates/fuu-app/src/main.rs:1728
+msgid "The attachments total {0}. Some servers will not accept that much"
+msgstr "Los adjuntos suman {0}. Algunos servidores no aceptan tanto"
+
+#: crates/fuu-app/src/os_mail.rs:72
+msgid "Not supported on this system"
+msgstr "No es compatible con este sistema"
+
+#: crates/fuu-app/src/os_mail.rs:188
+msgid "Home folder not found"
+msgstr "No se encuentra la carpeta personal"
+
+#: crates/fuu-app/src/os_mail.rs:208
+msgid "Could not run xdg-mime: {0}"
+msgstr "No se pudo ejecutar xdg-mime: {0}"
+
+#: crates/fuu-app/src/os_mail.rs:209
+msgid "Could not make Fuu the default mail app (xdg-mime)"
+msgstr "No se pudo hacer que Fuu sea la aplicación de correo predeterminada (xdg-mime)"
+
+#: crates/fuu-app/src/os_mail.rs:384 crates/fuu-app/src/os_mail.rs:401
+msgid "Could not write to the registry ({0}: {1})"
+msgstr "No se pudo escribir en el registro ({0}: {1})"
+
+#: crates/fuu-app/src/os_mail.rs:450
+msgid "Could not open Settings: {0}"
+msgstr "No se pudo abrir la Configuración: {0}"
+
+#: crates/fuu-app/src/os_mail.rs:539
+msgid "Only available when Fuu runs as an app (Fuu.app)"
+msgstr "Solo disponible cuando Fuu se ejecuta como aplicación (Fuu.app)"
+
+#: crates/fuu-app/src/os_mail.rs:543
+msgid "Could not make Fuu the default mail app ({0})"
+msgstr "No se pudo hacer que Fuu sea la aplicación de correo predeterminada ({0})"
+
+#: crates/fuu-app/src/preview.rs:61 crates/fuu-app/src/preview.rs:96
+msgid "Preparing the preview…"
+msgstr "Preparando la vista previa…"
+
+#: crates/fuu-app/src/preview.rs:62
+msgid "{0}. Use Save to save the file and open it."
+msgstr "{0}. Usa Guardar para guardar el archivo y abrirlo."
+
+#: crates/fuu-app/src/preview.rs:71
+msgid "Could not read the attachment."
+msgstr "No se pudo leer el archivo adjunto."
+
+#: crates/fuu-app/src/preview.rs:80
+msgid "Something went wrong while preparing the preview"
+msgstr "Algo falló al preparar la vista previa"
+
+#: crates/fuu-app/src/preview.rs:94
+msgid "Could not prepare a preview."
+msgstr "No se pudo preparar una vista previa."
+
+#: crates/fuu-app/src/sections.rs:26 crates/fuu-app/src/sections.rs:45
+msgid "Older"
+msgstr "Anteriores"
+
+#: crates/fuu-app/src/sections.rs:34
+msgid "Today"
+msgstr "Hoy"
+
+#: crates/fuu-app/src/sections.rs:35
+msgid "Yesterday"
+msgstr "Ayer"
+
+#: crates/fuu-app/src/sections.rs:36
+msgid "Two days ago"
+msgstr "Anteayer"
+
+#: crates/fuu-app/src/sections.rs:41
+msgid "This month"
+msgstr "Este mes"
+
+#: crates/fuu-app/src/sections.rs:44
+msgid "{0} {1}"
+msgstr "{0} de {1}"
+
+#: crates/fuu-app/src/update.rs:77
+msgid "Version {0} is available."
+msgstr "Ya está disponible la versión {0}."
+
+#: crates/fuu-app/src/update.rs:82
+msgid "You have the latest version ({0})."
+msgstr "Tienes la versión más reciente ({0})."
+
+#: crates/fuu-app/src/update.rs:87
+msgid "Could not check: {0}"
+msgstr "No se pudo comprobar: {0}"
+
+#: crates/fuu-app/src/update.rs:132
+msgid "Could not download: {0}"
+msgstr "No se pudo descargar: {0}"
+
+#: crates/fuu-app/src/update.rs:139
+msgid "Version {0} is installed. Restart to use it."
+msgstr "Se instaló la versión {0}. Reinicia para usarla."
+
+#: crates/fuu-app/src/update.rs:141
+msgid "Could not update: {0}"
+msgstr "No se pudo actualizar: {0}"
+
+#: crates/fuu-core/src/account.rs:124
+msgid "Sign in with Google, or turn on 2-Step Verification and use an app password."
+msgstr "Inicia sesión con Google, o activa la verificación en dos pasos y usa una contraseña de aplicación."
+
+#: crates/fuu-core/src/account.rs:133
+msgid "Outlook.com only accepts signing in with a Microsoft account."
+msgstr "Outlook.com solo acepta iniciar sesión con una cuenta de Microsoft."
+
+#: crates/fuu-core/src/account.rs:142
+msgid "Create an app-specific password for your Apple Account and use it here."
+msgstr "Crea una contraseña específica para apps en tu cuenta de Apple y úsala aquí."
+
+#: crates/fuu-core/src/account.rs:147
+msgid "Yahoo Mail"
+msgstr "Yahoo Mail"
+
+#: crates/fuu-core/src/account.rs:150
+msgid "Turn on IMAP / SMTP access in your Yahoo Mail settings."
+msgstr "Activa el acceso IMAP / SMTP en la configuración de Yahoo Mail."
+
+#: crates/fuu-core/src/cache.rs:17
+msgid "Cache operation failed: {0}"
+msgstr "Error en la operación de caché: {0}"
+
+#: crates/fuu-core/src/compose.rs:112
+msgid "Not a valid email address: {0}"
+msgstr "Dirección de correo no válida: {0}"
+
+#: crates/fuu-core/src/compose.rs:192
+msgid "{0} wrote:"
+msgstr "{0} escribió:"
+
+#: crates/fuu-core/src/compose.rs:192
+msgid "On {0}, {1} wrote:"
+msgstr "El {0}, {1} escribió:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "From:"
+msgstr "De:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "Sent:"
+msgstr "Enviado:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "To:"
+msgstr "Para:"
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "Subject:"
+msgstr "Asunto:"
+
+#: crates/fuu-core/src/compose.rs:215
+msgid "January"
+msgstr "enero"
+
+#: crates/fuu-core/src/compose.rs:216
+msgid "February"
+msgstr "febrero"
+
+#: crates/fuu-core/src/compose.rs:217
+msgid "March"
+msgstr "marzo"
+
+#: crates/fuu-core/src/compose.rs:218
+msgid "April"
+msgstr "abril"
+
+#: crates/fuu-core/src/compose.rs:219
+msgid "May"
+msgstr "mayo"
+
+#: crates/fuu-core/src/compose.rs:220
+msgid "June"
+msgstr "junio"
+
+#: crates/fuu-core/src/compose.rs:221
+msgid "July"
+msgstr "julio"
+
+#: crates/fuu-core/src/compose.rs:222
+msgid "August"
+msgstr "agosto"
+
+#: crates/fuu-core/src/compose.rs:223
+msgid "September"
+msgstr "septiembre"
+
+#: crates/fuu-core/src/compose.rs:224
+msgid "October"
+msgstr "octubre"
+
+#: crates/fuu-core/src/compose.rs:225
+msgid "November"
+msgstr "noviembre"
+
+#: crates/fuu-core/src/compose.rs:226
+msgid "December"
+msgstr "diciembre"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Monday"
+msgstr "lunes"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Tuesday"
+msgstr "martes"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Wednesday"
+msgstr "miércoles"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Thursday"
+msgstr "jueves"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Friday"
+msgstr "viernes"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Saturday"
+msgstr "sábado"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Sunday"
+msgstr "domingo"
+
+#: crates/fuu-core/src/compose.rs:238
+msgid "{0}, {1} {2} {3} {4}"
+msgstr "{0}, {1} de {2} de {3} {4}"
+
+#: crates/fuu-core/src/compose.rs:276
+msgid "---------- Forwarded message ----------"
+msgstr "---------- Mensaje reenviado ----------"
+
+#: crates/fuu-core/src/compose.rs:279
+msgid "Date:"
+msgstr "Fecha:"
+
+#: crates/fuu-core/src/compose.rs:446
+msgid "The sender address is not valid"
+msgstr "La dirección del remitente no es válida"
+
+#: crates/fuu-core/src/config.rs:26
+msgid "The settings folder was not found"
+msgstr "No se encuentra la carpeta de configuración"
+
+#: crates/fuu-core/src/config.rs:27
+msgid "Could not read or write the settings file: {0}"
+msgstr "No se pudo leer o escribir el archivo de configuración: {0}"
+
+#: crates/fuu-core/src/config.rs:28
+msgid "Could not understand the settings file: {0}"
+msgstr "No se pudo interpretar el archivo de configuración: {0}"
+
+#: crates/fuu-core/src/engine.rs:229 crates/fuu-core/src/engine.rs:244 crates/fuu-core/src/engine.rs:282 crates/fuu-core/src/engine.rs:449
+msgid "Connecting to {0}…"
+msgstr "Conectando con {0}…"
+
+#: crates/fuu-core/src/engine.rs:242 crates/fuu-core/src/engine.rs:713
+msgid "Account not found"
+msgstr "No se encuentra la cuenta"
+
+#: crates/fuu-core/src/engine.rs:273
+msgid "No OAuth provider given"
+msgstr "No se indicó ningún proveedor OAuth"
+
+#: crates/fuu-core/src/engine.rs:280
+msgid "{0} did not issue a refresh token"
+msgstr "{0} no emitió un token de actualización"
+
+#: crates/fuu-core/src/engine.rs:298
+msgid "No OAuth client ID for {0} is set up. Put client_id in {1} in the settings folder"
+msgstr "No hay un ID de cliente OAuth configurado para {0}. Pon client_id en {1}, en la carpeta de configuración"
+
+#: crates/fuu-core/src/engine.rs:310
+msgid "Sign in to {0} in your browser…"
+msgstr "Inicia sesión en {0} desde el navegador…"
+
+#: crates/fuu-core/src/engine.rs:324
+msgid "Unknown OAuth provider"
+msgstr "Proveedor OAuth desconocido"
+
+#: crates/fuu-core/src/engine.rs:335
+msgid "No OAuth client ID for {0} is set up ({1})"
+msgstr "No hay un ID de cliente OAuth configurado para {0} ({1})"
+
+#: crates/fuu-core/src/engine.rs:340
+msgid "No sign-in found. Please sign in again"
+msgstr "No se encuentra el inicio de sesión. Vuelve a iniciar sesión"
+
+#: crates/fuu-core/src/engine.rs:351
+msgid "The sign-in has expired or was revoked ({0})"
+msgstr "El inicio de sesión venció o se revocó ({0})"
+
+#: crates/fuu-core/src/engine.rs:417
+msgid "Could not save the signature: {0}"
+msgstr "No se pudo guardar la firma: {0}"
+
+#: crates/fuu-core/src/engine.rs:581
+msgid "Loading messages…"
+msgstr "Cargando mensajes…"
+
+#: crates/fuu-core/src/engine.rs:656
+msgid "No {0} folder found"
+msgstr "No se encuentra la carpeta “{0}”"
+
+#: crates/fuu-core/src/engine.rs:659
+msgid "It is already in that folder"
+msgstr "Ya está en esa carpeta"
+
+#: crates/fuu-core/src/engine.rs:700
+msgid "Created the archive folder “{0}”, but it is not in the folder list"
+msgstr "Se creó la carpeta de archivo “{0}”, pero no aparece en la lista de carpetas"
+
+#: crates/fuu-core/src/engine.rs:705
+msgid "Could not create an archive folder: {0}"
+msgstr "No se pudo crear una carpeta de archivo: {0}"
+
+#: crates/fuu-core/src/engine.rs:752
+msgid "Could not save to the Sent folder: {0}"
+msgstr "No se pudo guardar en Enviados: {0}"
+
+#: crates/fuu-core/src/engine.rs:755
+msgid "Not saved: no Sent folder found"
+msgstr "No guardado: no se encuentra la carpeta Enviados"
+
+#: crates/fuu-core/src/imap.rs:36
+msgid "Cannot connect to the server: {0}"
+msgstr "No se puede conectar con el servidor: {0}"
+
+#: crates/fuu-core/src/imap.rs:37
+msgid "Cannot set up an encrypted connection: {0}"
+msgstr "No se puede establecer una conexión cifrada: {0}"
+
+#: crates/fuu-core/src/imap.rs:38
+msgid "Cannot sign in (check the user name and password): {0}"
+msgstr "No se puede iniciar sesión (revisa el nombre de usuario y la contraseña): {0}"
+
+#: crates/fuu-core/src/imap.rs:39
+msgid "Talking to the IMAP server failed: {0}"
+msgstr "Falló la comunicación con el servidor IMAP: {0}"
+
+#: crates/fuu-core/src/imap.rs:40
+msgid "The server did not answer (timed out)"
+msgstr "El servidor no responde (tiempo agotado)"
+
+#: crates/fuu-core/src/imap.rs:422
+msgid "Message UID {0} not found"
+msgstr "No se encuentra el mensaje con UID {0}"
+
+#: crates/fuu-core/src/oauth.rs:143
+msgid "You need to sign in again ({0})"
+msgstr "Tienes que volver a iniciar sesión ({0})"
+
+#: crates/fuu-core/src/oauth.rs:144
+msgid "Sign-in cancelled"
+msgstr "Inicio de sesión cancelado"
+
+#: crates/fuu-core/src/oauth.rs:145
+msgid "Signing in through the browser did not finish in time"
+msgstr "El inicio de sesión en el navegador no terminó a tiempo"
+
+#: crates/fuu-core/src/oauth.rs:146
+msgid "Sign-in was not allowed ({0})"
+msgstr "No se permitió el inicio de sesión ({0})"
+
+#: crates/fuu-core/src/oauth.rs:364
+msgid "Cannot read the token response: {0}"
+msgstr "No se puede leer la respuesta del token: {0}"
+
+#: crates/fuu-core/src/oauth.rs:369
+msgid "No access token"
+msgstr "No hay token de acceso"
+
+#: crates/fuu-core/src/oauth.rs:387
+msgid "Cannot set up the HTTPS client"
+msgstr "No se puede iniciar el cliente HTTPS"
+
+#: crates/fuu-core/src/oauth.rs:398
+msgid "Cannot connect to {0}: {1}"
+msgstr "No se puede conectar con {0}: {1}"
+
+#: crates/fuu-core/src/secrets.rs:22
+msgid "The system keychain is not available: {0}"
+msgstr "El llavero del sistema no está disponible: {0}"
+
+#: crates/fuu-core/src/secrets.rs:23
+msgid "No password is saved"
+msgstr "No hay ninguna contraseña guardada"
+
+#: crates/fuu-core/src/secrets.rs:24
+msgid "Keychain operation failed: {0}"
+msgstr "Falló la operación con el llavero: {0}"
+
+#: crates/fuu-core/src/smtp.rs:32
+msgid "Cannot connect to the outgoing server: {0}"
+msgstr "No se puede conectar con el servidor de salida: {0}"
+
+#: crates/fuu-core/src/smtp.rs:33
+msgid "Cannot set up an encrypted connection to the outgoing server: {0}"
+msgstr "No se puede establecer una conexión cifrada con el servidor de salida: {0}"
+
+#: crates/fuu-core/src/smtp.rs:34
+msgid "Cannot sign in to the outgoing server: {0}"
+msgstr "No se puede iniciar sesión en el servidor de salida: {0}"
+
+#: crates/fuu-core/src/smtp.rs:35
+msgid "Sending was refused: {0}"
+msgstr "Se rechazó el envío: {0}"
+
+#: crates/fuu-core/src/smtp.rs:36
+msgid "Talking to the outgoing server failed: {0}"
+msgstr "Falló la comunicación con el servidor de salida: {0}"
+
+#: crates/fuu-core/src/smtp.rs:37
+msgid "The outgoing server did not answer (timed out)"
+msgstr "El servidor de salida no responde (tiempo agotado)"
+
+#: crates/fuu-core/src/smtp.rs:70
+msgid "The connection was closed"
+msgstr "Se cerró la conexión"
+
+#: crates/fuu-core/src/smtp.rs:74 crates/fuu-core/src/smtp.rs:76
+msgid "Unexpected reply: {0}"
+msgstr "Respuesta inesperada: {0}"
+
+#: crates/fuu-core/src/smtp.rs:124
+msgid "The server does not support STARTTLS"
+msgstr "El servidor no admite STARTTLS"
+
+#: crates/fuu-core/src/smtp.rs:184
+msgid "Unsupported sign-in method ({0})"
+msgstr "Método de inicio de sesión no compatible ({0})"
+
+#: crates/fuu-parser/src/mailparser.rs:142
+msgid "Forwarded message {0}.eml"
+msgstr "Mensaje reenviado {0}.eml"
+
+#: crates/fuu-parser/src/mailparser.rs:143
+msgid "Attachment {0}"
+msgstr "Adjunto {0}"
+
+#: crates/fuu-preview/src/docx.rs:323 crates/fuu-preview/src/pptx.rs:262
+msgid "[Picture]"
+msgstr "[Imagen]"
+
+#: crates/fuu-preview/src/docx.rs:648
+msgid "Not readable as a Word document"
+msgstr "No se puede leer como documento de Word"
+
+#: crates/fuu-preview/src/docx.rs:683
+msgid "The Word document is damaged"
+msgstr "El documento de Word está dañado"
+
+#: crates/fuu-preview/src/docx.rs:692
+msgid "A long document: only the beginning is shown"
+msgstr "Documento largo: solo se muestra el principio"
+
+#: crates/fuu-preview/src/docx.rs:695 crates/fuu-preview/src/pptx.rs:384
+msgid "Pictures loaded from elsewhere, not shown: {0}"
+msgstr "Imágenes cargadas desde fuera, no mostradas: {0}"
+
+#: crates/fuu-preview/src/image.rs:20
+msgid "Unknown image format"
+msgstr "Formato de imagen desconocido"
+
+#: crates/fuu-preview/src/image.rs:71
+msgid "{0} × {1} pixels"
+msgstr "{0} × {1} píxeles"
+
+#: crates/fuu-preview/src/lib.rs:39
+msgid "Image"
+msgstr "Imagen"
+
+#: crates/fuu-preview/src/lib.rs:41
+msgid "Word document"
+msgstr "Documento de Word"
+
+#: crates/fuu-preview/src/lib.rs:42
+msgid "Spreadsheet"
+msgstr "Hoja de cálculo"
+
+#: crates/fuu-preview/src/lib.rs:43
+msgid "Presentation"
+msgstr "Presentación"
+
+#: crates/fuu-preview/src/lib.rs:85
+msgid "This format cannot be previewed"
+msgstr "Este formato no tiene vista previa"
+
+#: crates/fuu-preview/src/lib.rs:86
+msgid "The file is too large to preview"
+msgstr "El archivo es demasiado grande para la vista previa"
+
+#: crates/fuu-preview/src/lib.rs:87
+msgid "Could not read the file ({0})"
+msgstr "No se pudo leer el archivo ({0})"
+
+#: crates/fuu-preview/src/ooxml.rs:85
+msgid "Not readable as an Office file"
+msgstr "No se puede leer como archivo de Office"
+
+#: crates/fuu-preview/src/pdf.rs:137
+msgid "Protected by a password"
+msgstr "Protegido con contraseña"
+
+#: crates/fuu-preview/src/pdf.rs:138
+msgid "Not readable as a PDF"
+msgstr "No se puede leer como PDF"
+
+#: crates/fuu-preview/src/pdf.rs:144
+msgid "There are no pages"
+msgstr "No hay páginas"
+
+#: crates/fuu-preview/src/pdf.rs:151
+msgid "Showing the first {1} of {0} pages"
+msgstr "Se muestran las primeras {1} de {0} páginas"
+
+#: crates/fuu-preview/src/pdf.rs:153
+msgid "Pages: {0}"
+msgstr "Páginas: {0}"
+
+#: crates/fuu-preview/src/pptx.rs:282
+msgid "Not readable as a PowerPoint file"
+msgstr "No se puede leer como archivo de PowerPoint"
+
+#: crates/fuu-preview/src/pptx.rs:310
+msgid "There are no slides"
+msgstr "No hay diapositivas"
+
+#: crates/fuu-preview/src/pptx.rs:375
+msgid "Slide {}"
+msgstr "Diapositiva {}"
+
+#: crates/fuu-preview/src/pptx.rs:379
+msgid "Showing the first {1} of {0} slides"
+msgstr "Se muestran las primeras {1} de {0} diapositivas"
+
+#: crates/fuu-preview/src/pptx.rs:381
+msgid "Slides: {0}"
+msgstr "Diapositivas: {0}"
+
+#: crates/fuu-preview/src/xlsx.rs:159
+msgid "There are no sheets"
+msgstr "No hay hojas"
+
+#: crates/fuu-preview/src/xlsx.rs:163
+msgid "Showing the first {1} of {0} sheets"
+msgstr "Se muestran las primeras {1} de {0} hojas"
+
+#: crates/fuu-preview/src/xlsx.rs:168
+msgid "This sheet covers too large an area to show"
+msgstr "Esta hoja ocupa un área demasiado grande para mostrarla"
+
+#: crates/fuu-preview/src/xlsx.rs:174
+msgid "This sheet cannot be read ({0})"
+msgstr "No se puede leer esta hoja ({0})"
+
+#: crates/fuu-preview/src/xlsx.rs:193
+msgid "(empty sheet)"
+msgstr "(hoja vacía)"
+
+#: crates/fuu-preview/src/xlsx.rs:244
+msgid "Showing {2} rows × {3} columns of {0} × {1}"
+msgstr "Se muestran {2} filas × {3} columnas de {0} × {1}"

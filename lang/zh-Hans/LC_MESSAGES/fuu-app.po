@@ -1,0 +1,1227 @@
+# Fuu user interface. Source strings are English.
+# Translations other than Japanese were made by AI and need review;
+# corrections are welcome (see README).
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh-Hans\n"
+
+#: crates/fuu-app/ui/components.slint:261 crates/fuu-app/ui/main.slint:675
+msgid "Search"
+msgstr "搜索"
+
+#: crates/fuu-app/ui/components.slint:394 crates/fuu-app/ui/main.slint:801 crates/fuu-app/ui/setup.slint:194
+msgid "Cancel"
+msgstr "取消"
+
+#: crates/fuu-app/ui/editor.slint:276
+msgid "Link (applies to the selected text)"
+msgstr "链接（应用于所选文字）"
+
+#: crates/fuu-app/ui/editor.slint:285
+msgid "Remove"
+msgstr "移除"
+
+#: crates/fuu-app/ui/editor.slint:286
+msgid "Set"
+msgstr "设置"
+
+#: crates/fuu-app/ui/editor.slint:330
+msgid "Small"
+msgstr "小"
+
+#: crates/fuu-app/ui/editor.slint:331
+msgid "Normal"
+msgstr "标准"
+
+#: crates/fuu-app/ui/editor.slint:332
+msgid "Large"
+msgstr "大"
+
+#: crates/fuu-app/ui/editor.slint:333
+msgid "Huge"
+msgstr "特大"
+
+#: crates/fuu-app/ui/main.slint:217
+msgid "Move to Inbox"
+msgstr "移回收件箱"
+
+#: crates/fuu-app/ui/main.slint:222 crates/fuu-app/src/mail.rs:724 crates/fuu-core/src/engine.rs:653
+msgid "Archive"
+msgstr "归档"
+
+#: crates/fuu-app/ui/main.slint:227 crates/fuu-app/ui/settings.slint:251
+msgid "Delete"
+msgstr "删除"
+
+#: crates/fuu-app/ui/main.slint:309 crates/fuu-app/src/main.rs:599 crates/fuu-app/src/main.rs:1392 crates/fuu-app/src/main.rs:1453
+msgid "New message"
+msgstr "新邮件"
+
+#: crates/fuu-app/ui/main.slint:397 crates/fuu-app/src/mail.rs:650 crates/fuu-app/src/mail.rs:721 crates/fuu-core/src/engine.rs:654
+msgid "Inbox"
+msgstr "收件箱"
+
+#: crates/fuu-app/ui/main.slint:398 crates/fuu-app/src/mail.rs:698
+msgid "No account"
+msgstr "无账户"
+
+#: crates/fuu-app/ui/main.slint:707
+msgid "Update {}"
+msgstr "更新 {}"
+
+#: crates/fuu-app/ui/main.slint:708
+msgid "Updating {}%"
+msgstr "正在更新 {}%"
+
+#: crates/fuu-app/ui/main.slint:709
+msgid "Restart to update"
+msgstr "重启以更新"
+
+#: crates/fuu-app/ui/main.slint:786
+msgid "Continue signing in in your browser"
+msgstr "请在浏览器中继续登录"
+
+#: crates/fuu-app/ui/main.slint:786
+msgid "You need to sign in again"
+msgstr "需要重新登录"
+
+#: crates/fuu-app/ui/main.slint:800
+msgid "Sign in"
+msgstr "登录"
+
+#: crates/fuu-app/ui/main.slint:819 crates/fuu-app/ui/main.slint:1338 crates/fuu-app/ui/settings.slint:256 crates/fuu-app/ui/setup.slint:96
+msgid "Add account"
+msgstr "添加账户"
+
+#: crates/fuu-app/ui/main.slint:823
+msgid "Reload"
+msgstr "重新加载"
+
+#: crates/fuu-app/ui/main.slint:898
+msgid "Save"
+msgstr "保存"
+
+#: crates/fuu-app/ui/main.slint:902
+msgid "Reply (R)"
+msgstr "回复（R）"
+
+#: crates/fuu-app/ui/main.slint:903
+msgid "Reply all (A)"
+msgstr "全部回复（A）"
+
+#: crates/fuu-app/ui/main.slint:904
+msgid "Forward (F)"
+msgstr "转发（F）"
+
+#: crates/fuu-app/ui/main.slint:906
+msgid "Move to Inbox (E)"
+msgstr "移回收件箱（E）"
+
+#: crates/fuu-app/ui/main.slint:907
+msgid "Archive (E)"
+msgstr "归档（E）"
+
+#: crates/fuu-app/ui/main.slint:908
+msgid "Delete (Delete)"
+msgstr "删除（Delete）"
+
+#: crates/fuu-app/ui/main.slint:919
+msgid "To: {}   CC: {}"
+msgstr "收件人：{}　抄送：{}"
+
+#: crates/fuu-app/ui/main.slint:919
+msgid "To: {}"
+msgstr "收件人：{}"
+
+#: crates/fuu-app/ui/main.slint:954
+msgid "Remote images blocked (so the sender cannot tell you opened this)"
+msgstr "已阻止外部图片（以免发件人得知你已打开）"
+
+#: crates/fuu-app/ui/main.slint:955
+msgid "Tracking images blocked"
+msgstr "已阻止跟踪图片"
+
+#: crates/fuu-app/ui/main.slint:973 crates/fuu-app/src/mail.rs:164 crates/fuu-app/src/mail.rs:414 crates/fuu-app/src/mail.rs:665
+msgid "Loading…"
+msgstr "正在加载…"
+
+#: crates/fuu-app/ui/main.slint:973
+msgid "Show"
+msgstr "显示"
+
+#: crates/fuu-app/ui/main.slint:1000
+msgid "Copy"
+msgstr "复制"
+
+#: crates/fuu-app/ui/main.slint:1001
+msgid "Select all"
+msgstr "全选"
+
+#: crates/fuu-app/ui/main.slint:1090
+msgid "From"
+msgstr "发件人"
+
+#: crates/fuu-app/ui/main.slint:1096
+msgid "To"
+msgstr "收件人"
+
+#: crates/fuu-app/ui/main.slint:1115
+msgid "Separate several with commas"
+msgstr "多个地址用逗号分隔"
+
+#: crates/fuu-app/ui/main.slint:1121
+msgid "Not shown to other recipients"
+msgstr "不会显示给其他收件人"
+
+#: crates/fuu-app/ui/main.slint:1123 crates/fuu-app/ui/main.slint:1123
+msgid "Subject"
+msgstr "主题"
+
+#: crates/fuu-app/ui/main.slint:1180 crates/fuu-core/src/engine.rs:723
+msgid "Sending…"
+msgstr "正在发送…"
+
+#: crates/fuu-app/ui/main.slint:1180
+msgid "Send"
+msgstr "发送"
+
+#: crates/fuu-app/ui/main.slint:1207
+msgid "Select a message"
+msgstr "请选择一封邮件"
+
+#: crates/fuu-app/ui/main.slint:1209
+msgid "j / k move   r reply   a reply all   f forward   e archive   c new"
+msgstr "j / k 移动　r 回复　a 全部回复　f 转发　e 归档　c 新建"
+
+#: crates/fuu-app/ui/main.slint:1333
+msgid "In use"
+msgstr "使用中"
+
+#: crates/fuu-app/ui/main.slint:1337
+msgid "Sign in again"
+msgstr "重新登录"
+
+#: crates/fuu-app/ui/main.slint:1364
+msgid "No folders yet"
+msgstr "暂无文件夹"
+
+#: crates/fuu-app/ui/main.slint:1375
+msgid "Open this link?"
+msgstr "要打开此链接吗？"
+
+#: crates/fuu-app/ui/main.slint:1376
+msgid "This URL will open in your default browser."
+msgstr "将在默认浏览器中打开以下网址。"
+
+#: crates/fuu-app/ui/main.slint:1378
+msgid "Open in browser"
+msgstr "在浏览器中打开"
+
+#: crates/fuu-app/ui/main.slint:1384
+msgid "This may be a program"
+msgstr "这可能是程序"
+
+#: crates/fuu-app/ui/main.slint:1385
+msgid "Opening this kind of file runs a program. Do not save it unless you know the sender."
+msgstr "打开此类文件会运行程序。如果不认识发件人，请不要保存。"
+
+#: crates/fuu-app/ui/main.slint:1387
+msgid "Save anyway"
+msgstr "仍然保存"
+
+#: crates/fuu-app/ui/main.slint:1393
+msgid "Overlap test"
+msgstr "重叠测试"
+
+#: crates/fuu-app/ui/main.slint:1394
+msgid "Slint draws this dialogue. With Blitz it sits above the document; with a WebView the WebView is hidden while it shows."
+msgstr "此对话框由 Slint 绘制。使用 Blitz 时它位于文档上方；使用 WebView 时，显示期间会隐藏 WebView。"
+
+#: crates/fuu-app/ui/settings.slint:160 crates/fuu-app/ui/settings.slint:176
+msgid "General"
+msgstr "通用"
+
+#: crates/fuu-app/ui/settings.slint:161 crates/fuu-app/ui/settings.slint:217 crates/fuu-app/ui/settings.slint:275
+msgid "Accounts"
+msgstr "账户"
+
+#: crates/fuu-app/ui/settings.slint:162 crates/fuu-app/ui/settings.slint:261
+msgid "Signature"
+msgstr "签名"
+
+#: crates/fuu-app/ui/settings.slint:163 crates/fuu-app/ui/settings.slint:348
+msgid "Privacy"
+msgstr "隐私"
+
+#: crates/fuu-app/ui/settings.slint:164 crates/fuu-app/ui/settings.slint:371
+msgid "Language"
+msgstr "语言"
+
+#: crates/fuu-app/ui/settings.slint:165
+msgid "About"
+msgstr "关于"
+
+#: crates/fuu-app/ui/settings.slint:179
+msgid "Theme"
+msgstr "主题"
+
+#: crates/fuu-app/ui/settings.slint:180
+msgid "Follow the system, or always use the light or dark look."
+msgstr "跟随系统，或始终使用浅色或深色外观。"
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "System"
+msgstr "系统"
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "Light"
+msgstr "浅色"
+
+#: crates/fuu-app/ui/settings.slint:181
+msgid "Dark"
+msgstr "深色"
+
+#: crates/fuu-app/ui/settings.slint:185
+msgid "Send HTML mail"
+msgstr "发送 HTML 邮件"
+
+#: crates/fuu-app/ui/settings.slint:186
+msgid "Sends an HTML version made from the text alongside the plain text (tidier quotes, signature and links). Turn off to send plain text only."
+msgstr "根据正文生成 HTML 版本，与纯文本一起发送（引用、签名和链接更整洁）。关闭后仅发送纯文本。"
+
+#: crates/fuu-app/ui/settings.slint:191
+msgid "Default mail app"
+msgstr "默认邮件应用"
+
+#: crates/fuu-app/ui/settings.slint:194
+msgid "Make Fuu the default"
+msgstr "将 Fuu 设为默认"
+
+#: crates/fuu-app/ui/settings.slint:200
+msgid "Check for updates at start-up"
+msgstr "启动时检查更新"
+
+#: crates/fuu-app/ui/settings.slint:202
+msgid "Looks at the GitHub releases and tells you about a new version. Updates are installed only after their signature is verified."
+msgstr "查看 GitHub 上的发布，有新版本时通知你。更新只有在签名验证通过后才会安装。"
+
+#: crates/fuu-app/ui/settings.slint:209 crates/fuu-app/src/update.rs:62
+msgid "Checking…"
+msgstr "正在检查…"
+
+#: crates/fuu-app/ui/settings.slint:209
+msgid "Check now"
+msgstr "立即检查"
+
+#: crates/fuu-app/ui/settings.slint:219
+msgid "No accounts yet."
+msgstr "还没有账户。"
+
+#: crates/fuu-app/ui/settings.slint:242
+msgid "Edit"
+msgstr "编辑"
+
+#: crates/fuu-app/ui/settings.slint:264
+msgid "Add an account to give each account its own signature."
+msgstr "添加账户后，可以为每个账户设置签名。"
+
+#: crates/fuu-app/ui/settings.slint:276
+msgid "Each account keeps its own signature."
+msgstr "每个账户分别保存签名。"
+
+#: crates/fuu-app/ui/settings.slint:307
+msgid "Add the signature to new messages"
+msgstr "在新邮件中添加签名"
+
+#: crates/fuu-app/ui/settings.slint:308
+msgid "Inserted below the text of every new message, reply and forward. Changes are saved straight away."
+msgstr "在每封新邮件、回复和转发的正文下方插入。更改会立即保存。"
+
+#: crates/fuu-app/ui/settings.slint:338
+msgid "e.g. Alex Taylor\nExample Ltd."
+msgstr "例如：张伟\n示例有限公司"
+
+#: crates/fuu-app/ui/settings.slint:351
+msgid "Do not load remote images"
+msgstr "不加载外部图片"
+
+#: crates/fuu-app/ui/settings.slint:352
+msgid "Blocked by default; Fuu fetches them only when you allow it for a message. Tracking pixels are never fetched."
+msgstr "默认阻止；只有你允许某封邮件时 Fuu 才会获取。跟踪像素即使允许也不会获取。"
+
+#: crates/fuu-app/ui/settings.slint:357
+msgid "No remote CSS or scripts"
+msgstr "不使用外部 CSS 和脚本"
+
+#: crates/fuu-app/ui/settings.slint:358
+msgid "Only CSS known to be safe is applied to HTML mail. JavaScript never runs."
+msgstr "HTML 邮件只应用确认安全的 CSS。绝不运行 JavaScript。"
+
+#: crates/fuu-app/ui/settings.slint:363
+msgid "Confirm before opening links"
+msgstr "打开链接前确认"
+
+#: crates/fuu-app/ui/settings.slint:364
+msgid "Shows the real URL, then opens it in your default browser."
+msgstr "先显示真实网址，再用系统默认浏览器打开。"
+
+#: crates/fuu-app/ui/settings.slint:373
+msgid "Translations other than Japanese are made by AI. Corrections are welcome on GitHub."
+msgstr "日语以外的翻译由 AI 完成。欢迎在 GitHub 上指正。"
+
+#: crates/fuu-app/ui/settings.slint:415
+msgid "Version {}"
+msgstr "版本 {}"
+
+#: crates/fuu-app/ui/settings.slint:417
+msgid "A minimal mail client with just what you need."
+msgstr "一款只保留必要功能的简约邮件客户端。"
+
+#: crates/fuu-app/ui/settings.slint:418
+msgid "Distributed under the GNU General Public License v3.0."
+msgstr "依据 GNU 通用公共许可证 v3.0 发布。"
+
+#: crates/fuu-app/ui/settings.slint:419
+msgid "Built with Slint (GPLv3), Blitz (MIT / Apache-2.0) and other open-source software."
+msgstr "使用了 Slint（GPLv3）、Blitz（MIT / Apache-2.0）等开源软件。"
+
+#: crates/fuu-app/ui/setup.slint:96 crates/fuu-app/src/main.rs:275
+msgid "Edit account"
+msgstr "编辑账户"
+
+#: crates/fuu-app/ui/setup.slint:99
+msgid "Fuu connects straight to your mail server over IMAP / SMTP. Passwords and sign-in data are kept only in the system keychain."
+msgstr "Fuu 通过 IMAP / SMTP 直接连接邮件服务器。密码和登录信息只保存在系统钥匙串中。"
+
+#: crates/fuu-app/ui/setup.slint:106
+msgid "Name"
+msgstr "名称"
+
+#: crates/fuu-app/ui/setup.slint:106
+msgid "Shown as the sender"
+msgstr "作为发件人显示"
+
+#: crates/fuu-app/ui/setup.slint:107
+msgid "Email address"
+msgstr "电子邮件地址"
+
+#: crates/fuu-app/ui/setup.slint:109
+msgid "Password"
+msgstr "密码"
+
+#: crates/fuu-app/ui/setup.slint:110
+msgid "App password (not needed when you sign in with {})"
+msgstr "应用专用密码（使用 {} 登录时不需要）"
+
+#: crates/fuu-app/ui/setup.slint:110
+msgid "Password or app password"
+msgstr "密码或应用专用密码"
+
+#: crates/fuu-app/ui/setup.slint:125
+msgid "{}: "
+msgstr "{}："
+
+#: crates/fuu-app/ui/setup.slint:150
+msgid "Server settings"
+msgstr "服务器设置"
+
+#: crates/fuu-app/ui/setup.slint:165
+msgid "User name"
+msgstr "用户名"
+
+#: crates/fuu-app/ui/setup.slint:165
+msgid "Usually the email address"
+msgstr "通常是电子邮件地址"
+
+#: crates/fuu-app/ui/setup.slint:166
+msgid "IMAP server"
+msgstr "IMAP 服务器"
+
+#: crates/fuu-app/ui/setup.slint:169
+msgid "IMAP port"
+msgstr "IMAP 端口"
+
+#: crates/fuu-app/ui/setup.slint:172
+msgid "SMTP server"
+msgstr "SMTP 服务器"
+
+#: crates/fuu-app/ui/setup.slint:175
+msgid "SMTP port"
+msgstr "SMTP 端口"
+
+#: crates/fuu-app/ui/setup.slint:186 crates/fuu-app/ui/setup.slint:190 crates/fuu-app/ui/setup.slint:198
+msgid "Checking the connection…"
+msgstr "正在检查连接…"
+
+#: crates/fuu-app/ui/setup.slint:186
+msgid "Check and save"
+msgstr "检查并保存"
+
+#: crates/fuu-app/ui/setup.slint:190
+msgid "Continue signing in in your browser…"
+msgstr "请在浏览器中继续登录…"
+
+#: crates/fuu-app/ui/setup.slint:190
+msgid "Sign in with {}"
+msgstr "使用 {} 登录"
+
+#: crates/fuu-app/ui/setup.slint:198
+msgid "Connect and add"
+msgstr "连接并添加"
+
+#: crates/fuu-app/ui/setup.slint:202
+msgid "Add with password"
+msgstr "使用密码添加"
+
+#: crates/fuu-app/src/mail.rs:132
+msgid "This message cannot be shown ({0})."
+msgstr "无法显示此邮件（{0}）。"
+
+#: crates/fuu-app/src/mail.rs:193
+msgid "Could not read the attachment"
+msgstr "无法读取附件"
+
+#: crates/fuu-app/src/mail.rs:194
+msgid "Could not save: {0}"
+msgstr "无法保存：{0}"
+
+#: crates/fuu-app/src/mail.rs:434
+msgid "Add an account and your mail appears here"
+msgstr "添加账户后，邮件会显示在这里"
+
+#: crates/fuu-app/src/mail.rs:468
+msgid "Account settings saved"
+msgstr "账户设置已保存"
+
+#: crates/fuu-app/src/mail.rs:485
+msgid "Could not open the browser: {0}"
+msgstr "无法打开浏览器：{0}"
+
+#: crates/fuu-app/src/mail.rs:541 crates/fuu-app/src/mail.rs:560
+msgid "No messages"
+msgstr "没有邮件"
+
+#: crates/fuu-app/src/mail.rs:579
+msgid "Could not load the message: {0}"
+msgstr "无法加载邮件：{0}"
+
+#: crates/fuu-app/src/mail.rs:594
+msgid "Loaded {0} of {1} remote images"
+msgstr "已加载 {1} 张外部图片中的 {0} 张"
+
+#: crates/fuu-app/src/mail.rs:620
+msgid "Moved to Trash"
+msgstr "已移到废纸篓"
+
+#: crates/fuu-app/src/mail.rs:621
+msgid "Archived"
+msgstr "已归档"
+
+#: crates/fuu-app/src/mail.rs:622
+msgid "Moved back to Inbox"
+msgstr "已移回收件箱"
+
+#: crates/fuu-app/src/mail.rs:629
+msgid "Sent ({0})"
+msgstr "已发送（{0}）"
+
+#: crates/fuu-app/src/mail.rs:630 crates/fuu-app/src/mail.rs:723
+msgid "Sent"
+msgstr "已发送"
+
+#: crates/fuu-app/src/mail.rs:699
+msgid "Add one to get started"
+msgstr "添加一个账户即可开始"
+
+#: crates/fuu-app/src/mail.rs:722
+msgid "Drafts"
+msgstr "草稿"
+
+#: crates/fuu-app/src/mail.rs:725
+msgid "Junk"
+msgstr "垃圾邮件"
+
+#: crates/fuu-app/src/mail.rs:726 crates/fuu-core/src/engine.rs:652
+msgid "Trash"
+msgstr "废纸篓"
+
+#: crates/fuu-app/src/mail.rs:779 crates/fuu-app/src/main.rs:269 crates/fuu-app/src/main.rs:445 crates/fuu-app/src/main.rs:504
+msgid "(no subject)"
+msgstr "（无主题）"
+
+#: crates/fuu-app/src/mail.rs:963
+msgid "Enter an email address"
+msgstr "请输入电子邮件地址"
+
+#: crates/fuu-app/src/mail.rs:965
+msgid "Enter a password"
+msgstr "请输入密码"
+
+#: crates/fuu-app/src/mail.rs:968
+msgid "Fill in the server settings"
+msgstr "请填写服务器设置"
+
+#: crates/fuu-app/src/mail.rs:971
+msgid "The port number is not valid"
+msgstr "端口号无效"
+
+#: crates/fuu-app/src/mail.rs:980 crates/fuu-app/src/mail.rs:1014
+msgid "Accounts cannot be added while showing development data (start without FUU_SPIKE_FEED)"
+msgstr "显示开发数据时无法添加账户（请不带 FUU_SPIKE_FEED 启动）"
+
+#: crates/fuu-app/src/mail.rs:1010
+msgid "This address does not support signing in through the browser"
+msgstr "此地址不支持通过浏览器登录"
+
+#: crates/fuu-app/src/main.rs:251
+msgid "You can have up to 32 tabs"
+msgstr "最多可以打开 32 个标签页"
+
+#: crates/fuu-app/src/main.rs:274
+msgid "Settings"
+msgstr "设置"
+
+#: crates/fuu-app/src/main.rs:446
+msgid "Attachment of “{0}”"
+msgstr "“{0}”的附件"
+
+#: crates/fuu-app/src/main.rs:564
+msgid "Fuu is your default mail app."
+msgstr "Fuu 是你的默认邮件应用。"
+
+#: crates/fuu-app/src/main.rs:565
+msgid "Email links currently open another app."
+msgstr "目前邮件链接会打开其他应用。"
+
+#: crates/fuu-app/src/main.rs:566
+msgid "Available when Fuu runs as an app (Fuu.app)."
+msgstr "以应用（Fuu.app）运行时可用。"
+
+#: crates/fuu-app/src/main.rs:595
+msgid "Could not open the email link"
+msgstr "无法打开邮件链接"
+
+#: crates/fuu-app/src/main.rs:616
+msgid "(no account set up)"
+msgstr "（未设置账户）"
+
+#: crates/fuu-app/src/main.rs:894
+msgid "System default"
+msgstr "跟随系统"
+
+#: crates/fuu-app/src/main.rs:918
+msgid "Could not save settings: {0}"
+msgstr "无法保存设置：{0}"
+
+#: crates/fuu-app/src/main.rs:1198
+msgid "Saved: {0}"
+msgstr "已保存：{0}"
+
+#: crates/fuu-app/src/main.rs:1356
+msgid "Copied {0} characters"
+msgstr "已复制 {0} 个字符"
+
+#: crates/fuu-app/src/main.rs:1421
+msgid "Choose Fuu in Default apps to finish"
+msgstr "在“默认应用”中选择 Fuu 即可完成"
+
+#: crates/fuu-app/src/main.rs:1465 crates/fuu-app/src/main.rs:1999
+msgid "Reply all"
+msgstr "全部回复"
+
+#: crates/fuu-app/src/main.rs:1465
+msgid "Reply"
+msgstr "回复"
+
+#: crates/fuu-app/src/main.rs:1508
+msgid "Forward"
+msgstr "转发"
+
+#: crates/fuu-app/src/main.rs:1636
+msgid "Cannot send while showing development data"
+msgstr "显示开发数据时无法发送"
+
+#: crates/fuu-app/src/main.rs:1638
+msgid "There is no account to send from"
+msgstr "没有可用于发送的账户"
+
+#: crates/fuu-app/src/main.rs:1645 crates/fuu-core/src/compose.rs:443
+msgid "Enter a recipient"
+msgstr "请输入收件人"
+
+#: crates/fuu-app/src/main.rs:1726
+msgid "Could not read: {0}"
+msgstr "无法读取：{0}"
+
+#: crates/fuu-app/src/main.rs:1728
+msgid "The attachments total {0}. Some servers will not accept that much"
+msgstr "附件总大小为 {0}。有些服务器不接受这么大的邮件"
+
+#: crates/fuu-app/src/os_mail.rs:72
+msgid "Not supported on this system"
+msgstr "此系统不支持"
+
+#: crates/fuu-app/src/os_mail.rs:188
+msgid "Home folder not found"
+msgstr "找不到主文件夹"
+
+#: crates/fuu-app/src/os_mail.rs:208
+msgid "Could not run xdg-mime: {0}"
+msgstr "无法运行 xdg-mime：{0}"
+
+#: crates/fuu-app/src/os_mail.rs:209
+msgid "Could not make Fuu the default mail app (xdg-mime)"
+msgstr "无法将 Fuu 设为默认邮件应用（xdg-mime）"
+
+#: crates/fuu-app/src/os_mail.rs:384 crates/fuu-app/src/os_mail.rs:401
+msgid "Could not write to the registry ({0}: {1})"
+msgstr "无法写入注册表（{0}：{1}）"
+
+#: crates/fuu-app/src/os_mail.rs:450
+msgid "Could not open Settings: {0}"
+msgstr "无法打开设置：{0}"
+
+#: crates/fuu-app/src/os_mail.rs:539
+msgid "Only available when Fuu runs as an app (Fuu.app)"
+msgstr "仅在以应用（Fuu.app）运行时可用"
+
+#: crates/fuu-app/src/os_mail.rs:543
+msgid "Could not make Fuu the default mail app ({0})"
+msgstr "无法将 Fuu 设为默认邮件应用（{0}）"
+
+#: crates/fuu-app/src/preview.rs:61 crates/fuu-app/src/preview.rs:96
+msgid "Preparing the preview…"
+msgstr "正在准备预览…"
+
+#: crates/fuu-app/src/preview.rs:62
+msgid "{0}. Use Save to save the file and open it."
+msgstr "{0}。请使用“保存”保存文件后再打开。"
+
+#: crates/fuu-app/src/preview.rs:71
+msgid "Could not read the attachment."
+msgstr "无法读取附件。"
+
+#: crates/fuu-app/src/preview.rs:80
+msgid "Something went wrong while preparing the preview"
+msgstr "准备预览时出错"
+
+#: crates/fuu-app/src/preview.rs:94
+msgid "Could not prepare a preview."
+msgstr "无法生成预览。"
+
+#: crates/fuu-app/src/sections.rs:26 crates/fuu-app/src/sections.rs:45
+msgid "Older"
+msgstr "更早"
+
+#: crates/fuu-app/src/sections.rs:34
+msgid "Today"
+msgstr "今天"
+
+#: crates/fuu-app/src/sections.rs:35
+msgid "Yesterday"
+msgstr "昨天"
+
+#: crates/fuu-app/src/sections.rs:36
+msgid "Two days ago"
+msgstr "前天"
+
+#: crates/fuu-app/src/sections.rs:41
+msgid "This month"
+msgstr "本月"
+
+#: crates/fuu-app/src/sections.rs:44
+msgid "{0} {1}"
+msgstr "{1}年{0}"
+
+#: crates/fuu-app/src/update.rs:77
+msgid "Version {0} is available."
+msgstr "有新版本 {0}。"
+
+#: crates/fuu-app/src/update.rs:82
+msgid "You have the latest version ({0})."
+msgstr "你使用的是最新版本（{0}）。"
+
+#: crates/fuu-app/src/update.rs:87
+msgid "Could not check: {0}"
+msgstr "无法检查：{0}"
+
+#: crates/fuu-app/src/update.rs:132
+msgid "Could not download: {0}"
+msgstr "无法下载：{0}"
+
+#: crates/fuu-app/src/update.rs:139
+msgid "Version {0} is installed. Restart to use it."
+msgstr "已安装版本 {0}。重启后即可使用。"
+
+#: crates/fuu-app/src/update.rs:141
+msgid "Could not update: {0}"
+msgstr "无法更新：{0}"
+
+#: crates/fuu-core/src/account.rs:124
+msgid "Sign in with Google, or turn on 2-Step Verification and use an app password."
+msgstr "请使用 Google 登录，或开启两步验证并使用应用专用密码。"
+
+#: crates/fuu-core/src/account.rs:133
+msgid "Outlook.com only accepts signing in with a Microsoft account."
+msgstr "Outlook.com 只接受使用 Microsoft 账户登录。"
+
+#: crates/fuu-core/src/account.rs:142
+msgid "Create an app-specific password for your Apple Account and use it here."
+msgstr "请为你的 Apple 账户创建一个应用专用密码并在此使用。"
+
+#: crates/fuu-core/src/account.rs:147
+msgid "Yahoo Mail"
+msgstr "Yahoo 邮箱"
+
+#: crates/fuu-core/src/account.rs:150
+msgid "Turn on IMAP / SMTP access in your Yahoo Mail settings."
+msgstr "请在 Yahoo 邮箱设置中开启 IMAP / SMTP 访问。"
+
+#: crates/fuu-core/src/cache.rs:17
+msgid "Cache operation failed: {0}"
+msgstr "缓存操作失败：{0}"
+
+#: crates/fuu-core/src/compose.rs:112
+msgid "Not a valid email address: {0}"
+msgstr "电子邮件地址无效：{0}"
+
+#: crates/fuu-core/src/compose.rs:192
+msgid "{0} wrote:"
+msgstr "{0} 写道："
+
+#: crates/fuu-core/src/compose.rs:192
+msgid "On {0}, {1} wrote:"
+msgstr "{0}，{1} 写道："
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "From:"
+msgstr "发件人："
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "Sent:"
+msgstr "发送时间："
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "To:"
+msgstr "收件人："
+
+#: crates/fuu-core/src/compose.rs:209
+msgid "Subject:"
+msgstr "主题："
+
+#: crates/fuu-core/src/compose.rs:215
+msgid "January"
+msgstr "1月"
+
+#: crates/fuu-core/src/compose.rs:216
+msgid "February"
+msgstr "2月"
+
+#: crates/fuu-core/src/compose.rs:217
+msgid "March"
+msgstr "3月"
+
+#: crates/fuu-core/src/compose.rs:218
+msgid "April"
+msgstr "4月"
+
+#: crates/fuu-core/src/compose.rs:219
+msgid "May"
+msgstr "5月"
+
+#: crates/fuu-core/src/compose.rs:220
+msgid "June"
+msgstr "6月"
+
+#: crates/fuu-core/src/compose.rs:221
+msgid "July"
+msgstr "7月"
+
+#: crates/fuu-core/src/compose.rs:222
+msgid "August"
+msgstr "8月"
+
+#: crates/fuu-core/src/compose.rs:223
+msgid "September"
+msgstr "9月"
+
+#: crates/fuu-core/src/compose.rs:224
+msgid "October"
+msgstr "10月"
+
+#: crates/fuu-core/src/compose.rs:225
+msgid "November"
+msgstr "11月"
+
+#: crates/fuu-core/src/compose.rs:226
+msgid "December"
+msgstr "12月"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Monday"
+msgstr "星期一"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Tuesday"
+msgstr "星期二"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Wednesday"
+msgstr "星期三"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Thursday"
+msgstr "星期四"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Friday"
+msgstr "星期五"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Saturday"
+msgstr "星期六"
+
+#: crates/fuu-core/src/compose.rs:236
+msgid "Sunday"
+msgstr "星期日"
+
+#: crates/fuu-core/src/compose.rs:238
+msgid "{0}, {1} {2} {3} {4}"
+msgstr "{3}年{5}月{1}日 {0} {4}"
+
+#: crates/fuu-core/src/compose.rs:276
+msgid "---------- Forwarded message ----------"
+msgstr "---------- 转发的邮件 ----------"
+
+#: crates/fuu-core/src/compose.rs:279
+msgid "Date:"
+msgstr "日期："
+
+#: crates/fuu-core/src/compose.rs:446
+msgid "The sender address is not valid"
+msgstr "发件人地址无效"
+
+#: crates/fuu-core/src/config.rs:26
+msgid "The settings folder was not found"
+msgstr "找不到设置文件夹"
+
+#: crates/fuu-core/src/config.rs:27
+msgid "Could not read or write the settings file: {0}"
+msgstr "无法读写设置文件：{0}"
+
+#: crates/fuu-core/src/config.rs:28
+msgid "Could not understand the settings file: {0}"
+msgstr "无法解析设置文件：{0}"
+
+#: crates/fuu-core/src/engine.rs:229 crates/fuu-core/src/engine.rs:244 crates/fuu-core/src/engine.rs:282 crates/fuu-core/src/engine.rs:449
+msgid "Connecting to {0}…"
+msgstr "正在连接 {0}…"
+
+#: crates/fuu-core/src/engine.rs:242 crates/fuu-core/src/engine.rs:713
+msgid "Account not found"
+msgstr "找不到账户"
+
+#: crates/fuu-core/src/engine.rs:273
+msgid "No OAuth provider given"
+msgstr "未指定 OAuth 提供方"
+
+#: crates/fuu-core/src/engine.rs:280
+msgid "{0} did not issue a refresh token"
+msgstr "{0} 没有颁发刷新令牌"
+
+#: crates/fuu-core/src/engine.rs:298
+msgid "No OAuth client ID for {0} is set up. Put client_id in {1} in the settings folder"
+msgstr "尚未设置 {0} 的 OAuth 客户端 ID。请在设置文件夹的 {1} 中写入 client_id"
+
+#: crates/fuu-core/src/engine.rs:310
+msgid "Sign in to {0} in your browser…"
+msgstr "请在浏览器中登录 {0}…"
+
+#: crates/fuu-core/src/engine.rs:324
+msgid "Unknown OAuth provider"
+msgstr "未知的 OAuth 提供方"
+
+#: crates/fuu-core/src/engine.rs:335
+msgid "No OAuth client ID for {0} is set up ({1})"
+msgstr "尚未设置 {0} 的 OAuth 客户端 ID（{1}）"
+
+#: crates/fuu-core/src/engine.rs:340
+msgid "No sign-in found. Please sign in again"
+msgstr "找不到登录信息。请重新登录"
+
+#: crates/fuu-core/src/engine.rs:351
+msgid "The sign-in has expired or was revoked ({0})"
+msgstr "登录已过期或已被撤销（{0}）"
+
+#: crates/fuu-core/src/engine.rs:417
+msgid "Could not save the signature: {0}"
+msgstr "无法保存签名：{0}"
+
+#: crates/fuu-core/src/engine.rs:581
+msgid "Loading messages…"
+msgstr "正在加载邮件…"
+
+#: crates/fuu-core/src/engine.rs:656
+msgid "No {0} folder found"
+msgstr "找不到“{0}”文件夹"
+
+#: crates/fuu-core/src/engine.rs:659
+msgid "It is already in that folder"
+msgstr "已经在该文件夹中"
+
+#: crates/fuu-core/src/engine.rs:700
+msgid "Created the archive folder “{0}”, but it is not in the folder list"
+msgstr "已创建归档文件夹“{0}”，但未出现在文件夹列表中"
+
+#: crates/fuu-core/src/engine.rs:705
+msgid "Could not create an archive folder: {0}"
+msgstr "无法创建归档文件夹：{0}"
+
+#: crates/fuu-core/src/engine.rs:752
+msgid "Could not save to the Sent folder: {0}"
+msgstr "无法保存到“已发送”文件夹：{0}"
+
+#: crates/fuu-core/src/engine.rs:755
+msgid "Not saved: no Sent folder found"
+msgstr "未保存：找不到“已发送”文件夹"
+
+#: crates/fuu-core/src/imap.rs:36
+msgid "Cannot connect to the server: {0}"
+msgstr "无法连接服务器：{0}"
+
+#: crates/fuu-core/src/imap.rs:37
+msgid "Cannot set up an encrypted connection: {0}"
+msgstr "无法建立加密连接：{0}"
+
+#: crates/fuu-core/src/imap.rs:38
+msgid "Cannot sign in (check the user name and password): {0}"
+msgstr "无法登录（请检查用户名和密码）：{0}"
+
+#: crates/fuu-core/src/imap.rs:39
+msgid "Talking to the IMAP server failed: {0}"
+msgstr "与 IMAP 服务器通信失败：{0}"
+
+#: crates/fuu-core/src/imap.rs:40
+msgid "The server did not answer (timed out)"
+msgstr "服务器没有响应（超时）"
+
+#: crates/fuu-core/src/imap.rs:422
+msgid "Message UID {0} not found"
+msgstr "找不到 UID 为 {0} 的邮件"
+
+#: crates/fuu-core/src/oauth.rs:143
+msgid "You need to sign in again ({0})"
+msgstr "需要重新登录（{0}）"
+
+#: crates/fuu-core/src/oauth.rs:144
+msgid "Sign-in cancelled"
+msgstr "已取消登录"
+
+#: crates/fuu-core/src/oauth.rs:145
+msgid "Signing in through the browser did not finish in time"
+msgstr "浏览器登录未在规定时间内完成"
+
+#: crates/fuu-core/src/oauth.rs:146
+msgid "Sign-in was not allowed ({0})"
+msgstr "登录未获允许（{0}）"
+
+#: crates/fuu-core/src/oauth.rs:364
+msgid "Cannot read the token response: {0}"
+msgstr "无法读取令牌响应：{0}"
+
+#: crates/fuu-core/src/oauth.rs:369
+msgid "No access token"
+msgstr "没有访问令牌"
+
+#: crates/fuu-core/src/oauth.rs:387
+msgid "Cannot set up the HTTPS client"
+msgstr "无法初始化 HTTPS 客户端"
+
+#: crates/fuu-core/src/oauth.rs:398
+msgid "Cannot connect to {0}: {1}"
+msgstr "无法连接 {0}：{1}"
+
+#: crates/fuu-core/src/secrets.rs:22
+msgid "The system keychain is not available: {0}"
+msgstr "系统钥匙串不可用：{0}"
+
+#: crates/fuu-core/src/secrets.rs:23
+msgid "No password is saved"
+msgstr "没有保存密码"
+
+#: crates/fuu-core/src/secrets.rs:24
+msgid "Keychain operation failed: {0}"
+msgstr "钥匙串操作失败：{0}"
+
+#: crates/fuu-core/src/smtp.rs:32
+msgid "Cannot connect to the outgoing server: {0}"
+msgstr "无法连接发送服务器：{0}"
+
+#: crates/fuu-core/src/smtp.rs:33
+msgid "Cannot set up an encrypted connection to the outgoing server: {0}"
+msgstr "无法与发送服务器建立加密连接：{0}"
+
+#: crates/fuu-core/src/smtp.rs:34
+msgid "Cannot sign in to the outgoing server: {0}"
+msgstr "无法登录发送服务器：{0}"
+
+#: crates/fuu-core/src/smtp.rs:35
+msgid "Sending was refused: {0}"
+msgstr "发送被拒绝：{0}"
+
+#: crates/fuu-core/src/smtp.rs:36
+msgid "Talking to the outgoing server failed: {0}"
+msgstr "与发送服务器通信失败：{0}"
+
+#: crates/fuu-core/src/smtp.rs:37
+msgid "The outgoing server did not answer (timed out)"
+msgstr "发送服务器没有响应（超时）"
+
+#: crates/fuu-core/src/smtp.rs:70
+msgid "The connection was closed"
+msgstr "连接已断开"
+
+#: crates/fuu-core/src/smtp.rs:74 crates/fuu-core/src/smtp.rs:76
+msgid "Unexpected reply: {0}"
+msgstr "意外的响应：{0}"
+
+#: crates/fuu-core/src/smtp.rs:124
+msgid "The server does not support STARTTLS"
+msgstr "服务器不支持 STARTTLS"
+
+#: crates/fuu-core/src/smtp.rs:184
+msgid "Unsupported sign-in method ({0})"
+msgstr "不支持的登录方式（{0}）"
+
+#: crates/fuu-parser/src/mailparser.rs:142
+msgid "Forwarded message {0}.eml"
+msgstr "转发的邮件 {0}.eml"
+
+#: crates/fuu-parser/src/mailparser.rs:143
+msgid "Attachment {0}"
+msgstr "附件 {0}"
+
+#: crates/fuu-preview/src/docx.rs:323 crates/fuu-preview/src/pptx.rs:262
+msgid "[Picture]"
+msgstr "[图片]"
+
+#: crates/fuu-preview/src/docx.rs:648
+msgid "Not readable as a Word document"
+msgstr "无法作为 Word 文档读取"
+
+#: crates/fuu-preview/src/docx.rs:683
+msgid "The Word document is damaged"
+msgstr "Word 文档已损坏"
+
+#: crates/fuu-preview/src/docx.rs:692
+msgid "A long document: only the beginning is shown"
+msgstr "文档较长，只显示开头部分"
+
+#: crates/fuu-preview/src/docx.rs:695 crates/fuu-preview/src/pptx.rs:384
+msgid "Pictures loaded from elsewhere, not shown: {0}"
+msgstr "未显示从外部加载的图片：{0} 张"
+
+#: crates/fuu-preview/src/image.rs:20
+msgid "Unknown image format"
+msgstr "无法识别的图片格式"
+
+#: crates/fuu-preview/src/image.rs:71
+msgid "{0} × {1} pixels"
+msgstr "{0} × {1} 像素"
+
+#: crates/fuu-preview/src/lib.rs:39
+msgid "Image"
+msgstr "图片"
+
+#: crates/fuu-preview/src/lib.rs:41
+msgid "Word document"
+msgstr "Word 文档"
+
+#: crates/fuu-preview/src/lib.rs:42
+msgid "Spreadsheet"
+msgstr "电子表格"
+
+#: crates/fuu-preview/src/lib.rs:43
+msgid "Presentation"
+msgstr "演示文稿"
+
+#: crates/fuu-preview/src/lib.rs:85
+msgid "This format cannot be previewed"
+msgstr "此格式无法预览"
+
+#: crates/fuu-preview/src/lib.rs:86
+msgid "The file is too large to preview"
+msgstr "文件太大，无法预览"
+
+#: crates/fuu-preview/src/lib.rs:87
+msgid "Could not read the file ({0})"
+msgstr "无法读取文件（{0}）"
+
+#: crates/fuu-preview/src/ooxml.rs:85
+msgid "Not readable as an Office file"
+msgstr "无法作为 Office 文件读取"
+
+#: crates/fuu-preview/src/pdf.rs:137
+msgid "Protected by a password"
+msgstr "受密码保护"
+
+#: crates/fuu-preview/src/pdf.rs:138
+msgid "Not readable as a PDF"
+msgstr "无法作为 PDF 读取"
+
+#: crates/fuu-preview/src/pdf.rs:144
+msgid "There are no pages"
+msgstr "没有页面"
+
+#: crates/fuu-preview/src/pdf.rs:151
+msgid "Showing the first {1} of {0} pages"
+msgstr "显示共 {0} 页中的前 {1} 页"
+
+#: crates/fuu-preview/src/pdf.rs:153
+msgid "Pages: {0}"
+msgstr "{0} 页"
+
+#: crates/fuu-preview/src/pptx.rs:282
+msgid "Not readable as a PowerPoint file"
+msgstr "无法作为 PowerPoint 文件读取"
+
+#: crates/fuu-preview/src/pptx.rs:310
+msgid "There are no slides"
+msgstr "没有幻灯片"
+
+#: crates/fuu-preview/src/pptx.rs:375
+msgid "Slide {}"
+msgstr "幻灯片 {}"
+
+#: crates/fuu-preview/src/pptx.rs:379
+msgid "Showing the first {1} of {0} slides"
+msgstr "显示共 {0} 张中的前 {1} 张幻灯片"
+
+#: crates/fuu-preview/src/pptx.rs:381
+msgid "Slides: {0}"
+msgstr "{0} 张幻灯片"
+
+#: crates/fuu-preview/src/xlsx.rs:159
+msgid "There are no sheets"
+msgstr "没有工作表"
+
+#: crates/fuu-preview/src/xlsx.rs:163
+msgid "Showing the first {1} of {0} sheets"
+msgstr "显示共 {0} 个中的前 {1} 个工作表"
+
+#: crates/fuu-preview/src/xlsx.rs:168
+msgid "This sheet covers too large an area to show"
+msgstr "此工作表范围过大，不予显示"
+
+#: crates/fuu-preview/src/xlsx.rs:174
+msgid "This sheet cannot be read ({0})"
+msgstr "无法读取此工作表（{0}）"
+
+#: crates/fuu-preview/src/xlsx.rs:193
+msgid "(empty sheet)"
+msgstr "（空工作表）"
+
+#: crates/fuu-preview/src/xlsx.rs:244
+msgid "Showing {2} rows × {3} columns of {0} × {1}"
+msgstr "显示 {0} 行 × {1} 列中的 {2} 行 × {3} 列"

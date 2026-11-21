@@ -258,7 +258,7 @@ export component NavItem inherits Rectangle {
 
 export component SearchField inherits Rectangle {
     in-out property <string> text;
-    in property <string> placeholder: "検索";
+    in property <string> placeholder: @tr("Search");
     height: 30px;
     clip: true;
     border-radius: Theme.radius-m;
@@ -391,7 +391,7 @@ export component Dialog inherits Rectangle {
             HorizontalLayout {
                 alignment: end;
                 spacing: 8px;
-                if root.show-cancel: SecondaryButton { text: "キャンセル"; clicked => { root.cancelled(); } }
+                if root.show-cancel: SecondaryButton { text: @tr("Cancel"); clicked => { root.cancelled(); } }
                 PrimaryButton { text: root.confirm-label; clicked => { root.confirmed(); } }
             }
         }
